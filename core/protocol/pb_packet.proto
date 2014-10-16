@@ -1,0 +1,43 @@
+package stream_switch;
+
+enum ProtoPacketType {
+    PROTO_PACKET_TYPE_REQUEST = 0;
+    PROTO_PACKET_TYPE_REPLY = 1;
+    PROTO_PACKET_TYPE_MESSAGE = 2;
+}
+
+//status code used in reply, which is compatible with HTTP definition
+enum ProtoPacketStatus {
+    PROTO_PACKET_STATUS_OK = 200;
+    PROTO_PACKET_STATUS_BAD_REQUEST = 400;
+    PROTO_PACKET_STATUS_INTERNAL_ERR = 500;
+}
+
+//operation code in the packet
+enum ProtoPacketCode {
+    PROTO_PACKET_CODE_INVALID = 0;
+
+
+    PROTO_PACKET_CODE_METADATA = 1;
+    PROTO_PACKET_CODE_MEDIA = 2;	
+    PROTO_PACKET_CODE_SOURCE_INFO = 3;		
+    PROTO_PACKET_CODE_KEY_FRAME = 4;
+    PROTO_PACKET_CODE_CLIENT_INFO = 5;	
+	
+    //above 255 is for user extension
+}
+
+
+
+message ProtoCommonHeader{
+    optional int32 version = 1 [default = 1];   //version number
+    optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];	
+    optional ProtoPacketCode code = 3 [default = PROTO_PACKET_TYPE_REQUEST];	 // operation code, it is used to identify the body type in the packet
+    optional int32 seq = 4  [default = 0];   // match request/reply, no meaning for message type
+    optional ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, means the operation result	
+    optional string info = 6 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, describes the result in text	
+}
+
+message ProtoCommonPacket{
+    optional ProtoCommonHeader header = 1;
+}
