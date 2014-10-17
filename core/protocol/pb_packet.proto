@@ -32,10 +32,10 @@ enum ProtoPacketCode {
 message ProtoCommonHeader{
     optional int32 version = 1 [default = 1];   //version number
     optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];	
-    optional ProtoPacketCode code = 3 [default = PROTO_PACKET_TYPE_REQUEST];	 // operation code, it is used to identify the body type in the packet
+    optional ProtoPacketCode code = 3 [default = PROTO_PACKET_CODE_INVALID];	 // operation code, it is used to identify the body type in the packet
     optional int32 seq = 4  [default = 0];   // match request/reply, no meaning for message type
     optional ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, means the operation result	
-    optional string info = 6 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, describes the result in text	
+    optional string info = 6; // only valid in reply packet, describes the result in text	
 }
 
 message ProtoCommonPacket{
