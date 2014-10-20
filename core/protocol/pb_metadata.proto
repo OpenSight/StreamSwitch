@@ -1,5 +1,28 @@
 package stream_switch;
 
+
+enum ProtoPlayType{
+    PROTO_PLAY_TYPE_LIVE = 0;
+	PROTO_PLAY_TYPE_REPLAY = 1;
+	
+}
+
+
+
+
+message ProtoMetaReq{
+    //no param for now
+}
+
+
+message ProtoMetaRep{
+    optional ProtoPlayType play_type = 1 [default = 0];  //playing type
+    optional string source_proto = 2 [default = ""];  //the protocol used by this source
+    optional uint32 kbps = 3 [default = 0]; //estimated kbps for the total throughput of all streams
+	
+}
+
+
 enum ProtoPacketType {
     PROTO_PACKET_TYPE_REQUEST = 0;
     PROTO_PACKET_TYPE_REPLY = 1;
@@ -19,7 +42,6 @@ enum ProtoPacketCode {
 
 
     PROTO_PACKET_CODE_METADATA = 1;
-	
     PROTO_PACKET_CODE_MEDIA = 2;	
     PROTO_PACKET_CODE_SOURCE_INFO = 3;		
     PROTO_PACKET_CODE_KEY_FRAME = 4;
@@ -33,7 +55,7 @@ enum ProtoPacketCode {
 message ProtoCommonHeader{
     optional int32 version = 1 [default = 1];   //version number
     optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];	
-    optional int32 code = 3 [default = PROTO_PACKET_CODE_INVALID];	 // operation code, it is used to identify the body type in the packet
+    optional ProtoPacketCode code = 3 [default = PROTO_PACKET_CODE_INVALID];	 // operation code, it is used to identify the body type in the packet
     optional int32 seq = 4  [default = 0];   // match request/reply, no meaning for message type
     optional ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, means the operation result	
     optional string info = 6; // only valid in reply packet, describes the result in text	
@@ -41,5 +63,4 @@ message ProtoCommonHeader{
 
 message ProtoCommonPacket{
     optional ProtoCommonHeader header = 1;
-	optional bytes body = 2;
 }
