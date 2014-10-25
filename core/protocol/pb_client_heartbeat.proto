@@ -1,0 +1,21 @@
+package stream_switch;
+
+
+enum ProtoClientIPVersion {
+    PROTO_IP_VERSION_V4 = 0;
+    PROTO_IP_VERSION_V6 = 1;    
+}
+
+
+message ProtoClientHeartbeatReq{        
+    optional ProtoClientIPVersion client_ip_version = 1;         //client IP version
+    optional string client_ip = 2;       // client ip address, ipv4/ipv6
+    optional int32 client_port = 3;      //client source port
+    optional string client_protocol = 5; //stream media protocol used by the client
+    optional string client_text = 6;  // text to describe this connected client
+}   // client_ip + client_port + client_token uniquely identify a connected client
+
+message ProtoClientHeartbeatRep{        
+    optional int32 lease = 1;     //lease (in sec) for this heartbeat. After the lease time, the client described by this request would be no longer valid in source
+    
+}

@@ -1,0 +1,32 @@
+package stream_switch;
+
+import "pb_client_heartbeat.proto";
+import "pb_metadata.proto";
+
+enum ProtoSourceStreamState {
+    PROTO_SOURCE_STREAM_STATE_CONNECTING = 1;        //the connection is being established now
+    PROTO_SOURCE_STREAM_STATE_OK = 0;                //connection has been established, and media data is transfer now
+    
+    
+    //error state
+    PROTO_SOURCE_STREAM_STATE_ERR = -1;              //general error
+    PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL = -2;    //connect the source failed
+    PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP = -3;    //stop to receive the media data
+    PROTO_SOURCE_STREAM_STATE_ERR_TIME = -4;          //timestamp loss sync
+    
+}
+
+message ProtoStreamInfoMsg{
+    optional ProtoSourceStreamState state = 1;
+    optional ProtoPlayType play_type = 2;  //playing type of this stream
+    optional string source_proto = 3;  //the protocol of this source
+    optional uint32 ssrc = 4; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
+                                              //otherwise the media frame cannot be described by this meta data
+    optional uint32 bps = 5;  //estimated bps for the total throughput of this stream
+    optional int64 last_frame_sec = 6;
+    optional int32 last_frame_usec = 7;
+    repeated ProtoClientHeartbeatReq clients = 20;
+
+}   
+
+

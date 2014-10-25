@@ -19,12 +19,12 @@ enum ProtoPacketCode {
 
 
     PROTO_PACKET_CODE_METADATA = 1;
-	
-    PROTO_PACKET_CODE_MEDIA = 2;	
-    PROTO_PACKET_CODE_SOURCE_INFO = 3;		
-    PROTO_PACKET_CODE_KEY_FRAME = 4;
-    PROTO_PACKET_CODE_CLIENT_INFO = 5;	
-	
+    PROTO_PACKET_CODE_MEDIA = 2;
+    PROTO_PACKET_CODE_STREAM_INFO = 3;
+    PROTO_PACKET_CODE_KEY_FRAME = 4;    //no body in REQ/REP
+    PROTO_PACKET_CODE_CLIENT_HEARTBEAT = 5;
+    PROTO_PACKET_CODE_MEDIA_STATISTIC = 6;    
+
     //above 255 is for user extension
 }
 
@@ -32,14 +32,14 @@ enum ProtoPacketCode {
 
 message ProtoCommonHeader{
     optional uint32 version = 1 [default = 1];   //version number
-    optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];	
-    optional int32 code = 3 [default = PROTO_PACKET_CODE_INVALID];	 // operation code, it is used to identify the body type in the packet
+    optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];
+    optional int32 code = 3 [default = 0];  // operation code, it is used to identify the body type in the packet
     optional uint32 seq = 4  [default = 0];   // match request/reply, no meaning for message type
     optional ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, means the operation result	
-    optional string info = 6; // only valid in reply packet, describes the result in text	
+    optional string info = 6; // only valid in reply packet, describes the result in text
 }
 
 message ProtoCommonPacket{
     optional ProtoCommonHeader header = 1;
-	optional bytes body = 2;
+    optional bytes body = 2;
 }

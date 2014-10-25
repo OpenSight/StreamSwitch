@@ -1,0 +1,24 @@
+package stream_switch;
+
+
+enum ProtoMediaFrameType {
+    PROTO_MEDIA_FRAME_KEY_FRAME = 0;      //The key frame of this stream
+    PROTO_MEDIA_FRAME_DATA_FRAME = 1;     //normal data frame of the stream
+    PROTO_MEDIA_FRAME_PARAM_FRAME = 2;    //frame only include some codec parameter of the stream
+    PROTO_MEDIA_FRAME_EOF_FRAME = 3;      //A special frame type means reach the end of the media stream, no valid media data in this message
+}
+
+
+message ProtoMediaFrameReq{         //for replay 
+    //no param for now
+}
+
+message ProtoMediaFrameMsg{        //for live publish message and replay response
+    optional int32 stream_index = 1;     //which stream this frame belong to
+    optional int64 sec = 2;              //the pts of this frame
+    optional int32 usec = 3;             //the pts of this frame
+    optional ProtoMediaFrameType frame_type = 4;  //this frame type
+    optional uint32 ssrc = 5;                //ssrc of the frame
+    optional bytes data = 10;                 //frame data
+
+}

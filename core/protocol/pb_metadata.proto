@@ -3,39 +3,40 @@ package stream_switch;
 
 enum ProtoPlayType{
     PROTO_PLAY_TYPE_LIVE = 0;
-	PROTO_PLAY_TYPE_REPLAY = 1;
-	
+    PROTO_PLAY_TYPE_REPLAY = 1;
+
 }
 
-enum ProtoStreamType{
-    PROTO_STREAM_TYPE_VIDEO = 0;
-	PROTO_STREAM_TYPE_AUDIO = 1;
-	PROTO_STREAM_TYPE_TEXT = 2;	
-	PROTO_STREAM_TYPE_PRIVATE = 3;		
+enum ProtoSubStreamMediaType{
+    PROTO_SUB_STREAM_MEIDA_TYPE_VIDEO = 0;
+    PROTO_SUB_STREAM_MEIDA_TYPE_AUDIO = 1;
+    PROTO_SUB_STREAM_MEIDA_TYPE_TEXT = 2;
+    PROTO_SUB_STREAM_MEIDA_TYPE_PRIVATE = 3;
 }
 
 
-message ProtoStreamInfo{
-	optional ProtoStreamType stream_type = 1; //the type of this stream
-	optional string codec_name = 2 [ default = "h264" ]; //encoding name for video/audio, compatible with MINE subtype
-	optional bytes extra_data = 3; // extra information for this stream, it's determined by stream type and codec
+message ProtoSubStreamInfo{
+    optional int32 sub_stream_index = 1; 
+    optional ProtoSubStreamMediaType media_type = 2; //the type of this sub stream
+    optional string codec_name = 3 [ default = "h264" ]; //encoding name for video/audio, compatible with MINE subtype
+    optional bytes extra_data = 4; // extra information for this sub stream, it's determined by stream type and codec
 
-	//for video common parameter
-	optional uint32 height = 4;  //frame height
-	optional uint32 width = 5;   //frame width
-	optional uint32 fps = 6;     
-	optional uint32 gov = 7;    
-	
-	//for audio common parameter
-	optional uint32 samples_per_second = 8; //sample frequency, Hz
-	optional uint32 channels = 9; //channel number
-	optional uint32 bits_per_sample = 10; // bits per sample
-	
-	//for text common parameter
-	optional uint32 x = 11;
-	optional uint32 y = 12;
-	optional uint32 size = 13;   //font size 
-	optional string font = 14;   //font type name	
+    //for video common parameter
+    optional uint32 height = 20;  //frame height
+    optional uint32 width = 21;   //frame width
+    optional uint32 fps = 22;     
+    optional uint32 gov = 23;    
+    
+    //for audio common parameter
+    optional uint32 samples_per_second = 30; //sample frequency, Hz
+    optional uint32 channels = 31; //channel number
+    optional uint32 bits_per_sample = 32; // bits per sample
+
+    //for text common parameter
+    optional uint32 x = 40;
+    optional uint32 y = 41;
+    optional uint32 size = 42;   //font size 
+    optional string font = 43;   //font type name
 }
 
 
@@ -45,11 +46,11 @@ message ProtoMetaReq{
 
 
 message ProtoMetaRep{
-    optional ProtoPlayType play_type = 1 [default = 0];  //playing type
-    optional string source_proto = 2 [default = ""];  //the protocol used by this source
-	optional uint32 ssrc = 3 [default = 0 ]; //ssrc of the media source by this meta data, if the receive media data must has the same ssrc with this, 
-	                                         //otherwise the media data cannot be described by this meta data
-    optional uint32 kbps = 4 [default = 0]; //estimated kbps for the total throughput of all streams
-	repeated ProtoStreamInfo streams;
-	
+    optional ProtoPlayType play_type = 1 ;  //playing type of this stream
+    optional string source_proto = 2;  //the protocol of this source
+    optional uint32 ssrc = 3; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
+                                              //otherwise the media frame cannot be described by this meta data
+    optional uint32 bps = 4 ; //estimated bps for the total throughput of this stream
+    repeated ProtoSubStreamInfo sub_streams = 5;
+
 }
