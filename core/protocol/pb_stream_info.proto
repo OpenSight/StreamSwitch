@@ -25,7 +25,9 @@ message ProtoStreamInfoMsg{
     optional uint32 bps = 5;  //estimated bps for the total throughput of this stream
     optional int64 last_frame_sec = 6;
     optional int32 last_frame_usec = 7;
-    repeated ProtoClientHeartbeatReq clients = 20;
+    //tag below 64 is reserved to future extension
+    
+    repeated ProtoClientHeartbeatReq clients = 64;
 
 }   
 

@@ -5,7 +5,8 @@ enum ProtoMediaFrameType {
     PROTO_MEDIA_FRAME_KEY_FRAME = 0;      //The key frame of this stream
     PROTO_MEDIA_FRAME_DATA_FRAME = 1;     //normal data frame of the stream
     PROTO_MEDIA_FRAME_PARAM_FRAME = 2;    //frame only include some codec parameter of the stream
-    PROTO_MEDIA_FRAME_EOF_FRAME = 3;      //A special frame type means reach the end of the media stream, no valid media data in this message
+    
+    PROTO_MEDIA_FRAME_EOF_FRAME = 256;      //A special frame type means reach the end of the media stream, no valid media data in this message
 }
 
 
@@ -19,6 +20,9 @@ message ProtoMediaFrameMsg{        //for live publish message and replay respons
     optional int32 usec = 3;             //the pts of this frame
     optional ProtoMediaFrameType frame_type = 4;  //this frame type
     optional uint32 ssrc = 5;                //ssrc of the frame
-    optional bytes data = 10;                 //frame data
+    optional uint64 seq = 6;                 //sequence number of this frame
+    //tag below 64 is reserved to future extension
+    
+    optional bytes data = 64;                //frame data
 
 }

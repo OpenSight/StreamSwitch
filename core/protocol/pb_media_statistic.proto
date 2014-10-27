@@ -1,0 +1,41 @@
+package stream_switch;
+
+import "pb_metadata.proto";
+
+message ProtoMediaStatisticReq{
+    //no param now
+}
+
+
+message ProtoSubStreamMediaStatistic{
+
+    optional int32 sub_stream_index = 1; 
+    optional ProtoSubStreamMediaType media_type = 2; //the type of this sub stream
+    
+    //about packets
+    optional uint64 total_packets = 10;        //the total packet number should be received of this sub stream
+    optional uint64 receive_packets  = 11;     //the packet number practically be received of this sub stream
+    
+    //about bytes
+    optional uint64 received_bytes = 20;  //the bytes received of this sub stream
+    optional uint64 key_frame_bytes = 21; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
+    
+    //about frame
+    optional uint64 received_frames = 30;    // the received frame number
+    optional uint64 received_key_frames = 31;   // the received key frame number
+    optional uint64 last_gov = 32;           //last gov
+} 
+
+
+message ProtoMediaStatisticRep{
+    optional uint32 ssrc = 1;
+    optional int64 timestamp = 2;   //the statistic generation time
+    optional uint64 total_bytes = 3;  //total bytes received of all sub streams
+    //tag below 64 is reserved to future extension
+    
+    repeated ProtoSubStreamMediaStatistic sub_stream_stats = 64;   
+
+
+}   
+
+

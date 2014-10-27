@@ -51,6 +51,8 @@ message ProtoMetaRep{
     optional uint32 ssrc = 3; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
                                               //otherwise the media frame cannot be described by this meta data
     optional uint32 bps = 4 ; //estimated bps for the total throughput of this stream
-    repeated ProtoSubStreamInfo sub_streams = 5;
+    //tag below 64 is reserved to future extension    
+    
+    repeated ProtoSubStreamInfo sub_streams = 64;
 
 }
