@@ -15,12 +15,22 @@ enum ProtoSubStreamMediaType{
 }
 
 
+enum ProtoSubStreamDirectionType{
+    PROTO_SUB_STREAM_DIRECTION_OUTBOUND = 0;
+    PROTO_SUB_STREAM_DIRECTION_INBOUND = 1;  // to support send audio from client to the  source
+}
+
 message ProtoSubStreamInfo{
-    optional int32 sub_stream_index = 1; 
+    optional int32 index = 1; 
     optional ProtoSubStreamMediaType media_type = 2; //the type of this sub stream
     optional string codec_name = 3 [ default = "h264" ]; //encoding name for video/audio, compatible with MINE subtype
-    optional bytes extra_data = 4; // extra information for this sub stream, it's determined by stream type and codec
+    optional ProtoSubStreamDirectionType direction = 4;
+    
+    
+    optional bytes extra_data = 10; // extra information for this sub stream, it's determined by stream type and codec
 
+    //following parameter, 0 means unknown
+    
     //for video common parameter
     optional uint32 height = 20;  //frame height
     optional uint32 width = 21;   //frame width
@@ -31,12 +41,13 @@ message ProtoSubStreamInfo{
     optional uint32 samples_per_second = 30; //sample frequency, Hz
     optional uint32 channels = 31; //channel number
     optional uint32 bits_per_sample = 32; // bits per sample
+    optional uint32 sampele_per_frame = 33; // sample per frame
 
     //for text common parameter
     optional uint32 x = 40;
     optional uint32 y = 41;
-    optional uint32 size = 42;   //font size 
-    optional string font = 43;   //font type name
+    optional uint32 fone_size = 42;   //font size 
+    optional string font_type = 43;   //font type name
 }
 
 
