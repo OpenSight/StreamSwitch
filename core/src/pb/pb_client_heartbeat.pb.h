@@ -161,6 +161,13 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   inline ::std::string* release_client_text();
   inline void set_allocated_client_text(::std::string* client_text);
 
+  // optional int64 last_active_time = 7;
+  inline bool has_last_active_time() const;
+  inline void clear_last_active_time();
+  static const int kLastActiveTimeFieldNumber = 7;
+  inline ::google::protobuf::int64 last_active_time() const;
+  inline void set_last_active_time(::google::protobuf::int64 value);
+
   // @@protoc_insertion_point(class_scope:stream_switch.ProtoClientHeartbeatReq)
  private:
   inline void set_has_client_ip_version();
@@ -173,6 +180,8 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   inline void clear_has_client_protocol();
   inline void set_has_client_text();
   inline void clear_has_client_text();
+  inline void set_has_last_active_time();
+  inline void clear_has_last_active_time();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -183,6 +192,7 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   ::google::protobuf::int32 client_port_;
   ::std::string* client_protocol_;
   ::std::string* client_text_;
+  ::google::protobuf::int64 last_active_time_;
   friend void  protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto();
   friend void protobuf_AssignDesc_pb_5fclient_5fheartbeat_2eproto();
   friend void protobuf_ShutdownFile_pb_5fclient_5fheartbeat_2eproto();
@@ -551,6 +561,30 @@ inline void ProtoClientHeartbeatReq::set_allocated_client_text(::std::string* cl
     client_text_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   }
   // @@protoc_insertion_point(field_set_allocated:stream_switch.ProtoClientHeartbeatReq.client_text)
+}
+
+// optional int64 last_active_time = 7;
+inline bool ProtoClientHeartbeatReq::has_last_active_time() const {
+  return (_has_bits_[0] & 0x00000020u) != 0;
+}
+inline void ProtoClientHeartbeatReq::set_has_last_active_time() {
+  _has_bits_[0] |= 0x00000020u;
+}
+inline void ProtoClientHeartbeatReq::clear_has_last_active_time() {
+  _has_bits_[0] &= ~0x00000020u;
+}
+inline void ProtoClientHeartbeatReq::clear_last_active_time() {
+  last_active_time_ = GOOGLE_LONGLONG(0);
+  clear_has_last_active_time();
+}
+inline ::google::protobuf::int64 ProtoClientHeartbeatReq::last_active_time() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoClientHeartbeatReq.last_active_time)
+  return last_active_time_;
+}
+inline void ProtoClientHeartbeatReq::set_last_active_time(::google::protobuf::int64 value) {
+  set_has_last_active_time();
+  last_active_time_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoClientHeartbeatReq.last_active_time)
 }
 
 // -------------------------------------------------------------------

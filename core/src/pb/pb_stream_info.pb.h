@@ -149,12 +149,12 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 ssrc() const;
   inline void set_ssrc(::google::protobuf::uint32 value);
 
-  // optional uint32 bps = 5;
-  inline bool has_bps() const;
-  inline void clear_bps();
-  static const int kBpsFieldNumber = 5;
-  inline ::google::protobuf::uint32 bps() const;
-  inline void set_bps(::google::protobuf::uint32 value);
+  // optional uint32 cur_bps = 5;
+  inline bool has_cur_bps() const;
+  inline void clear_cur_bps();
+  static const int kCurBpsFieldNumber = 5;
+  inline ::google::protobuf::uint32 cur_bps() const;
+  inline void set_cur_bps(::google::protobuf::uint32 value);
 
   // optional int64 last_frame_sec = 6;
   inline bool has_last_frame_sec() const;
@@ -192,8 +192,8 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline void clear_has_source_proto();
   inline void set_has_ssrc();
   inline void clear_has_ssrc();
-  inline void set_has_bps();
-  inline void clear_has_bps();
+  inline void set_has_cur_bps();
+  inline void clear_has_cur_bps();
   inline void set_has_last_frame_sec();
   inline void clear_has_last_frame_sec();
   inline void set_has_last_frame_usec();
@@ -207,7 +207,7 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   int play_type_;
   ::std::string* source_proto_;
   ::google::protobuf::uint32 ssrc_;
-  ::google::protobuf::uint32 bps_;
+  ::google::protobuf::uint32 cur_bps_;
   ::google::protobuf::int64 last_frame_sec_;
   ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq > clients_;
   ::google::protobuf::int32 last_frame_usec_;
@@ -375,28 +375,28 @@ inline void ProtoStreamInfoMsg::set_ssrc(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.ssrc)
 }
 
-// optional uint32 bps = 5;
-inline bool ProtoStreamInfoMsg::has_bps() const {
+// optional uint32 cur_bps = 5;
+inline bool ProtoStreamInfoMsg::has_cur_bps() const {
   return (_has_bits_[0] & 0x00000010u) != 0;
 }
-inline void ProtoStreamInfoMsg::set_has_bps() {
+inline void ProtoStreamInfoMsg::set_has_cur_bps() {
   _has_bits_[0] |= 0x00000010u;
 }
-inline void ProtoStreamInfoMsg::clear_has_bps() {
+inline void ProtoStreamInfoMsg::clear_has_cur_bps() {
   _has_bits_[0] &= ~0x00000010u;
 }
-inline void ProtoStreamInfoMsg::clear_bps() {
-  bps_ = 0u;
-  clear_has_bps();
+inline void ProtoStreamInfoMsg::clear_cur_bps() {
+  cur_bps_ = 0u;
+  clear_has_cur_bps();
 }
-inline ::google::protobuf::uint32 ProtoStreamInfoMsg::bps() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.bps)
-  return bps_;
+inline ::google::protobuf::uint32 ProtoStreamInfoMsg::cur_bps() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.cur_bps)
+  return cur_bps_;
 }
-inline void ProtoStreamInfoMsg::set_bps(::google::protobuf::uint32 value) {
-  set_has_bps();
-  bps_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.bps)
+inline void ProtoStreamInfoMsg::set_cur_bps(::google::protobuf::uint32 value) {
+  set_has_cur_bps();
+  cur_bps_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.cur_bps)
 }
 
 // optional int64 last_frame_sec = 6;

@@ -22,7 +22,7 @@ message ProtoStreamInfoMsg{
     optional string source_proto = 3;  //the protocol of this source
     optional uint32 ssrc = 4; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
                                               //otherwise the media frame cannot be described by this meta data
-    optional uint32 bps = 5;  //estimated bps for the total throughput of this stream
+    optional uint32 cur_bps = 5;  //the last 1 sec bps for the total throughput of this stream
     optional int64 last_frame_sec = 6;
     optional int32 last_frame_usec = 7;
     //tag below 64 is reserved to future extension

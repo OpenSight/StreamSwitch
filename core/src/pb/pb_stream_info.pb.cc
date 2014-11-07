@@ -40,7 +40,7 @@ void protobuf_AssignDesc_pb_5fstream_5finfo_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, play_type_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, source_proto_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, ssrc_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, bps_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, cur_bps_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, last_frame_sec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, last_frame_usec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, clients_),
@@ -91,21 +91,21 @@ void protobuf_AddDesc_pb_5fstream_5finfo_2eproto() {
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\024pb_stream_info.proto\022\rstream_switch\032\031p"
     "b_client_heartbeat.proto\032\021pb_metadata.pr"
-    "oto\"\226\002\n\022ProtoStreamInfoMsg\0224\n\005state\030\001 \001("
+    "oto\"\232\002\n\022ProtoStreamInfoMsg\0224\n\005state\030\001 \001("
     "\0162%.stream_switch.ProtoSourceStreamState"
     "\022/\n\tplay_type\030\002 \001(\0162\034.stream_switch.Prot"
     "oPlayType\022\024\n\014source_proto\030\003 \001(\t\022\014\n\004ssrc\030"
-    "\004 \001(\r\022\013\n\003bps\030\005 \001(\r\022\026\n\016last_frame_sec\030\006 \001"
-    "(\003\022\027\n\017last_frame_usec\030\007 \001(\005\0227\n\007clients\030@"
-    " \003(\0132&.stream_switch.ProtoClientHeartbea"
-    "tReq*\261\002\n\026ProtoSourceStreamState\022(\n$PROTO"
-    "_SOURCE_STREAM_STATE_CONNECTING\020\001\022 \n\034PRO"
-    "TO_SOURCE_STREAM_STATE_OK\020\000\022*\n\035PROTO_SOU"
-    "RCE_STREAM_STATE_ERR\020\377\377\377\377\377\377\377\377\377\001\0227\n*PROTO"
-    "_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL\020\376\377"
-    "\377\377\377\377\377\377\377\001\0225\n(PROTO_SOURCE_STREAM_STATE_ER"
-    "R_MEIDA_STOP\020\375\377\377\377\377\377\377\377\377\001\022/\n\"PROTO_SOURCE_"
-    "STREAM_STATE_ERR_TIME\020\374\377\377\377\377\377\377\377\377\001", 672);
+    "\004 \001(\r\022\017\n\007cur_bps\030\005 \001(\r\022\026\n\016last_frame_sec"
+    "\030\006 \001(\003\022\027\n\017last_frame_usec\030\007 \001(\005\0227\n\007clien"
+    "ts\030@ \003(\0132&.stream_switch.ProtoClientHear"
+    "tbeatReq*\261\002\n\026ProtoSourceStreamState\022(\n$P"
+    "ROTO_SOURCE_STREAM_STATE_CONNECTING\020\001\022 \n"
+    "\034PROTO_SOURCE_STREAM_STATE_OK\020\000\022*\n\035PROTO"
+    "_SOURCE_STREAM_STATE_ERR\020\377\377\377\377\377\377\377\377\377\001\0227\n*P"
+    "ROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAI"
+    "L\020\376\377\377\377\377\377\377\377\377\001\0225\n(PROTO_SOURCE_STREAM_STAT"
+    "E_ERR_MEIDA_STOP\020\375\377\377\377\377\377\377\377\377\001\022/\n\"PROTO_SOU"
+    "RCE_STREAM_STATE_ERR_TIME\020\374\377\377\377\377\377\377\377\377\001", 676);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_stream_info.proto", &protobuf_RegisterTypes);
   ProtoStreamInfoMsg::default_instance_ = new ProtoStreamInfoMsg();
@@ -145,7 +145,7 @@ const int ProtoStreamInfoMsg::kStateFieldNumber;
 const int ProtoStreamInfoMsg::kPlayTypeFieldNumber;
 const int ProtoStreamInfoMsg::kSourceProtoFieldNumber;
 const int ProtoStreamInfoMsg::kSsrcFieldNumber;
-const int ProtoStreamInfoMsg::kBpsFieldNumber;
+const int ProtoStreamInfoMsg::kCurBpsFieldNumber;
 const int ProtoStreamInfoMsg::kLastFrameSecFieldNumber;
 const int ProtoStreamInfoMsg::kLastFrameUsecFieldNumber;
 const int ProtoStreamInfoMsg::kClientsFieldNumber;
@@ -174,7 +174,7 @@ void ProtoStreamInfoMsg::SharedCtor() {
   play_type_ = 0;
   source_proto_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ssrc_ = 0u;
-  bps_ = 0u;
+  cur_bps_ = 0u;
   last_frame_sec_ = GOOGLE_LONGLONG(0);
   last_frame_usec_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -322,18 +322,18 @@ bool ProtoStreamInfoMsg::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(40)) goto parse_bps;
+        if (input->ExpectTag(40)) goto parse_cur_bps;
         break;
       }
 
-      // optional uint32 bps = 5;
+      // optional uint32 cur_bps = 5;
       case 5: {
         if (tag == 40) {
-         parse_bps:
+         parse_cur_bps:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
-                 input, &bps_)));
-          set_has_bps();
+                 input, &cur_bps_)));
+          set_has_cur_bps();
         } else {
           goto handle_unusual;
         }
@@ -437,9 +437,9 @@ void ProtoStreamInfoMsg::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->ssrc(), output);
   }
 
-  // optional uint32 bps = 5;
-  if (has_bps()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(5, this->bps(), output);
+  // optional uint32 cur_bps = 5;
+  if (has_cur_bps()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(5, this->cur_bps(), output);
   }
 
   // optional int64 last_frame_sec = 6;
@@ -496,9 +496,9 @@ void ProtoStreamInfoMsg::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->ssrc(), target);
   }
 
-  // optional uint32 bps = 5;
-  if (has_bps()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(5, this->bps(), target);
+  // optional uint32 cur_bps = 5;
+  if (has_cur_bps()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(5, this->cur_bps(), target);
   }
 
   // optional int64 last_frame_sec = 6;
@@ -556,11 +556,11 @@ int ProtoStreamInfoMsg::ByteSize() const {
           this->ssrc());
     }
 
-    // optional uint32 bps = 5;
-    if (has_bps()) {
+    // optional uint32 cur_bps = 5;
+    if (has_cur_bps()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
-          this->bps());
+          this->cur_bps());
     }
 
     // optional int64 last_frame_sec = 6;
@@ -625,8 +625,8 @@ void ProtoStreamInfoMsg::MergeFrom(const ProtoStreamInfoMsg& from) {
     if (from.has_ssrc()) {
       set_ssrc(from.ssrc());
     }
-    if (from.has_bps()) {
-      set_bps(from.bps());
+    if (from.has_cur_bps()) {
+      set_cur_bps(from.cur_bps());
     }
     if (from.has_last_frame_sec()) {
       set_last_frame_sec(from.last_frame_sec());
@@ -661,7 +661,7 @@ void ProtoStreamInfoMsg::Swap(ProtoStreamInfoMsg* other) {
     std::swap(play_type_, other->play_type_);
     std::swap(source_proto_, other->source_proto_);
     std::swap(ssrc_, other->ssrc_);
-    std::swap(bps_, other->bps_);
+    std::swap(cur_bps_, other->cur_bps_);
     std::swap(last_frame_sec_, other->last_frame_sec_);
     std::swap(last_frame_usec_, other->last_frame_usec_);
     clients_.Swap(&other->clients_);

@@ -13,6 +13,7 @@ message ProtoClientHeartbeatReq{
     optional int32 client_port = 3;      //client source port
     optional string client_protocol = 5; //stream media protocol used by the client
     optional string client_text = 6;  // text to describe this connected client
+    optional int64 last_active_time = 7; //last active timestamp of this client
 }   // client_ip + client_port + client_token uniquely identify a connected client
 
 message ProtoClientHeartbeatRep{        

@@ -38,12 +38,13 @@ void protobuf_AssignDesc_pb_5fclient_5fheartbeat_2eproto() {
       "pb_client_heartbeat.proto");
   GOOGLE_CHECK(file != NULL);
   ProtoClientHeartbeatReq_descriptor_ = file->message_type(0);
-  static const int ProtoClientHeartbeatReq_offsets_[5] = {
+  static const int ProtoClientHeartbeatReq_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_ip_version_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_ip_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_port_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_protocol_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_text_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, last_active_time_),
   };
   ProtoClientHeartbeatReq_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -107,14 +108,15 @@ void protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\031pb_client_heartbeat.proto\022\rstream_swit"
-    "ch\"\257\001\n\027ProtoClientHeartbeatReq\022>\n\021client"
+    "ch\"\311\001\n\027ProtoClientHeartbeatReq\022>\n\021client"
     "_ip_version\030\001 \001(\0162#.stream_switch.ProtoC"
     "lientIPVersion\022\021\n\tclient_ip\030\002 \001(\t\022\023\n\013cli"
     "ent_port\030\003 \001(\005\022\027\n\017client_protocol\030\005 \001(\t\022"
-    "\023\n\013client_text\030\006 \001(\t\"(\n\027ProtoClientHeart"
-    "beatRep\022\r\n\005lease\030\001 \001(\005*H\n\024ProtoClientIPV"
-    "ersion\022\027\n\023PROTO_IP_VERSION_V4\020\000\022\027\n\023PROTO"
-    "_IP_VERSION_V6\020\001", 336);
+    "\023\n\013client_text\030\006 \001(\t\022\030\n\020last_active_time"
+    "\030\007 \001(\003\"(\n\027ProtoClientHeartbeatRep\022\r\n\005lea"
+    "se\030\001 \001(\005*H\n\024ProtoClientIPVersion\022\027\n\023PROT"
+    "O_IP_VERSION_V4\020\000\022\027\n\023PROTO_IP_VERSION_V6"
+    "\020\001", 362);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_client_heartbeat.proto", &protobuf_RegisterTypes);
   ProtoClientHeartbeatReq::default_instance_ = new ProtoClientHeartbeatReq();
@@ -153,6 +155,7 @@ const int ProtoClientHeartbeatReq::kClientIpFieldNumber;
 const int ProtoClientHeartbeatReq::kClientPortFieldNumber;
 const int ProtoClientHeartbeatReq::kClientProtocolFieldNumber;
 const int ProtoClientHeartbeatReq::kClientTextFieldNumber;
+const int ProtoClientHeartbeatReq::kLastActiveTimeFieldNumber;
 #endif  // !_MSC_VER
 
 ProtoClientHeartbeatReq::ProtoClientHeartbeatReq()
@@ -179,6 +182,7 @@ void ProtoClientHeartbeatReq::SharedCtor() {
   client_port_ = 0;
   client_protocol_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   client_text_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  last_active_time_ = GOOGLE_LONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -233,7 +237,7 @@ void ProtoClientHeartbeatReq::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 31) {
+  if (_has_bits_[0 / 32] & 63) {
     ZR_(client_ip_version_, client_port_);
     if (has_client_ip()) {
       if (client_ip_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -250,6 +254,7 @@ void ProtoClientHeartbeatReq::Clear() {
         client_text_->clear();
       }
     }
+    last_active_time_ = GOOGLE_LONGLONG(0);
   }
 
 #undef OFFSET_OF_FIELD_
@@ -350,6 +355,21 @@ bool ProtoClientHeartbeatReq::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(56)) goto parse_last_active_time;
+        break;
+      }
+
+      // optional int64 last_active_time = 7;
+      case 7: {
+        if (tag == 56) {
+         parse_last_active_time:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
+                 input, &last_active_time_)));
+          set_has_last_active_time();
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -420,6 +440,11 @@ void ProtoClientHeartbeatReq::SerializeWithCachedSizes(
       6, this->client_text(), output);
   }
 
+  // optional int64 last_active_time = 7;
+  if (has_last_active_time()) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt64(7, this->last_active_time(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -474,6 +499,11 @@ void ProtoClientHeartbeatReq::SerializeWithCachedSizes(
         6, this->client_text(), target);
   }
 
+  // optional int64 last_active_time = 7;
+  if (has_last_active_time()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt64ToArray(7, this->last_active_time(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -520,6 +550,13 @@ int ProtoClientHeartbeatReq::ByteSize() const {
           this->client_text());
     }
 
+    // optional int64 last_active_time = 7;
+    if (has_last_active_time()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::Int64Size(
+          this->last_active_time());
+    }
+
   }
   if (!unknown_fields().empty()) {
     total_size +=
@@ -562,6 +599,9 @@ void ProtoClientHeartbeatReq::MergeFrom(const ProtoClientHeartbeatReq& from) {
     if (from.has_client_text()) {
       set_client_text(from.client_text());
     }
+    if (from.has_last_active_time()) {
+      set_last_active_time(from.last_active_time());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -590,6 +630,7 @@ void ProtoClientHeartbeatReq::Swap(ProtoClientHeartbeatReq* other) {
     std::swap(client_port_, other->client_port_);
     std::swap(client_protocol_, other->client_protocol_);
     std::swap(client_text_, other->client_text_);
+    std::swap(last_active_time_, other->last_active_time_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
