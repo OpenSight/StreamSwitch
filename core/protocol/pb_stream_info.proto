@@ -4,8 +4,8 @@ import "pb_client_heartbeat.proto";
 import "pb_metadata.proto";
 
 enum ProtoSourceStreamState {
-    PROTO_SOURCE_STREAM_STATE_CONNECTING = 1;        //the connection is being established now
-    PROTO_SOURCE_STREAM_STATE_OK = 0;                //connection has been established, and media data is transfer now
+    PROTO_SOURCE_STREAM_STATE_CONNECTING = 0;        //the connection is being established now
+    PROTO_SOURCE_STREAM_STATE_OK = 1;                //connection has been established, and media data is transfer now
     
     
     //error state

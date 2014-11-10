@@ -18,5 +18,5 @@ message ProtoClientHeartbeatReq{
 
 message ProtoClientHeartbeatRep{        
     optional int32 lease = 1;     //lease (in sec) for this heartbeat. After the lease time, the client described by this request would be no longer valid in source
-    
+    optional int64 timestamp = 2; //timestamp on source
 }
