@@ -29,9 +29,6 @@
 #ifndef STSW_STREAM_SOURCE_H
 #define STSW_STREAM_SOURCE_H
 #include<map>
-#include<czmq.h>
-#include<pthreahd.h>
-
 #include<stsw_defs.h>
 #include<stdint.h>
 
@@ -41,6 +38,7 @@ namespace stream_switch {
 class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
 struct ClientListType;
+typedef void * SocketHandle;
     
 class StreamSource{
 public:
@@ -48,7 +46,7 @@ public:
     virtual ~StreamSource();
     
     // The following methods should be invoked by clients
-    virtual int init(int argc, char* argv[]);
+    virtual int init(const std::string &stream_name, int tcp_port);
     virtual void uninit();
     
     virtual void set_stream_meta();
@@ -93,16 +91,18 @@ protected:
     int statistic_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
     int client_heartbeat_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
 
-protected:
-    zsock_t * api_socket;
-    zsock_t * publish_socket;
-    pthread_mutex_t lock;
-    pthread_t * api_thread;
+private:
+    std::string stream_name_;
+    int tcp_port;
+    SocketHandle api_socket;
+    SocketHandle publish_socket;
+    LockHandle lock;
+    ThreadHandle * api_thread;
     SourceApiHanderMap api_handler_map;
     uint32_t flags; /*bit 0: meta data ready*/        
     void * staitistic;
         
-    void * stream_meta;
+    StreamMetadata stream_meta;
     uint32_t cur_bps;
     int64_t last_frame_sec;
     int32_t last_frame_usec;
