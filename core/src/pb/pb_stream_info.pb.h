@@ -39,8 +39,8 @@ void protobuf_ShutdownFile_pb_5fstream_5finfo_2eproto();
 class ProtoStreamInfoMsg;
 
 enum ProtoSourceStreamState {
-  PROTO_SOURCE_STREAM_STATE_CONNECTING = 1,
-  PROTO_SOURCE_STREAM_STATE_OK = 0,
+  PROTO_SOURCE_STREAM_STATE_CONNECTING = 0,
+  PROTO_SOURCE_STREAM_STATE_OK = 1,
   PROTO_SOURCE_STREAM_STATE_ERR = -1,
   PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL = -2,
   PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP = -3,
@@ -48,7 +48,7 @@ enum ProtoSourceStreamState {
 };
 bool ProtoSourceStreamState_IsValid(int value);
 const ProtoSourceStreamState ProtoSourceStreamState_MIN = PROTO_SOURCE_STREAM_STATE_ERR_TIME;
-const ProtoSourceStreamState ProtoSourceStreamState_MAX = PROTO_SOURCE_STREAM_STATE_CONNECTING;
+const ProtoSourceStreamState ProtoSourceStreamState_MAX = PROTO_SOURCE_STREAM_STATE_OK;
 const int ProtoSourceStreamState_ARRAYSIZE = ProtoSourceStreamState_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* ProtoSourceStreamState_descriptor();
@@ -236,7 +236,7 @@ inline void ProtoStreamInfoMsg::clear_has_state() {
   _has_bits_[0] &= ~0x00000001u;
 }
 inline void ProtoStreamInfoMsg::clear_state() {
-  state_ = 1;
+  state_ = 0;
   clear_has_state();
 }
 inline ::stream_switch::ProtoSourceStreamState ProtoStreamInfoMsg::state() const {

@@ -99,8 +99,8 @@ void protobuf_AddDesc_pb_5fstream_5finfo_2eproto() {
     "\030\006 \001(\003\022\027\n\017last_frame_usec\030\007 \001(\005\0227\n\007clien"
     "ts\030@ \003(\0132&.stream_switch.ProtoClientHear"
     "tbeatReq*\261\002\n\026ProtoSourceStreamState\022(\n$P"
-    "ROTO_SOURCE_STREAM_STATE_CONNECTING\020\001\022 \n"
-    "\034PROTO_SOURCE_STREAM_STATE_OK\020\000\022*\n\035PROTO"
+    "ROTO_SOURCE_STREAM_STATE_CONNECTING\020\000\022 \n"
+    "\034PROTO_SOURCE_STREAM_STATE_OK\020\001\022*\n\035PROTO"
     "_SOURCE_STREAM_STATE_ERR\020\377\377\377\377\377\377\377\377\377\001\0227\n*P"
     "ROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAI"
     "L\020\376\377\377\377\377\377\377\377\377\001\0225\n(PROTO_SOURCE_STREAM_STAT"
@@ -170,7 +170,7 @@ ProtoStreamInfoMsg::ProtoStreamInfoMsg(const ProtoStreamInfoMsg& from)
 void ProtoStreamInfoMsg::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  state_ = 1;
+  state_ = 0;
   play_type_ = 0;
   source_proto_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ssrc_ = 0u;
@@ -226,9 +226,8 @@ void ProtoStreamInfoMsg::Clear() {
   } while (0)
 
   if (_has_bits_[0 / 32] & 127) {
+    ZR_(state_, play_type_);
     ZR_(ssrc_, last_frame_sec_);
-    state_ = 1;
-    play_type_ = 0;
     if (has_source_proto()) {
       if (source_proto_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         source_proto_->clear();

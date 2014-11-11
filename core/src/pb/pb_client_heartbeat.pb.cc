@@ -58,8 +58,9 @@ void protobuf_AssignDesc_pb_5fclient_5fheartbeat_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(ProtoClientHeartbeatReq));
   ProtoClientHeartbeatRep_descriptor_ = file->message_type(1);
-  static const int ProtoClientHeartbeatRep_offsets_[1] = {
+  static const int ProtoClientHeartbeatRep_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatRep, lease_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatRep, timestamp_),
   };
   ProtoClientHeartbeatRep_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -113,10 +114,10 @@ void protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto() {
     "lientIPVersion\022\021\n\tclient_ip\030\002 \001(\t\022\023\n\013cli"
     "ent_port\030\003 \001(\005\022\027\n\017client_protocol\030\005 \001(\t\022"
     "\023\n\013client_text\030\006 \001(\t\022\030\n\020last_active_time"
-    "\030\007 \001(\003\"(\n\027ProtoClientHeartbeatRep\022\r\n\005lea"
-    "se\030\001 \001(\005*H\n\024ProtoClientIPVersion\022\027\n\023PROT"
-    "O_IP_VERSION_V4\020\000\022\027\n\023PROTO_IP_VERSION_V6"
-    "\020\001", 362);
+    "\030\007 \001(\003\";\n\027ProtoClientHeartbeatRep\022\r\n\005lea"
+    "se\030\001 \001(\005\022\021\n\ttimestamp\030\002 \001(\003*H\n\024ProtoClie"
+    "ntIPVersion\022\027\n\023PROTO_IP_VERSION_V4\020\000\022\027\n\023"
+    "PROTO_IP_VERSION_V6\020\001", 381);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_client_heartbeat.proto", &protobuf_RegisterTypes);
   ProtoClientHeartbeatReq::default_instance_ = new ProtoClientHeartbeatReq();
@@ -650,6 +651,7 @@ void ProtoClientHeartbeatReq::Swap(ProtoClientHeartbeatReq* other) {
 
 #ifndef _MSC_VER
 const int ProtoClientHeartbeatRep::kLeaseFieldNumber;
+const int ProtoClientHeartbeatRep::kTimestampFieldNumber;
 #endif  // !_MSC_VER
 
 ProtoClientHeartbeatRep::ProtoClientHeartbeatRep()
@@ -671,6 +673,7 @@ ProtoClientHeartbeatRep::ProtoClientHeartbeatRep(const ProtoClientHeartbeatRep& 
 void ProtoClientHeartbeatRep::SharedCtor() {
   _cached_size_ = 0;
   lease_ = 0;
+  timestamp_ = GOOGLE_LONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -706,7 +709,21 @@ ProtoClientHeartbeatRep* ProtoClientHeartbeatRep::New() const {
 }
 
 void ProtoClientHeartbeatRep::Clear() {
-  lease_ = 0;
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<ProtoClientHeartbeatRep*>(16)->f) - \
+   reinterpret_cast<char*>(16))
+
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
+
+  ZR_(timestamp_, lease_);
+
+#undef OFFSET_OF_FIELD_
+#undef ZR_
+
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -728,6 +745,21 @@ bool ProtoClientHeartbeatRep::MergePartialFromCodedStream(
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
                  input, &lease_)));
           set_has_lease();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_timestamp;
+        break;
+      }
+
+      // optional int64 timestamp = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_timestamp:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
+                 input, &timestamp_)));
+          set_has_timestamp();
         } else {
           goto handle_unusual;
         }
@@ -765,6 +797,11 @@ void ProtoClientHeartbeatRep::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt32(1, this->lease(), output);
   }
 
+  // optional int64 timestamp = 2;
+  if (has_timestamp()) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt64(2, this->timestamp(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -778,6 +815,11 @@ void ProtoClientHeartbeatRep::SerializeWithCachedSizes(
   // optional int32 lease = 1;
   if (has_lease()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(1, this->lease(), target);
+  }
+
+  // optional int64 timestamp = 2;
+  if (has_timestamp()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt64ToArray(2, this->timestamp(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -797,6 +839,13 @@ int ProtoClientHeartbeatRep::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::Int32Size(
           this->lease());
+    }
+
+    // optional int64 timestamp = 2;
+    if (has_timestamp()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::Int64Size(
+          this->timestamp());
     }
 
   }
@@ -829,6 +878,9 @@ void ProtoClientHeartbeatRep::MergeFrom(const ProtoClientHeartbeatRep& from) {
     if (from.has_lease()) {
       set_lease(from.lease());
     }
+    if (from.has_timestamp()) {
+      set_timestamp(from.timestamp());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -853,6 +905,7 @@ bool ProtoClientHeartbeatRep::IsInitialized() const {
 void ProtoClientHeartbeatRep::Swap(ProtoClientHeartbeatRep* other) {
   if (other != this) {
     std::swap(lease_, other->lease_);
+    std::swap(timestamp_, other->timestamp_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

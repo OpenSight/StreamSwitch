@@ -262,15 +262,25 @@ class ProtoClientHeartbeatRep : public ::google::protobuf::Message {
   inline ::google::protobuf::int32 lease() const;
   inline void set_lease(::google::protobuf::int32 value);
 
+  // optional int64 timestamp = 2;
+  inline bool has_timestamp() const;
+  inline void clear_timestamp();
+  static const int kTimestampFieldNumber = 2;
+  inline ::google::protobuf::int64 timestamp() const;
+  inline void set_timestamp(::google::protobuf::int64 value);
+
   // @@protoc_insertion_point(class_scope:stream_switch.ProtoClientHeartbeatRep)
  private:
   inline void set_has_lease();
   inline void clear_has_lease();
+  inline void set_has_timestamp();
+  inline void clear_has_timestamp();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
+  ::google::protobuf::int64 timestamp_;
   ::google::protobuf::int32 lease_;
   friend void  protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto();
   friend void protobuf_AssignDesc_pb_5fclient_5fheartbeat_2eproto();
@@ -613,6 +623,30 @@ inline void ProtoClientHeartbeatRep::set_lease(::google::protobuf::int32 value) 
   set_has_lease();
   lease_ = value;
   // @@protoc_insertion_point(field_set:stream_switch.ProtoClientHeartbeatRep.lease)
+}
+
+// optional int64 timestamp = 2;
+inline bool ProtoClientHeartbeatRep::has_timestamp() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void ProtoClientHeartbeatRep::set_has_timestamp() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void ProtoClientHeartbeatRep::clear_has_timestamp() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void ProtoClientHeartbeatRep::clear_timestamp() {
+  timestamp_ = GOOGLE_LONGLONG(0);
+  clear_has_timestamp();
+}
+inline ::google::protobuf::int64 ProtoClientHeartbeatRep::timestamp() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoClientHeartbeatRep.timestamp)
+  return timestamp_;
+}
+inline void ProtoClientHeartbeatRep::set_timestamp(::google::protobuf::int64 value) {
+  set_has_timestamp();
+  timestamp_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoClientHeartbeatRep.timestamp)
 }
 
 
