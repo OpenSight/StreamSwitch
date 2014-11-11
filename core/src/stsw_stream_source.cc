@@ -32,22 +32,29 @@
 
 namespace stream_switch {
 
-struct ClientListType{
-    int 1;
+    
+typedef std::list<ProtoClientHeartbeatReq> ClientHeartbeatList;    
+    
+struct ReceiversInfoType{
+    ClientHeartbeatList receiver_list;
 }    
     
     
     
     
 StreamSource::StreamSource()
-:api_socket(NULL), publish_socket(NULL), api_thread(NULL), flags(0), cur_bps(0), 
-last_frame_sec(0), last_frame_usec(0)， stream_state(SOURCE_STREAM_STATE_CONNECTING)
+:tcp_port_(0), 
+api_socket_(NULL), publish_socket_(NULL), lock_(NULL0, api_thread_(NULL), 
+flags_(0), cur_bps_(0), 
+last_frame_sec_(0), last_frame_usec_(0)， stream_state_(SOURCE_STREAM_STATE_CONNECTING)
 {
-    
+    receivers_info_ = new ReceiversInfoType();
     
 }
 
 StreamSource::~StreamSource()
 {
-    
+    if(receivers_info_ != NULL){
+        delete receivers_info_;
+    }
 }
