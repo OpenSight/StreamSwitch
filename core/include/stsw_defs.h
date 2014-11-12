@@ -23,7 +23,7 @@ typedef void * ThreadHandle;
 typedef void * LockHandle;
 
 
-typedef int (*SourceApiHandler)(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+typedef int (*SourceApiHandler)(StreamSource *source, const ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
 
 struct SourceApiHandlerEntry{
     SourceApiHandler handler;
