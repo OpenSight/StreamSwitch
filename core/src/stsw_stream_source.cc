@@ -26,9 +26,7 @@
 **/ 
 
 #include<stsw_stream_source.h>
-
-
-
+#include<czmq.h>
 
 namespace stream_switch {
 
@@ -57,4 +55,18 @@ StreamSource::~StreamSource()
     if(receivers_info_ != NULL){
         delete receivers_info_;
     }
+}
+
+int StreamSource::Init(const std::string &stream_name, int tcp_port)
+{
+    //params check
+    if(stream_name.size() == 0){
+        return -1;
+    }
+    
+    //init lock
+    
+    //init socket 
+    
+
 }

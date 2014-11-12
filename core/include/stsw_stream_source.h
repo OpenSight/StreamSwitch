@@ -48,23 +48,42 @@ public:
     virtual ~StreamSource();
     
     // The following methods should be invoked by clients
-    virtual int init(const std::string &stream_name, int tcp_port);
-    virtual void uninit();
+    
+    // init this source
+    // Args:
+    //     stream_name string in: the stream name of this source, 
+    //     which is used to bind the api socket to unix domain address
+    //     tcp_port int in: the tcp port of this source, api socket would listen
+    //     on this port, and publish socket would listen on tcp_port + 1. If
+    //     this param is 0, means this source never listen on tcp
+    //
+    // return:
+    //     0 if successful, or -1 if error;
+    virtual int Init(const std::string &stream_name, int tcp_port);
+    
+    // un-init the source
+    virtual void Uninit();
+    
+    virtual bool IsInit();
+    virtual bool IsMetaReady();
     
     virtual void set_stream_meta();
-    virtual void get_stream_meta();
+    virtual void stream_meta();
     
-    virtual int start_api_thread();
-    virtual void stop_api_thread();
+    virtual int Start();
+    virtual void Stop();
     
-    virtual int send_media_data(void);
-    virtual int send_stream_info(void);
+    virtual int SendMediaData(void);
+    virtual int SendStreamInfo(void);
     
-    virtual void set_stream_state(int new_state);
-    
-    virtual void register_api_handler(int op_code, SourceApiHandler handler, void * user_data);
-    virtual void unregister_api_handler(int op_code);
-    
+    virtual void set_stream_state(int stream_state);
+
+    virtual int stream_state(int new_state);
+
+   
+    virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
+    virtual void UnregisterApiHandler(int op_code);
+    virtual void UnregisterAllApiHandler();    
     
         
     // the following methods need client to override
@@ -93,7 +112,9 @@ protected:
     int key_frame_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
     int statistic_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
     int client_heartbeat_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-
+    
+    virtual void heartbeat();
+    
 private:
     std::string stream_name_;
     int tcp_port_;
