@@ -105,7 +105,7 @@ struct SubStreamMetadata{
        
 };  
 
-typedef std::list<SubStreamMetadata> SubStreamMetadataList;
+typedef std::vector<SubStreamMetadata> SubStreamMetadataVector;
 
     
 struct StreamMetadata{
@@ -118,7 +118,7 @@ struct StreamMetadata{
     uint32_t bps; //announced bps for the total throughput of this stream, 0 
                   // means the source has no announce for throughput  
 
-    SubStreamMetadataList sub_streams; 
+    SubStreamMetadataVector sub_streams; 
     
     StreamMetadata(){
         play_type = Stream_PLAY_TYPE_LIVE;
@@ -128,7 +128,23 @@ struct StreamMetadata{
                                              
 };  
     
+ struct SubStreamMediaStatistic{
+    //about bytes
+    uint64_t total_bytes;  //the bytes received of this sub stream
+    uint64_t key_bytes; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
     
+    //about frame
+    uint64_t total_frames;    // the received frame number
+    uint64_t key_frames;   // the received key frame number
+    uint64_t last_gov;           //last gov  
+    uint64_t cur_gov;            //current calculating gov  
+    
+    
+    
+};  
+typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
+    
+       
     
     
 

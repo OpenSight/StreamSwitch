@@ -33,11 +33,13 @@
 #include<stdint.h>
 
 
+
+
 namespace stream_switch {
 
 class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
-struct ClientListType;
+struct ClientsInfoType;
 typedef void * SocketHandle;
     
 class StreamSource{
@@ -75,8 +77,9 @@ public:
     virtual void key_frame(void);
         
     // get_packet_statistic
-    // When    
-    virtual void get_packet_statistic(uint64_t &total_packets, uint64_t &receive_packets);
+    // When the control request the statistic info, it would 
+    // be invoked for each sub stream
+    virtual void get_packet_statistic(int sub_stream_index, uint64_t * expected_packets, uint64_t * actual_packets);
 
 
     static int static_metadata_handlertypedef(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
@@ -93,23 +96,26 @@ protected:
 
 private:
     std::string stream_name_;
-    int tcp_port;
-    SocketHandle api_socket;
-    SocketHandle publish_socket;
-    LockHandle lock;
-    ThreadHandle * api_thread;
-    SourceApiHanderMap api_handler_map;
-    uint32_t flags; /*bit 0: meta data ready*/        
-    void * staitistic;
-        
-    StreamMetadata stream_meta;
-    uint32_t cur_bps;
-    int64_t last_frame_sec;
-    int32_t last_frame_usec;
-    int stream_state;
-    ClientListType * clientList;
+    int tcp_port_;
+    SocketHandle api_socket_;
+    SocketHandle publish_socket_;
+    LockHandle lock_;
+    ThreadHandle * api_thread_;
+    SourceApiHanderMap api_handler_map_;
     
-                         
+// stream source flags
+#define STREAM_SOURCE_FLAG_INIT 1
+#define STREAM_SOURCE_FLAG_META_READY 2
+    uint32_t flags_;      
+
+    SubStreamMediaStatisticVector staitistic_;
+    StreamMetadata stream_meta_;
+    uint32_t cur_bps_;
+    int64_t last_frame_sec_;
+    int32_t last_frame_usec_;
+    int stream_state_;
+    ReceiversInfoType * receivers_info_;
+                             
 };
 }
 
