@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string>
-#include <list>
+#include <vector>
 
 #define STSW_SOCKET_NAME_STREAM_PREFIX  "stsw_stream"
 #define STSW_SOCKET_NAME_CONNECTOR  "/"

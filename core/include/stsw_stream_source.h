@@ -39,7 +39,7 @@ namespace stream_switch {
 
 class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
-struct ClientsInfoType;
+struct ReceiversInfoType;
 typedef void * SocketHandle;
     
 class StreamSource{
@@ -67,17 +67,27 @@ public:
     virtual bool IsInit();
     virtual bool IsMetaReady();
     
-    virtual void set_stream_meta();
-    virtual void stream_meta();
+    
+    // configure the meta data of this source. 
+    // After meta data change, the statistic in the source would auto clear
+    // Args:
+    //     stream_meta StreamMetadata in: new stream metatdata
+    //
+    virtual void set_stream_meta(StreamMetadata & stream_meta);
+    
+    // get the meta data of this source 
+    // Args:
+    //     stream_meta StreamMetadata out: the retrieved stream meta data
+    //
+    virtual void stream_meta(StreamMetadata * stream_meta);
     
     virtual int Start();
     virtual void Stop();
     
     virtual int SendMediaData(void);
-    virtual int SendStreamInfo(void);
+    //virtual int SendStreamInfo(void);
     
     virtual void set_stream_state(int stream_state);
-
     virtual int stream_state(int new_state);
 
    
@@ -93,27 +103,32 @@ public:
     // key_frame
     // When the receiver request a key frame, it would be 
     // invoked
-    virtual void key_frame(void);
+    virtual void KeyFrame(void);
         
     // get_packet_statistic
     // When the control request the statistic info, it would 
     // be invoked for each sub stream
-    virtual void get_packet_statistic(int sub_stream_index, uint64_t * expected_packets, uint64_t * actual_packets);
+    virtual void GetPacketStatistic(int sub_stream_index, uint64_t * expected_packets, uint64_t * actual_packets);
 
 
-    static int static_metadata_handlertypedef(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int static_key_frame_handler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int static_statistic_handler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int static_client_heartbeat_handler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    
+
 
 protected:
-    int metadata_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    int key_frame_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    int statistic_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    int client_heartbeat_handler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+
+    static int StaticMetadataHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    static int StaticKeyFrameHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    static int StaticStatisticHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    static int StaticClientHeartbeatHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
     
-    virtual void heartbeat();
+    virtual int MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    virtual int KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    virtual int StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+
+    virtual int RpcHandler();
+    virtual int Heartbeat();
+    
+    static void * ThreadRoutine(void *);
     
 private:
     std::string stream_name_;
@@ -136,6 +151,7 @@ private:
     int32_t last_frame_usec_;
     int stream_state_;
     ReceiversInfoType * receivers_info_;
+    int64_t last_heartbeat_time;     // in milli-sec
                              
 };
 }
