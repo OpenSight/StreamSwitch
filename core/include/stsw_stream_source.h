@@ -31,7 +31,7 @@
 #include<map>
 #include<stsw_defs.h>
 #include<stdint.h>
-
+#include<pthread.h>
 
 
 
@@ -73,7 +73,7 @@ public:
     // Args:
     //     stream_meta StreamMetadata in: new stream metatdata
     //
-    virtual void set_stream_meta(StreamMetadata & stream_meta);
+    virtual void set_stream_meta(const StreamMetadata & stream_meta);
     
     // get the meta data of this source 
     // Args:
@@ -81,14 +81,22 @@ public:
     //
     virtual void stream_meta(StreamMetadata * stream_meta);
     
+    // Start up the source 
+    // After source started up, the internal thread would be spawn up,  
+    // then the source would begin to handle the incoming request and 
+    // sent out its stream info message at intervals
     virtual int Start();
+    
+    // Stop the source
+    // Stop the internal thread and wait for it.
+    // After that, he source would no longer handle the incoming request nor 
+    // sent out its stream info message 
     virtual void Stop();
     
     virtual int SendMediaData(void);
-    //virtual int SendStreamInfo(void);
     
     virtual void set_stream_state(int stream_state);
-    virtual int stream_state(int new_state);
+    virtual int stream_state();
 
    
     virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
@@ -130,13 +138,17 @@ protected:
     
     static void * ThreadRoutine(void *);
     
+    
+    virtual int SendStreamInfo(void);
+    
 private:
     std::string stream_name_;
     int tcp_port_;
     SocketHandle api_socket_;
     SocketHandle publish_socket_;
-    LockHandle lock_;
-    ThreadHandle * api_thread_;
+    pthread_mutex_t lock_;
+    pthread_t api_thread_;
+    bool thread_end_;
     SourceApiHanderMap api_handler_map_;
     
 // stream source flags
@@ -144,8 +156,9 @@ private:
 #define STREAM_SOURCE_FLAG_META_READY 2
     uint32_t flags_;      
 
-    SubStreamMediaStatisticVector staitistic_;
+    SubStreamMediaStatisticVector statistic_;
     StreamMetadata stream_meta_;
+    uint32_t cur_bytes;
     uint32_t cur_bps_;
     int64_t last_frame_sec_;
     int32_t last_frame_usec_;

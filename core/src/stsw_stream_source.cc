@@ -44,8 +44,8 @@ struct ReceiversInfoType{
     
 StreamSource::StreamSource()
 :tcp_port_(0), 
-api_socket_(NULL), publish_socket_(NULL), lock_(NULL0, api_thread_(NULL), 
-flags_(0), cur_bps_(0), 
+api_socket_(NULL), publish_socket_(NULL), api_thread_(0), 
+thread_end_(true), flags_(0), cur_bytes(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0)， stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
 last_heartbeat_time(0),
 {
@@ -79,17 +79,17 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
     pthread_mutexattr_init(&attr);
     ret = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  
     if(ret){
-        perror("pthread_mutexattr_settype failed");
-        goto error_1;
+        perror("pthread_mutexattr_settype failed");   
+        pthread_mutexattr_destroy(&attr);      
+        goto error_0;
         
     }    
-    lock_ = (void *)new pthread_mutex_t;
-    ret = pthread_mutex_init((pthread_mutex_t *)lock_, &attr);  
+    ret = pthread_mutex_init(&lock_, &attr);  
     if(ret){
         perror("pthread_mutexattr_settype failed");
-        goto error_1;
+        pthread_mutexattr_destroy(&attr); 
+        goto error_0;
     }
-
     pthread_mutexattr_destroy(&attr);       
        
     //init socket 
@@ -124,14 +124,12 @@ error_2:
     if(publish_socket_ != NULL){
         
     }
+error_1:    
     
-error_1:
-    if(lock_ != NULL){
-        pthread_mutex_destroy((pthread_mutex_t *)lock_);
-        delete (pthread_mutex_t *)lock_;
-    }
+    pthread_mutex_destroy(&lock_);
     
-    pthread_mutexattr_destroy(&attr);  
+
+    
     
 error_0:
     
@@ -141,7 +139,11 @@ error_0:
 
 void StreamSource::Uninit()
 {
-
+    if(!IsInit()){
+        return; // no work
+    }
+    
+    
 }
 
 
@@ -155,6 +157,109 @@ bool StreamSource::IsMetaReady()
 {
      return (flags_ & STREAM_SOURCE_FLAG_META_READY) != 0;   
 }
+
+
+
+void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
+{
+    pthread_mutex_lock(&lock_); 
+    
+    //update meta
+    stream_meta_ = stream_meta;       
+    
+    int sub_stream_num = stream_meta.sub_streams.size();
+    
+    
+    // clear the statistic
+    statistic_.clear();
+    statistic_.resize(sub_stream_num);
+    
+    cur_bps_ = 0;
+    cur_bytes = 0;
+    last_frame_sec_ = 0;
+    last_frame_usec_ = 0;
+     
+    
+    flags_ |= STREAM_SOURCE_FLAG_INIT;  
+    
+    pthread_mutex_unlock(&lock_); 
+    
+}
+
+void StreamSource::stream_meta(StreamMetadata * stream_meta)
+{
+    if(stream_meta != NULL){
+        pthread_mutex_lock(&lock_); 
+        *stream_meta = stream_meta_;
+        pthread_mutex_unlock(&lock_); 
+    }
+}
+
+
+int StreamSource::Start()
+{
+    if(!IsInit()){
+        reutrn -1;
+    }
+    
+    pthread_mutex_lock(&lock_); 
+    if(!thread_end_){
+        //already start
+        pthread_mutex_unlock(&lock_); 
+        return 0;        
+    }
+    thread_end_ = false;    
+    pthread_mutex_unlock(&lock_); 
+    
+    //start the internal thread
+    
+}
+
+
+void StreamSource::Stop()
+{   
+    
+    pthread_mutex_lock(&lock_); 
+    if(thread_end_){
+        //already stop
+        pthread_mutex_unlock(&lock_); 
+        return ;        
+    }
+    thread_end_ = true;    
+    pthread_mutex_unlock(&lock_);  
+
+    //wait for the thread terminated
+    
+}
+
+
+int StreamSource::SendMediaData(void)
+{
+    
+}
+
+void StreamSource::set_stream_state(int stream_state)
+{
+    if(!IsInit()){
+        reutrn -1;
+    }
+    
+    pthread_mutex_lock(&lock_); 
+    int old_stream_state = stream_state_;
+    stream_state_ = stream_state;
+    if(old_stream_state != stream_state){
+        //state change, send out a stream info msg at once
+        SendStreamInfo();
+    }
+        
+    pthread_mutex_unlock(&lock_);
+    
+}
+int StreamSource::stream_state()
+{
+    return stream_state_;
+}
+
 
 
 }

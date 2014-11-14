@@ -68,6 +68,13 @@ struct VideoMediaParam{
     uint32_t width;   //frame width
     uint32_t fps;     
     uint32_t gov;  
+    
+    VideoMediaParam(){
+        height = 0;
+        width = 0;
+        fps = 0;
+        gov = 0;
+    }
 };
 
 
@@ -76,6 +83,12 @@ struct AudioMediaParam{
     uint32_t channels;   //channel number
     uint32_t bits_per_sample; // bits per sample    
     uint32_t sampele_per_frame;  // sample per frame
+    AudioMediaParam(){
+        samples_per_second = 0;
+        channels = 0;
+        bits_per_sample = 0;
+        sampele_per_frame = 0;
+    }
 };
 
 
@@ -83,7 +96,13 @@ struct TextMediaParam{
     uint32_t x;  //text top-left position, in video picture
     uint32_t y;   //text top-left position, in video picture
     uint32_t fone_size; 
-    uint32_t font_type;  
+    uint32_t font_type; 
+    TextMediaParam(){
+        x = 0;
+        y = 0;
+        fone_size = 0;
+        font_type = 0;        
+    }
 };
 
 
@@ -97,11 +116,17 @@ struct SubStreamMetadata{
     SubStreamDirectionType direction;
     std::string extra_data;
     
-    union{
+    struct {
         VideoMediaParam video;
         AudioMediaParam audio;
         TextMediaParam text;
     } media_param;
+    
+    SubStreamMetadata(){
+        sub_stream_index = 0;
+        media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
+        direction = SUB_STREAM_DIRECTION_OUTBOUND;
+    }
        
 };  
 
@@ -139,7 +164,14 @@ struct StreamMetadata{
     uint64_t last_gov;           //last gov  
     uint64_t cur_gov;            //current calculating gov  
     
-    
+    SubStreamMediaStatistic(){
+        total_bytes = 0;
+        key_bytes = 0;
+        total_frames = 0;
+        key_frames = 0;
+        last_gov = 0;
+        cur_gov = 0;
+    }
     
 };  
 typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
