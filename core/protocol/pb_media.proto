@@ -15,12 +15,12 @@ message ProtoMediaFrameReq{         //for replay
 }
 
 message ProtoMediaFrameMsg{        //for live publish message and replay response
-    optional int32 stream_index = 1;     //which stream this frame belong to
+    optional int32 stream_index = 1;     //which sub stream this frame belong to
     optional int64 sec = 2;              //the pts of this frame
     optional int32 usec = 3;             //the pts of this frame
     optional ProtoMediaFrameType frame_type = 4;  //this frame type
     optional uint32 ssrc = 5;                //ssrc of the frame
-    optional uint64 seq = 6;                 //sequence number of this frame
+    optional uint64 seq = 6;                 //sequence number of this frame in the sub stream
     //tag below 64 is reserved to future extension
     
     optional bytes data = 64;                //frame data

@@ -33,6 +33,8 @@
 #include<stdint.h>
 #include<pthread.h>
 
+#define STSW_STREAM_SOURCE_HEARTBEAT_INT  1000  // the heartbeat interval for 
+                                                // stream source, in ms
 
 
 namespace stream_switch {
@@ -93,7 +95,12 @@ public:
     // sent out its stream info message 
     virtual void Stop();
     
-    virtual int SendMediaData(void);
+    virtual int SendMediaData(int32_t sub_stream_index, 
+                              uint64_t frame_seq,     
+                              MediaFrameType frame_type,
+                              int64_t sec, int32_t usec,                               
+                              uint32_t ssrc, 
+                              std::string data);
     
     virtual void set_stream_state(int stream_state);
     virtual int stream_state();
@@ -113,13 +120,6 @@ public:
     // invoked
     virtual void KeyFrame(void);
         
-    // get_packet_statistic
-    // When the control request the statistic info, it would 
-    // be invoked for each sub stream
-    virtual void GetPacketStatistic(int sub_stream_index, uint64_t * expected_packets, uint64_t * actual_packets);
-
-
-
 
 protected:
 
@@ -167,6 +167,7 @@ private:
     int64_t last_heartbeat_time;     // in milli-sec
                              
 };
+
 }
 
 #endif

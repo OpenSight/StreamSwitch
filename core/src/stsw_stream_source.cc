@@ -26,6 +26,7 @@
 **/ 
 
 #include<stsw_stream_source.h>
+#include<stdint.h>
 #include<czmq.h>
 
 #include<pb_packet.pb.h>
@@ -95,7 +96,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
     //init socket 
     
     //init handlers
-    RegisterApiHandler(0, StaticMetadataHandler, NULL);
+    RegisterApiHandler(PROTO_PACKET_CODE_METADATA, StaticMetadataHandler, NULL);
     RegisterApiHandler(0, StaticKeyFrameHandler, NULL);    
     RegisterApiHandler(0, StaticStatisticHandler, NULL);
     RegisterApiHandler(0, StaticClientHeartbeatHandler, NULL);   
@@ -233,10 +234,16 @@ void StreamSource::Stop()
 }
 
 
-int StreamSource::SendMediaData(void)
+int StreamSource::SendMediaData(int32_t sub_stream_index, 
+                                uint64_t frame_seq,     
+                                MediaFrameType frame_type,
+                                int64_t sec, int32_t usec,                               
+                                uint32_t ssrc, 
+                                std::string data)
 {
-    
+    return 0;
 }
+
 
 void StreamSource::set_stream_state(int stream_state)
 {
@@ -258,6 +265,104 @@ void StreamSource::set_stream_state(int stream_state)
 int StreamSource::stream_state()
 {
     return stream_state_;
+}
+
+
+void StreamSource::RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data)
+{
+    pthread_mutex_lock(&lock_); 
+    
+    api_handler_map_[op_code].handler = handler;
+    api_handler_map_[op_code].user_data = user_data;
+    
+    pthread_mutex_unlock(&lock_);
+    
+}
+void StreamSource::UnregisterApiHandler(int op_code)
+{
+    SourceApiHanderMap::iterator it;
+    pthread_mutex_lock(&lock_); 
+    
+    it = api_handler_map_.find(op_code);
+    if(it != api_handler_map_.end()){
+        api_handler_map_.erase(it);
+    }
+   
+    pthread_mutex_unlock(&lock_);   
+}
+void StreamSource::UnregisterAllApiHandler()
+{
+    pthread_mutex_lock(&lock_); 
+    
+    api_handler_map_.clear();
+   
+    pthread_mutex_unlock(&lock_);     
+}
+
+
+void StreamSource::KeyFrame(void)
+{
+    //default nothing to do
+    //need child class to implement this function
+}
+
+
+
+int StreamSource::StaticMetadataHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return source->MetadataHandler(request, reply, user_data);    
+}
+int StreamSource::StaticKeyFrameHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return source->KeyFrameHandler(request, reply, user_data);
+}
+int StreamSource::StaticStatisticHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return source->StatisticHandler(request, reply, user_data);
+}
+int StreamSource::StaticClientHeartbeatHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return source->ClientHeartbeatHandler(request, reply, user_data);
+}
+    
+int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return 0;
+}
+int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return 0;
+}
+int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return 0;
+}
+int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+{
+    return 0;
+}
+
+
+int StreamSource::RpcHandler()
+{
+
+}
+
+
+int StreamSource::Heartbeat()
+{
+    
+}
+    
+void * StreamSource::ThreadRoutine(void * arg)
+{
+    
+}
+    
+    
+int SendStreamInfo(void)
+{
+    return 0;
 }
 
 

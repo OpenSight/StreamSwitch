@@ -159,10 +159,13 @@ struct StreamMetadata{
     uint64_t key_bytes; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
     
     //about frame
+    uint64_t expected_frames;  // the total frames should be received
     uint64_t total_frames;    // the received frame number
     uint64_t key_frames;   // the received key frame number
     uint64_t last_gov;           //last gov  
     uint64_t cur_gov;            //current calculating gov  
+    
+    uint64_t last_seq;     //the last frame's seq number
     
     SubStreamMediaStatistic(){
         total_bytes = 0;
@@ -171,6 +174,8 @@ struct StreamMetadata{
         key_frames = 0;
         last_gov = 0;
         cur_gov = 0;
+        expected_frames = 0;
+        last_seq = 0;
     }
     
 };  
@@ -178,7 +183,12 @@ typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
     
        
     
-    
+enum MediaFrameType{
+    MEDIA_FRAME_TYPE_KEY_FRAME = 0;      //The key frame of this stream
+    MEDIA_FRAME_TYPE_DATA_FRAME = 1;     //normal data frame of the stream
+    MEDIA_FRAME_TYPE_PARAM_FRAME = 2;    //frame only include some codec parameter of the stream
+   
+};    
 
 }
 

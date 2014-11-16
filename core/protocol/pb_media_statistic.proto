@@ -11,19 +11,17 @@ message ProtoSubStreamMediaStatistic{
 
     optional int32 sub_stream_index = 1; 
     optional ProtoSubStreamMediaType media_type = 2; //the type of this sub stream
-    
-    //about packets
-    optional uint64 expected_packets = 10;        //the total packet number should be received of this sub stream
-    optional uint64 actual_packets  = 11;     //the packet number practically be received of this sub stream
+
     
     //about bytes
     optional uint64 total_bytes = 20;  //the bytes received of this sub stream
     optional uint64 key_bytes = 21; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
     
     //about frame
-    optional uint64 total_frames = 30;    // the received frame number
-    optional uint64 key_frames = 31;   // the received key frame number
-    optional uint64 last_gov = 32;           //last gov
+	optional uint64 expected_frames = 30; // the frame number should be received 
+    optional uint64 total_frames = 31;    // the received frame number
+    optional uint64 key_frames = 32;      // the received key frame number
+    optional uint64 last_gov = 33;           //last gov
 } 
 
 
