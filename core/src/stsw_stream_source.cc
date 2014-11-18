@@ -45,10 +45,10 @@ struct ReceiversInfoType{
     
 StreamSource::StreamSource()
 :tcp_port_(0), 
-api_socket_(NULL), publish_socket_(NULL), api_thread_(0), 
+api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
 thread_end_(true), flags_(0), cur_bytes(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0)， stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
-last_heartbeat_time(0),
+last_heartbeat_time_(0),
 {
     receivers_info_ = new ReceiversInfoType();
     
@@ -94,6 +94,97 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
     pthread_mutexattr_destroy(&attr);       
        
     //init socket 
+#define MAX_SOCKET_BIND_ADDR_LEN 255    
+
+    char tmp_addr[MAX_SOCKET_BIND_ADDR_LEN + 1];
+    memset(tmp_addr, 0, MAX_SOCKET_BIND_ADDR_LEN + 1);
+    if(tcp_port == 0){
+        //no tcp address
+        int ret;
+        ret = snprintf(tmp_addr, MAX_SOCKET_BIND_ADDR_LEN, 
+                       "@ipc://@%s/%s/%s", 
+                       STSW_SOCKET_NAME_STREAM_PREFIX, 
+                       stream_name.c_str(), 
+                       STSW_SOCKET_NAME_STREAM_API);
+        if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            goto error_2;            
+        }else if(ret < 0){
+            perror("snprintf for socket address failed");
+            goto error_2;              
+        }
+        
+    }else{
+        //tcp address exist
+        int ret;
+        ret = snprintf(tmp_addr, MAX_SOCKET_BIND_ADDR_LEN, 
+                       "@ipc://@%s/%s/%s,@tcp://*:%d", 
+                       STSW_SOCKET_NAME_STREAM_PREFIX, 
+                       stream_name.c_str(), 
+                       STSW_SOCKET_NAME_STREAM_API, 
+                       tcp_port);
+        if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            goto error_2;            
+        }else if(ret < 0){
+            perror("snprintf for socket address failed");
+            goto error_2;              
+        }
+        
+    }       
+    api_socket_ = zsock_new_rep(tmp_addr);
+    if(api_socket_ == NULL){
+        fprintf(stderr, "zsock_new_rep create publish socket failed: maybe address conflict", tmp_addr);
+        goto error_2;            
+    }
+    zsock_set_linger(api_socket_, 0); //no linger
+    
+    memset(tmp_addr, 0, MAX_SOCKET_BIND_ADDR_LEN + 1);
+    if(tcp_port == 0){
+        //no tcp address
+        int ret;
+        ret = snprintf(tmp_addr, MAX_SOCKET_BIND_ADDR_LEN, 
+                       "@ipc://@%s/%s/%s", 
+                       STSW_SOCKET_NAME_STREAM_PREFIX, 
+                       stream_name.c_str(), 
+                       STSW_SOCKET_NAME_STREAM_PUBLISH);
+        if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            goto error_2;            
+        }else if(ret < 0){
+            perror("snprintf for socket address failed");
+            goto error_2;              
+        }
+        
+    }else{
+        //tcp address exist
+        int ret;
+        ret = snprintf(tmp_addr, MAX_SOCKET_BIND_ADDR_LEN, 
+                       "@ipc://@%s/%s/%s,@tcp://*:%d", 
+                       STSW_SOCKET_NAME_STREAM_PREFIX, 
+                       stream_name.c_str(), 
+                       STSW_SOCKET_NAME_STREAM_PUBLISH, 
+                       tcp_port + 1);
+        if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            goto error_2;            
+        }else if(ret < 0){
+            perror("snprintf for socket address failed");
+            goto error_2;              
+        }
+        
+    }    
+    publish_socket_ = zsock_new_pub(tmp_addr);
+    if(api_socket_ == NULL){
+        fprintf(stderr, "zsock_new_pub create publish socket failed: "
+                "maybe address conflict", tmp_addr);
+        goto error_1;            
+    }    
+    //wait for 100 ms to send the remaining packet before close
+    zsock_set_linger(publish_socket_, STSW_PUBLISH_SOCKET_LINGER);
+ 
+    zsock_set_sndhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
+
     
     //init handlers
     RegisterApiHandler(PROTO_PACKET_CODE_METADATA, StaticMetadataHandler, NULL);
@@ -106,8 +197,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
     stream_meta_.bps = 0;
     stream_meta_.play_type = Stream_PLAY_TYPE_LIVE;
     stream_meta_.ssrc = 0;
-    stream_meta_.source_proto = "";
-    
+    stream_meta_.source_proto = "";    
     
     //init statistic 
     staitistic_.clear();
@@ -119,18 +209,19 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
 error_2:
 
     if(api_socket_ != NULL){
+        zsock_destroy((zsock_t **)&api_socket_);
+        api_socket_ = NULL;
         
     }
     
     if(publish_socket_ != NULL){
+        zsock_destroy((zsock_t **)&publish_socket_);
+        publish_socket_ = NULL;
         
     }
 error_1:    
     
-    pthread_mutex_destroy(&lock_);
-    
-
-    
+    pthread_mutex_destroy(&lock_);   
     
 error_0:
     
@@ -145,8 +236,29 @@ void StreamSource::Uninit()
     }
     
     
-}
 
+    Stop(); // stop source first if it has not stop
+
+    flags_ &= ~(STREAM_SOURCE_FLAG_INIT); 
+
+    UnregisterAllApiHandler();
+
+    if(api_socket_ != NULL){
+        zsock_destroy((zsock_t **)&api_socket_);
+        api_socket_ = NULL;
+        
+    }
+    
+    if(publish_socket_ != NULL){
+        zsock_destroy((zsock_t **)&publish_socket_);
+        publish_socket_ = NULL;
+        
+    }
+    
+    pthread_mutex_destroy(&lock_);
+    
+    
+}
 
 
 
@@ -158,7 +270,6 @@ bool StreamSource::IsMetaReady()
 {
      return (flags_ & STREAM_SOURCE_FLAG_META_READY) != 0;   
 }
-
 
 
 void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
@@ -181,7 +292,7 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     last_frame_usec_ = 0;
      
     
-    flags_ |= STREAM_SOURCE_FLAG_INIT;  
+    flags_ |= STREAM_SOURCE_FLAG_META_READY;  
     
     pthread_mutex_unlock(&lock_); 
     
@@ -204,16 +315,24 @@ int StreamSource::Start()
     }
     
     pthread_mutex_lock(&lock_); 
-    if(!thread_end_){
+    if(flags_ & STREAM_SOURCE_FLAG_STARTED){
         //already start
         pthread_mutex_unlock(&lock_); 
         return 0;        
     }
-    thread_end_ = false;    
-    pthread_mutex_unlock(&lock_); 
+    flags_ |= STREAM_SOURCE_FLAG_STARTED;    
+    pthread_mutex_unlock(&lock_);     
     
     //start the internal thread
-    
+    int ret = pthread_create(&api_thread_id_, NULL, ThreadRoutine, this);
+    if(ret){
+        perror("Start Source internal thread failed");
+        pthread_mutex_lock(&lock_); 
+        flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);   
+        pthread_mutex_unlock(&lock_);  
+        return -1;
+    }
+
 }
 
 
@@ -221,15 +340,24 @@ void StreamSource::Stop()
 {   
     
     pthread_mutex_lock(&lock_); 
-    if(thread_end_){
-        //already stop
+    if(!(flags_ & STREAM_SOURCE_FLAG_STARTED)){
+        //not start
         pthread_mutex_unlock(&lock_); 
         return ;        
     }
-    thread_end_ = true;    
+    flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);
     pthread_mutex_unlock(&lock_);  
 
     //wait for the thread terminated
+    if(api_thread_id_ != 0){
+        void * res;
+        int ret;
+        ret = pthread_join(api_thread_id_, &res);
+        if (ret != 0){
+            perror("Stop Source internal thread failed");
+        }
+        api_thread_id_ = 0;      
+    }
     
 }
 
@@ -349,14 +477,60 @@ int StreamSource::RpcHandler()
 }
 
 
-int StreamSource::Heartbeat()
+int StreamSource::Heartbeat(int64_t now)
 {
-    
+    if(now == 0){
+        now = zclock_mono();
+    }
+
 }
     
 void * StreamSource::ThreadRoutine(void * arg)
 {
+    StreamSource * source = (StreamSource * )arg;
+    zpoller_t  * poller =zpoller_new (source->api_socket_);
+    int64_t next_heartbeat_time = zclock_mono() + 
+        STSW_STREAM_SOURCE_HEARTBEAT_INT;
     
+#define MAX_POLLER_WAIT_TIME    100
+    
+    while(source->flag_ & STREAM_SOURCE_FLAG_STARTED){
+        int64_t now = zclock_mono();
+        
+        //calculate the timeout
+        int timeout = next_heartbeat_time - now;
+        if(timeout > MAX_POLLER_WAIT_TIME){
+            timeout = MAX_POLLER_WAIT_TIME;
+        }else if (timeout < 0){
+            timeout = 0;  //if timeout is nagative, zpoller_wait would block 
+                          //until the socket is ready to read
+        }        
+        
+        // check for api socket read event
+        void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
+        if(socket != NULL){
+            source->RpcHandler();
+        }
+             
+        
+        // check for heartbeat
+        now = zclock_mono();
+        if(now >= next_heartbeat_time){            
+            source->Heartbeat(now);
+            
+            //calculate next heartbeat time
+            do{
+                next_heartbeat_time += STSW_STREAM_SOURCE_HEARTBEAT_INT;
+            }while(next_heartbeat_time <= now);            
+        } 
+        
+    }
+    
+    if(poller != NULL){
+        zpoller_destroy (&poller);
+    }
+        
+    return NULL;
 }
     
     

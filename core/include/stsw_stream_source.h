@@ -134,7 +134,7 @@ protected:
     virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
 
     virtual int RpcHandler();
-    virtual int Heartbeat();
+    virtual int Heartbeat(int64_t now);
     
     static void * ThreadRoutine(void *);
     
@@ -147,13 +147,14 @@ private:
     SocketHandle api_socket_;
     SocketHandle publish_socket_;
     pthread_mutex_t lock_;
-    pthread_t api_thread_;
+    pthread_t api_thread_id_;
     bool thread_end_;
     SourceApiHanderMap api_handler_map_;
     
 // stream source flags
 #define STREAM_SOURCE_FLAG_INIT 1
 #define STREAM_SOURCE_FLAG_META_READY 2
+#define STREAM_SOURCE_FLAG_META_STARTED 4
     uint32_t flags_;      
 
     SubStreamMediaStatisticVector statistic_;
@@ -164,7 +165,7 @@ private:
     int32_t last_frame_usec_;
     int stream_state_;
     ReceiversInfoType * receivers_info_;
-    int64_t last_heartbeat_time;     // in milli-sec
+    int64_t last_heartbeat_time_;     // in milli-sec
                              
 };
 

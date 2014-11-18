@@ -12,6 +12,10 @@
 #define STSW_SOCKET_NAME_STREAM_PUBLISH  "broadcast"
 
 
+#define STSW_PUBLISH_SOCKET_HWM  250
+#define STSW_PUBLISH_SOCKET_LINGER  100    
+
+
 namespace stream_switch {
     
 class StreamSource;
@@ -184,9 +188,9 @@ typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
        
     
 enum MediaFrameType{
-    MEDIA_FRAME_TYPE_KEY_FRAME = 0;      //The key frame of this stream
-    MEDIA_FRAME_TYPE_DATA_FRAME = 1;     //normal data frame of the stream
-    MEDIA_FRAME_TYPE_PARAM_FRAME = 2;    //frame only include some codec parameter of the stream
+    MEDIA_FRAME_TYPE_KEY_FRAME = 0,      //The key frame of this stream
+    MEDIA_FRAME_TYPE_DATA_FRAME = 1,     //normal data frame of the stream
+    MEDIA_FRAME_TYPE_PARAM_FRAME = 2,    //frame only include some codec parameter of the stream
    
 };    
 
