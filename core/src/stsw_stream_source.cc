@@ -479,12 +479,14 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
 int StreamSource::RpcHandler()
 {
     zframe_t * in_frame = NULL;
-
     in_frame = zframe_recv(api_socket_);
     if(in_frame == NULL){
         return 0;  // no frame receive
     }
     std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
+    //after used, need free the frame
+    zframe_destroy(&in_frame);    
+    
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
     
@@ -494,10 +496,11 @@ int StreamSource::RpcHandler()
     if(request.ParseFromString(in_data)){
         
         
+    }else{
+        
     }
 
-    //after used, need free the frame
-    zframe_destroy(&in_frame);
+
 
     
     // send back the reply
@@ -507,10 +510,7 @@ int StreamSource::RpcHandler()
     out_frame = zframe_new(out_data.data(), out_data.size());
     zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);
     
-    
-    
-
-    
+           
     return 0;   
 }
 
