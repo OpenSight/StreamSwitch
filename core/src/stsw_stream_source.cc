@@ -27,9 +27,13 @@
 
 #include<stsw_stream_source.h>
 #include<stdint.h>
+#include<list>
+
 #include<czmq.h>
 
+
 #include<pb_packet.pb.h>
+#include<pb_client_heartbeat.pb.h>
 
 namespace stream_switch {
 
@@ -38,7 +42,7 @@ typedef std::list<ProtoClientHeartbeatReq> ClientHeartbeatList;
     
 struct ReceiversInfoType{
     ClientHeartbeatList receiver_list;
-}    
+};    
     
     
     
@@ -47,8 +51,8 @@ StreamSource::StreamSource()
 :tcp_port_(0), 
 api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
 thread_end_(true), flags_(0), cur_bytes(0), cur_bps_(0), 
-last_frame_sec_(0), last_frame_usec_(0)， stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
-last_heartbeat_time_(0),
+last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
+last_heartbeat_time_(0)
 {
     receivers_info_ = new ReceiversInfoType();
     
@@ -187,10 +191,10 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
 
     
     //init handlers
-    RegisterApiHandler(PROTO_PACKET_CODE_METADATA, StaticMetadataHandler, NULL);
-    RegisterApiHandler(0, StaticKeyFrameHandler, NULL);    
-    RegisterApiHandler(0, StaticStatisticHandler, NULL);
-    RegisterApiHandler(0, StaticClientHeartbeatHandler, NULL);   
+    RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, NULL);
+    RegisterApiHandler(0, (SourceApiHandler)StaticKeyFrameHandler, NULL);    
+    RegisterApiHandler(0, (SourceApiHandler)StaticStatisticHandler, NULL);
+    RegisterApiHandler(0, (SourceApiHandler)StaticClientHeartbeatHandler, NULL);   
 
     //init metadata
     stream_meta_.sub_streams.clear();
@@ -200,7 +204,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port)
     stream_meta_.source_proto = "";    
     
     //init statistic 
-    staitistic_.clear();
+    statistic_.clear();
     
     flags_ |= STREAM_SOURCE_FLAG_INIT;        
    
@@ -311,7 +315,7 @@ void StreamSource::stream_meta(StreamMetadata * stream_meta)
 int StreamSource::Start()
 {
     if(!IsInit()){
-        reutrn -1;
+        return -1;
     }
     
     pthread_mutex_lock(&lock_); 
@@ -328,7 +332,8 @@ int StreamSource::Start()
     if(ret){
         perror("Start Source internal thread failed");
         pthread_mutex_lock(&lock_); 
-        flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);   
+        flags_ &= ~(STREAM_SOURCE_FLAG_STARTED); 
+        api_thread_id_  = 0;
         pthread_mutex_unlock(&lock_);  
         return -1;
     }
@@ -365,7 +370,7 @@ void StreamSource::Stop()
 int StreamSource::SendMediaData(int32_t sub_stream_index, 
                                 uint64_t frame_seq,     
                                 MediaFrameType frame_type,
-                                int64_t sec, int32_t usec,                               
+                                const struct timeval &timestamp,                               
                                 uint32_t ssrc, 
                                 std::string data)
 {
@@ -376,7 +381,7 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
 void StreamSource::set_stream_state(int stream_state)
 {
     if(!IsInit()){
-        reutrn -1;
+        return;
     }
     
     pthread_mutex_lock(&lock_); 
@@ -473,7 +478,40 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
 
 int StreamSource::RpcHandler()
 {
+    zframe_t * in_frame = NULL;
 
+    in_frame = zframe_recv(api_socket_);
+    if(in_frame == NULL){
+        return 0;  // no frame receive
+    }
+    std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
+    ProtoCommonPacket request;
+    ProtoCommonPacket reply;
+    
+    // initialize the reply;
+    
+    
+    if(request.ParseFromString(in_data)){
+        
+        
+    }
+
+    //after used, need free the frame
+    zframe_destroy(&in_frame);
+
+    
+    // send back the reply
+    std::string out_data;
+    reply.SerializeToString(&out_data);
+    zframe_t * out_frame = NULL;
+    out_frame = zframe_new(out_data.data(), out_data.size());
+    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);
+    
+    
+    
+
+    
+    return 0;   
 }
 
 
@@ -482,6 +520,8 @@ int StreamSource::Heartbeat(int64_t now)
     if(now == 0){
         now = zclock_mono();
     }
+    
+    
 
 }
     
@@ -494,7 +534,7 @@ void * StreamSource::ThreadRoutine(void * arg)
     
 #define MAX_POLLER_WAIT_TIME    100
     
-    while(source->flag_ & STREAM_SOURCE_FLAG_STARTED){
+    while(source->flags_ & STREAM_SOURCE_FLAG_STARTED){
         int64_t now = zclock_mono();
         
         //calculate the timeout

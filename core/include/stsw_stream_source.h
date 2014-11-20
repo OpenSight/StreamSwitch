@@ -32,6 +32,7 @@
 #include<stsw_defs.h>
 #include<stdint.h>
 #include<pthread.h>
+#include<sys/time.h>
 
 #define STSW_STREAM_SOURCE_HEARTBEAT_INT  1000  // the heartbeat interval for 
                                                 // stream source, in ms
@@ -98,7 +99,7 @@ public:
     virtual int SendMediaData(int32_t sub_stream_index, 
                               uint64_t frame_seq,     
                               MediaFrameType frame_type,
-                              int64_t sec, int32_t usec,                               
+                              const struct timeval &timestamp, 
                               uint32_t ssrc, 
                               std::string data);
     
@@ -154,7 +155,7 @@ private:
 // stream source flags
 #define STREAM_SOURCE_FLAG_INIT 1
 #define STREAM_SOURCE_FLAG_META_READY 2
-#define STREAM_SOURCE_FLAG_META_STARTED 4
+#define STREAM_SOURCE_FLAG_STARTED 4
     uint32_t flags_;      
 
     SubStreamMediaStatisticVector statistic_;
