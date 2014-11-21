@@ -491,16 +491,39 @@ int StreamSource::RpcHandler()
     ProtoCommonPacket reply;
     
     // initialize the reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+    reply.mutable_header()->set_info("Unknown Error");
     
-    
+        
     if(request.ParseFromString(in_data)){
         
+        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+        reply.mutable_header()->set_info("Unknown Error");        
+        reply.mutable_header()->set_code(request.header().code());   
+        reply.mutable_header()->set_seq(request.header().seq());
+        int op_code = request.header().code();
+        SourceApiHanderMap::iterator it;
+        pthread_mutex_lock(&lock_); 
+        it = api_handler_map_.find(op_code);
+        if(it == api_handler_map_.end()){
+            pthread_mutex_unlock(&lock_); 
+            reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+            char err_info[64];
+            sprintf(err_info, "Handler for code(%d) Not Found", op_code);
+            reply.mutable_header()->set_info(err_info);               
+            
+        }else{
+            SourceApiHandlerEntry entry = it->second;
+            pthread_mutex_unlock(&lock_); 
+            int ret = 0;
+            ret = entry.handler(this, &request, &reply, entry.user_data);            
+        }          
         
     }else{
-        
+        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        reply.mutable_header()->set_info("Request Parse Error");        
     }
-
-
 
     
     // send back the reply
@@ -508,8 +531,7 @@ int StreamSource::RpcHandler()
     reply.SerializeToString(&out_data);
     zframe_t * out_frame = NULL;
     out_frame = zframe_new(out_data.data(), out_data.size());
-    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);
-    
+    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);    
            
     return 0;   
 }
@@ -578,8 +600,6 @@ int SendStreamInfo(void)
 {
     return 0;
 }
-
-
 
 }
 

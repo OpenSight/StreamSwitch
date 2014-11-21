@@ -54,15 +54,14 @@ void protobuf_AssignDesc_pb_5fmedia_5fstatistic_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(ProtoMediaStatisticReq));
   ProtoSubStreamMediaStatistic_descriptor_ = file->message_type(1);
-  static const int ProtoSubStreamMediaStatistic_offsets_[9] = {
+  static const int ProtoSubStreamMediaStatistic_offsets_[8] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, sub_stream_index_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, media_type_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, total_packets_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, receive_packets_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, received_bytes_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, key_frame_bytes_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, received_frames_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, received_key_frames_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, total_bytes_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, key_bytes_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, expected_frames_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, total_frames_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, key_frames_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoSubStreamMediaStatistic, last_gov_),
   };
   ProtoSubStreamMediaStatistic_reflection_ =
@@ -80,7 +79,7 @@ void protobuf_AssignDesc_pb_5fmedia_5fstatistic_2eproto() {
   static const int ProtoMediaStatisticRep_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMediaStatisticRep, ssrc_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMediaStatisticRep, timestamp_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMediaStatisticRep, total_bytes_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMediaStatisticRep, sum_bytes_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMediaStatisticRep, sub_stream_stats_),
   };
   ProtoMediaStatisticRep_reflection_ =
@@ -135,18 +134,16 @@ void protobuf_AddDesc_pb_5fmedia_5fstatistic_2eproto() {
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\030pb_media_statistic.proto\022\rstream_switc"
     "h\032\021pb_metadata.proto\"\030\n\026ProtoMediaStatis"
-    "ticReq\"\235\002\n\034ProtoSubStreamMediaStatistic\022"
+    "ticReq\"\361\001\n\034ProtoSubStreamMediaStatistic\022"
     "\030\n\020sub_stream_index\030\001 \001(\005\022:\n\nmedia_type\030"
     "\002 \001(\0162&.stream_switch.ProtoSubStreamMedi"
-    "aType\022\025\n\rtotal_packets\030\n \001(\004\022\027\n\017receive_"
-    "packets\030\013 \001(\004\022\026\n\016received_bytes\030\024 \001(\004\022\027\n"
-    "\017key_frame_bytes\030\025 \001(\004\022\027\n\017received_frame"
-    "s\030\036 \001(\004\022\033\n\023received_key_frames\030\037 \001(\004\022\020\n\010"
-    "last_gov\030  \001(\004\"\225\001\n\026ProtoMediaStatisticRe"
-    "p\022\014\n\004ssrc\030\001 \001(\r\022\021\n\ttimestamp\030\002 \001(\003\022\023\n\013to"
-    "tal_bytes\030\003 \001(\004\022E\n\020sub_stream_stats\030@ \003("
-    "\0132+.stream_switch.ProtoSubStreamMediaSta"
-    "tistic", 526);
+    "aType\022\023\n\013total_bytes\030\024 \001(\004\022\021\n\tkey_bytes\030"
+    "\025 \001(\004\022\027\n\017expected_frames\030\036 \001(\004\022\024\n\014total_"
+    "frames\030\037 \001(\004\022\022\n\nkey_frames\030  \001(\004\022\020\n\010last"
+    "_gov\030! \001(\004\"\223\001\n\026ProtoMediaStatisticRep\022\014\n"
+    "\004ssrc\030\001 \001(\r\022\021\n\ttimestamp\030\002 \001(\003\022\021\n\tsum_by"
+    "tes\030\003 \001(\004\022E\n\020sub_stream_stats\030@ \003(\0132+.st"
+    "ream_switch.ProtoSubStreamMediaStatistic", 480);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_media_statistic.proto", &protobuf_RegisterTypes);
   ProtoMediaStatisticReq::default_instance_ = new ProtoMediaStatisticReq();
@@ -344,12 +341,11 @@ void ProtoMediaStatisticReq::Swap(ProtoMediaStatisticReq* other) {
 #ifndef _MSC_VER
 const int ProtoSubStreamMediaStatistic::kSubStreamIndexFieldNumber;
 const int ProtoSubStreamMediaStatistic::kMediaTypeFieldNumber;
-const int ProtoSubStreamMediaStatistic::kTotalPacketsFieldNumber;
-const int ProtoSubStreamMediaStatistic::kReceivePacketsFieldNumber;
-const int ProtoSubStreamMediaStatistic::kReceivedBytesFieldNumber;
-const int ProtoSubStreamMediaStatistic::kKeyFrameBytesFieldNumber;
-const int ProtoSubStreamMediaStatistic::kReceivedFramesFieldNumber;
-const int ProtoSubStreamMediaStatistic::kReceivedKeyFramesFieldNumber;
+const int ProtoSubStreamMediaStatistic::kTotalBytesFieldNumber;
+const int ProtoSubStreamMediaStatistic::kKeyBytesFieldNumber;
+const int ProtoSubStreamMediaStatistic::kExpectedFramesFieldNumber;
+const int ProtoSubStreamMediaStatistic::kTotalFramesFieldNumber;
+const int ProtoSubStreamMediaStatistic::kKeyFramesFieldNumber;
 const int ProtoSubStreamMediaStatistic::kLastGovFieldNumber;
 #endif  // !_MSC_VER
 
@@ -373,12 +369,11 @@ void ProtoSubStreamMediaStatistic::SharedCtor() {
   _cached_size_ = 0;
   sub_stream_index_ = 0;
   media_type_ = 0;
-  total_packets_ = GOOGLE_ULONGLONG(0);
-  receive_packets_ = GOOGLE_ULONGLONG(0);
-  received_bytes_ = GOOGLE_ULONGLONG(0);
-  key_frame_bytes_ = GOOGLE_ULONGLONG(0);
-  received_frames_ = GOOGLE_ULONGLONG(0);
-  received_key_frames_ = GOOGLE_ULONGLONG(0);
+  total_bytes_ = GOOGLE_ULONGLONG(0);
+  key_bytes_ = GOOGLE_ULONGLONG(0);
+  expected_frames_ = GOOGLE_ULONGLONG(0);
+  total_frames_ = GOOGLE_ULONGLONG(0);
+  key_frames_ = GOOGLE_ULONGLONG(0);
   last_gov_ = GOOGLE_ULONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
@@ -426,9 +421,8 @@ void ProtoSubStreamMediaStatistic::Clear() {
   } while (0)
 
   if (_has_bits_[0 / 32] & 255) {
-    ZR_(sub_stream_index_, received_key_frames_);
+    ZR_(sub_stream_index_, last_gov_);
   }
-  last_gov_ = GOOGLE_ULONGLONG(0);
 
 #undef OFFSET_OF_FIELD_
 #undef ZR_
@@ -477,103 +471,88 @@ bool ProtoSubStreamMediaStatistic::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(80)) goto parse_total_packets;
+        if (input->ExpectTag(160)) goto parse_total_bytes;
         break;
       }
 
-      // optional uint64 total_packets = 10;
-      case 10: {
-        if (tag == 80) {
-         parse_total_packets:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &total_packets_)));
-          set_has_total_packets();
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(88)) goto parse_receive_packets;
-        break;
-      }
-
-      // optional uint64 receive_packets = 11;
-      case 11: {
-        if (tag == 88) {
-         parse_receive_packets:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &receive_packets_)));
-          set_has_receive_packets();
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(160)) goto parse_received_bytes;
-        break;
-      }
-
-      // optional uint64 received_bytes = 20;
+      // optional uint64 total_bytes = 20;
       case 20: {
         if (tag == 160) {
-         parse_received_bytes:
+         parse_total_bytes:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &received_bytes_)));
-          set_has_received_bytes();
+                 input, &total_bytes_)));
+          set_has_total_bytes();
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(168)) goto parse_key_frame_bytes;
+        if (input->ExpectTag(168)) goto parse_key_bytes;
         break;
       }
 
-      // optional uint64 key_frame_bytes = 21;
+      // optional uint64 key_bytes = 21;
       case 21: {
         if (tag == 168) {
-         parse_key_frame_bytes:
+         parse_key_bytes:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &key_frame_bytes_)));
-          set_has_key_frame_bytes();
+                 input, &key_bytes_)));
+          set_has_key_bytes();
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(240)) goto parse_received_frames;
+        if (input->ExpectTag(240)) goto parse_expected_frames;
         break;
       }
 
-      // optional uint64 received_frames = 30;
+      // optional uint64 expected_frames = 30;
       case 30: {
         if (tag == 240) {
-         parse_received_frames:
+         parse_expected_frames:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &received_frames_)));
-          set_has_received_frames();
+                 input, &expected_frames_)));
+          set_has_expected_frames();
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(248)) goto parse_received_key_frames;
+        if (input->ExpectTag(248)) goto parse_total_frames;
         break;
       }
 
-      // optional uint64 received_key_frames = 31;
+      // optional uint64 total_frames = 31;
       case 31: {
         if (tag == 248) {
-         parse_received_key_frames:
+         parse_total_frames:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &received_key_frames_)));
-          set_has_received_key_frames();
+                 input, &total_frames_)));
+          set_has_total_frames();
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(256)) goto parse_last_gov;
+        if (input->ExpectTag(256)) goto parse_key_frames;
         break;
       }
 
-      // optional uint64 last_gov = 32;
+      // optional uint64 key_frames = 32;
       case 32: {
         if (tag == 256) {
+         parse_key_frames:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &key_frames_)));
+          set_has_key_frames();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(264)) goto parse_last_gov;
+        break;
+      }
+
+      // optional uint64 last_gov = 33;
+      case 33: {
+        if (tag == 264) {
          parse_last_gov:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
@@ -622,39 +601,34 @@ void ProtoSubStreamMediaStatistic::SerializeWithCachedSizes(
       2, this->media_type(), output);
   }
 
-  // optional uint64 total_packets = 10;
-  if (has_total_packets()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(10, this->total_packets(), output);
+  // optional uint64 total_bytes = 20;
+  if (has_total_bytes()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(20, this->total_bytes(), output);
   }
 
-  // optional uint64 receive_packets = 11;
-  if (has_receive_packets()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(11, this->receive_packets(), output);
+  // optional uint64 key_bytes = 21;
+  if (has_key_bytes()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(21, this->key_bytes(), output);
   }
 
-  // optional uint64 received_bytes = 20;
-  if (has_received_bytes()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(20, this->received_bytes(), output);
+  // optional uint64 expected_frames = 30;
+  if (has_expected_frames()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(30, this->expected_frames(), output);
   }
 
-  // optional uint64 key_frame_bytes = 21;
-  if (has_key_frame_bytes()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(21, this->key_frame_bytes(), output);
+  // optional uint64 total_frames = 31;
+  if (has_total_frames()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(31, this->total_frames(), output);
   }
 
-  // optional uint64 received_frames = 30;
-  if (has_received_frames()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(30, this->received_frames(), output);
+  // optional uint64 key_frames = 32;
+  if (has_key_frames()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(32, this->key_frames(), output);
   }
 
-  // optional uint64 received_key_frames = 31;
-  if (has_received_key_frames()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(31, this->received_key_frames(), output);
-  }
-
-  // optional uint64 last_gov = 32;
+  // optional uint64 last_gov = 33;
   if (has_last_gov()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(32, this->last_gov(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(33, this->last_gov(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -678,39 +652,34 @@ void ProtoSubStreamMediaStatistic::SerializeWithCachedSizes(
       2, this->media_type(), target);
   }
 
-  // optional uint64 total_packets = 10;
-  if (has_total_packets()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(10, this->total_packets(), target);
+  // optional uint64 total_bytes = 20;
+  if (has_total_bytes()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(20, this->total_bytes(), target);
   }
 
-  // optional uint64 receive_packets = 11;
-  if (has_receive_packets()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(11, this->receive_packets(), target);
+  // optional uint64 key_bytes = 21;
+  if (has_key_bytes()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(21, this->key_bytes(), target);
   }
 
-  // optional uint64 received_bytes = 20;
-  if (has_received_bytes()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(20, this->received_bytes(), target);
+  // optional uint64 expected_frames = 30;
+  if (has_expected_frames()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(30, this->expected_frames(), target);
   }
 
-  // optional uint64 key_frame_bytes = 21;
-  if (has_key_frame_bytes()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(21, this->key_frame_bytes(), target);
+  // optional uint64 total_frames = 31;
+  if (has_total_frames()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(31, this->total_frames(), target);
   }
 
-  // optional uint64 received_frames = 30;
-  if (has_received_frames()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(30, this->received_frames(), target);
+  // optional uint64 key_frames = 32;
+  if (has_key_frames()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(32, this->key_frames(), target);
   }
 
-  // optional uint64 received_key_frames = 31;
-  if (has_received_key_frames()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(31, this->received_key_frames(), target);
-  }
-
-  // optional uint64 last_gov = 32;
+  // optional uint64 last_gov = 33;
   if (has_last_gov()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(32, this->last_gov(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(33, this->last_gov(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -738,51 +707,42 @@ int ProtoSubStreamMediaStatistic::ByteSize() const {
         ::google::protobuf::internal::WireFormatLite::EnumSize(this->media_type());
     }
 
-    // optional uint64 total_packets = 10;
-    if (has_total_packets()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->total_packets());
-    }
-
-    // optional uint64 receive_packets = 11;
-    if (has_receive_packets()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->receive_packets());
-    }
-
-    // optional uint64 received_bytes = 20;
-    if (has_received_bytes()) {
+    // optional uint64 total_bytes = 20;
+    if (has_total_bytes()) {
       total_size += 2 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->received_bytes());
+          this->total_bytes());
     }
 
-    // optional uint64 key_frame_bytes = 21;
-    if (has_key_frame_bytes()) {
+    // optional uint64 key_bytes = 21;
+    if (has_key_bytes()) {
       total_size += 2 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->key_frame_bytes());
+          this->key_bytes());
     }
 
-    // optional uint64 received_frames = 30;
-    if (has_received_frames()) {
+    // optional uint64 expected_frames = 30;
+    if (has_expected_frames()) {
       total_size += 2 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->received_frames());
+          this->expected_frames());
     }
 
-    // optional uint64 received_key_frames = 31;
-    if (has_received_key_frames()) {
+    // optional uint64 total_frames = 31;
+    if (has_total_frames()) {
       total_size += 2 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->received_key_frames());
+          this->total_frames());
     }
 
-  }
-  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
-    // optional uint64 last_gov = 32;
+    // optional uint64 key_frames = 32;
+    if (has_key_frames()) {
+      total_size += 2 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->key_frames());
+    }
+
+    // optional uint64 last_gov = 33;
     if (has_last_gov()) {
       total_size += 2 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
@@ -822,26 +782,21 @@ void ProtoSubStreamMediaStatistic::MergeFrom(const ProtoSubStreamMediaStatistic&
     if (from.has_media_type()) {
       set_media_type(from.media_type());
     }
-    if (from.has_total_packets()) {
-      set_total_packets(from.total_packets());
+    if (from.has_total_bytes()) {
+      set_total_bytes(from.total_bytes());
     }
-    if (from.has_receive_packets()) {
-      set_receive_packets(from.receive_packets());
+    if (from.has_key_bytes()) {
+      set_key_bytes(from.key_bytes());
     }
-    if (from.has_received_bytes()) {
-      set_received_bytes(from.received_bytes());
+    if (from.has_expected_frames()) {
+      set_expected_frames(from.expected_frames());
     }
-    if (from.has_key_frame_bytes()) {
-      set_key_frame_bytes(from.key_frame_bytes());
+    if (from.has_total_frames()) {
+      set_total_frames(from.total_frames());
     }
-    if (from.has_received_frames()) {
-      set_received_frames(from.received_frames());
+    if (from.has_key_frames()) {
+      set_key_frames(from.key_frames());
     }
-    if (from.has_received_key_frames()) {
-      set_received_key_frames(from.received_key_frames());
-    }
-  }
-  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     if (from.has_last_gov()) {
       set_last_gov(from.last_gov());
     }
@@ -870,12 +825,11 @@ void ProtoSubStreamMediaStatistic::Swap(ProtoSubStreamMediaStatistic* other) {
   if (other != this) {
     std::swap(sub_stream_index_, other->sub_stream_index_);
     std::swap(media_type_, other->media_type_);
-    std::swap(total_packets_, other->total_packets_);
-    std::swap(receive_packets_, other->receive_packets_);
-    std::swap(received_bytes_, other->received_bytes_);
-    std::swap(key_frame_bytes_, other->key_frame_bytes_);
-    std::swap(received_frames_, other->received_frames_);
-    std::swap(received_key_frames_, other->received_key_frames_);
+    std::swap(total_bytes_, other->total_bytes_);
+    std::swap(key_bytes_, other->key_bytes_);
+    std::swap(expected_frames_, other->expected_frames_);
+    std::swap(total_frames_, other->total_frames_);
+    std::swap(key_frames_, other->key_frames_);
     std::swap(last_gov_, other->last_gov_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
@@ -897,7 +851,7 @@ void ProtoSubStreamMediaStatistic::Swap(ProtoSubStreamMediaStatistic* other) {
 #ifndef _MSC_VER
 const int ProtoMediaStatisticRep::kSsrcFieldNumber;
 const int ProtoMediaStatisticRep::kTimestampFieldNumber;
-const int ProtoMediaStatisticRep::kTotalBytesFieldNumber;
+const int ProtoMediaStatisticRep::kSumBytesFieldNumber;
 const int ProtoMediaStatisticRep::kSubStreamStatsFieldNumber;
 #endif  // !_MSC_VER
 
@@ -921,7 +875,7 @@ void ProtoMediaStatisticRep::SharedCtor() {
   _cached_size_ = 0;
   ssrc_ = 0u;
   timestamp_ = GOOGLE_LONGLONG(0);
-  total_bytes_ = GOOGLE_ULONGLONG(0);
+  sum_bytes_ = GOOGLE_ULONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -968,7 +922,7 @@ void ProtoMediaStatisticRep::Clear() {
   } while (0)
 
   if (_has_bits_[0 / 32] & 7) {
-    ZR_(timestamp_, total_bytes_);
+    ZR_(timestamp_, sum_bytes_);
     ssrc_ = 0u;
   }
 
@@ -1015,18 +969,18 @@ bool ProtoMediaStatisticRep::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(24)) goto parse_total_bytes;
+        if (input->ExpectTag(24)) goto parse_sum_bytes;
         break;
       }
 
-      // optional uint64 total_bytes = 3;
+      // optional uint64 sum_bytes = 3;
       case 3: {
         if (tag == 24) {
-         parse_total_bytes:
+         parse_sum_bytes:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
-                 input, &total_bytes_)));
-          set_has_total_bytes();
+                 input, &sum_bytes_)));
+          set_has_sum_bytes();
         } else {
           goto handle_unusual;
         }
@@ -1083,9 +1037,9 @@ void ProtoMediaStatisticRep::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt64(2, this->timestamp(), output);
   }
 
-  // optional uint64 total_bytes = 3;
-  if (has_total_bytes()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(3, this->total_bytes(), output);
+  // optional uint64 sum_bytes = 3;
+  if (has_sum_bytes()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(3, this->sum_bytes(), output);
   }
 
   // repeated .stream_switch.ProtoSubStreamMediaStatistic sub_stream_stats = 64;
@@ -1114,9 +1068,9 @@ void ProtoMediaStatisticRep::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteInt64ToArray(2, this->timestamp(), target);
   }
 
-  // optional uint64 total_bytes = 3;
-  if (has_total_bytes()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(3, this->total_bytes(), target);
+  // optional uint64 sum_bytes = 3;
+  if (has_sum_bytes()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(3, this->sum_bytes(), target);
   }
 
   // repeated .stream_switch.ProtoSubStreamMediaStatistic sub_stream_stats = 64;
@@ -1152,11 +1106,11 @@ int ProtoMediaStatisticRep::ByteSize() const {
           this->timestamp());
     }
 
-    // optional uint64 total_bytes = 3;
-    if (has_total_bytes()) {
+    // optional uint64 sum_bytes = 3;
+    if (has_sum_bytes()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
-          this->total_bytes());
+          this->sum_bytes());
     }
 
   }
@@ -1201,8 +1155,8 @@ void ProtoMediaStatisticRep::MergeFrom(const ProtoMediaStatisticRep& from) {
     if (from.has_timestamp()) {
       set_timestamp(from.timestamp());
     }
-    if (from.has_total_bytes()) {
-      set_total_bytes(from.total_bytes());
+    if (from.has_sum_bytes()) {
+      set_sum_bytes(from.sum_bytes());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -1229,7 +1183,7 @@ void ProtoMediaStatisticRep::Swap(ProtoMediaStatisticRep* other) {
   if (other != this) {
     std::swap(ssrc_, other->ssrc_);
     std::swap(timestamp_, other->timestamp_);
-    std::swap(total_bytes_, other->total_bytes_);
+    std::swap(sum_bytes_, other->sum_bytes_);
     sub_stream_stats_.Swap(&other->sub_stream_stats_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);

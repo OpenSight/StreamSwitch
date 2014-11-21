@@ -60,6 +60,7 @@ inline bool ProtoPacketType_Parse(
 enum ProtoPacketStatus {
   PROTO_PACKET_STATUS_OK = 200,
   PROTO_PACKET_STATUS_BAD_REQUEST = 400,
+  PROTO_PACKET_STATUS_NOT_FOUND = 404,
   PROTO_PACKET_STATUS_INTERNAL_ERR = 500
 };
 bool ProtoPacketStatus_IsValid(int value);

@@ -176,52 +176,45 @@ class ProtoSubStreamMediaStatistic : public ::google::protobuf::Message {
   inline ::stream_switch::ProtoSubStreamMediaType media_type() const;
   inline void set_media_type(::stream_switch::ProtoSubStreamMediaType value);
 
-  // optional uint64 total_packets = 10;
-  inline bool has_total_packets() const;
-  inline void clear_total_packets();
-  static const int kTotalPacketsFieldNumber = 10;
-  inline ::google::protobuf::uint64 total_packets() const;
-  inline void set_total_packets(::google::protobuf::uint64 value);
+  // optional uint64 total_bytes = 20;
+  inline bool has_total_bytes() const;
+  inline void clear_total_bytes();
+  static const int kTotalBytesFieldNumber = 20;
+  inline ::google::protobuf::uint64 total_bytes() const;
+  inline void set_total_bytes(::google::protobuf::uint64 value);
 
-  // optional uint64 receive_packets = 11;
-  inline bool has_receive_packets() const;
-  inline void clear_receive_packets();
-  static const int kReceivePacketsFieldNumber = 11;
-  inline ::google::protobuf::uint64 receive_packets() const;
-  inline void set_receive_packets(::google::protobuf::uint64 value);
+  // optional uint64 key_bytes = 21;
+  inline bool has_key_bytes() const;
+  inline void clear_key_bytes();
+  static const int kKeyBytesFieldNumber = 21;
+  inline ::google::protobuf::uint64 key_bytes() const;
+  inline void set_key_bytes(::google::protobuf::uint64 value);
 
-  // optional uint64 received_bytes = 20;
-  inline bool has_received_bytes() const;
-  inline void clear_received_bytes();
-  static const int kReceivedBytesFieldNumber = 20;
-  inline ::google::protobuf::uint64 received_bytes() const;
-  inline void set_received_bytes(::google::protobuf::uint64 value);
+  // optional uint64 expected_frames = 30;
+  inline bool has_expected_frames() const;
+  inline void clear_expected_frames();
+  static const int kExpectedFramesFieldNumber = 30;
+  inline ::google::protobuf::uint64 expected_frames() const;
+  inline void set_expected_frames(::google::protobuf::uint64 value);
 
-  // optional uint64 key_frame_bytes = 21;
-  inline bool has_key_frame_bytes() const;
-  inline void clear_key_frame_bytes();
-  static const int kKeyFrameBytesFieldNumber = 21;
-  inline ::google::protobuf::uint64 key_frame_bytes() const;
-  inline void set_key_frame_bytes(::google::protobuf::uint64 value);
+  // optional uint64 total_frames = 31;
+  inline bool has_total_frames() const;
+  inline void clear_total_frames();
+  static const int kTotalFramesFieldNumber = 31;
+  inline ::google::protobuf::uint64 total_frames() const;
+  inline void set_total_frames(::google::protobuf::uint64 value);
 
-  // optional uint64 received_frames = 30;
-  inline bool has_received_frames() const;
-  inline void clear_received_frames();
-  static const int kReceivedFramesFieldNumber = 30;
-  inline ::google::protobuf::uint64 received_frames() const;
-  inline void set_received_frames(::google::protobuf::uint64 value);
+  // optional uint64 key_frames = 32;
+  inline bool has_key_frames() const;
+  inline void clear_key_frames();
+  static const int kKeyFramesFieldNumber = 32;
+  inline ::google::protobuf::uint64 key_frames() const;
+  inline void set_key_frames(::google::protobuf::uint64 value);
 
-  // optional uint64 received_key_frames = 31;
-  inline bool has_received_key_frames() const;
-  inline void clear_received_key_frames();
-  static const int kReceivedKeyFramesFieldNumber = 31;
-  inline ::google::protobuf::uint64 received_key_frames() const;
-  inline void set_received_key_frames(::google::protobuf::uint64 value);
-
-  // optional uint64 last_gov = 32;
+  // optional uint64 last_gov = 33;
   inline bool has_last_gov() const;
   inline void clear_last_gov();
-  static const int kLastGovFieldNumber = 32;
+  static const int kLastGovFieldNumber = 33;
   inline ::google::protobuf::uint64 last_gov() const;
   inline void set_last_gov(::google::protobuf::uint64 value);
 
@@ -231,18 +224,16 @@ class ProtoSubStreamMediaStatistic : public ::google::protobuf::Message {
   inline void clear_has_sub_stream_index();
   inline void set_has_media_type();
   inline void clear_has_media_type();
-  inline void set_has_total_packets();
-  inline void clear_has_total_packets();
-  inline void set_has_receive_packets();
-  inline void clear_has_receive_packets();
-  inline void set_has_received_bytes();
-  inline void clear_has_received_bytes();
-  inline void set_has_key_frame_bytes();
-  inline void clear_has_key_frame_bytes();
-  inline void set_has_received_frames();
-  inline void clear_has_received_frames();
-  inline void set_has_received_key_frames();
-  inline void clear_has_received_key_frames();
+  inline void set_has_total_bytes();
+  inline void clear_has_total_bytes();
+  inline void set_has_key_bytes();
+  inline void clear_has_key_bytes();
+  inline void set_has_expected_frames();
+  inline void clear_has_expected_frames();
+  inline void set_has_total_frames();
+  inline void clear_has_total_frames();
+  inline void set_has_key_frames();
+  inline void clear_has_key_frames();
   inline void set_has_last_gov();
   inline void clear_has_last_gov();
 
@@ -252,12 +243,11 @@ class ProtoSubStreamMediaStatistic : public ::google::protobuf::Message {
   mutable int _cached_size_;
   ::google::protobuf::int32 sub_stream_index_;
   int media_type_;
-  ::google::protobuf::uint64 total_packets_;
-  ::google::protobuf::uint64 receive_packets_;
-  ::google::protobuf::uint64 received_bytes_;
-  ::google::protobuf::uint64 key_frame_bytes_;
-  ::google::protobuf::uint64 received_frames_;
-  ::google::protobuf::uint64 received_key_frames_;
+  ::google::protobuf::uint64 total_bytes_;
+  ::google::protobuf::uint64 key_bytes_;
+  ::google::protobuf::uint64 expected_frames_;
+  ::google::protobuf::uint64 total_frames_;
+  ::google::protobuf::uint64 key_frames_;
   ::google::protobuf::uint64 last_gov_;
   friend void  protobuf_AddDesc_pb_5fmedia_5fstatistic_2eproto();
   friend void protobuf_AssignDesc_pb_5fmedia_5fstatistic_2eproto();
@@ -335,12 +325,12 @@ class ProtoMediaStatisticRep : public ::google::protobuf::Message {
   inline ::google::protobuf::int64 timestamp() const;
   inline void set_timestamp(::google::protobuf::int64 value);
 
-  // optional uint64 total_bytes = 3;
-  inline bool has_total_bytes() const;
-  inline void clear_total_bytes();
-  static const int kTotalBytesFieldNumber = 3;
-  inline ::google::protobuf::uint64 total_bytes() const;
-  inline void set_total_bytes(::google::protobuf::uint64 value);
+  // optional uint64 sum_bytes = 3;
+  inline bool has_sum_bytes() const;
+  inline void clear_sum_bytes();
+  static const int kSumBytesFieldNumber = 3;
+  inline ::google::protobuf::uint64 sum_bytes() const;
+  inline void set_sum_bytes(::google::protobuf::uint64 value);
 
   // repeated .stream_switch.ProtoSubStreamMediaStatistic sub_stream_stats = 64;
   inline int sub_stream_stats_size() const;
@@ -360,15 +350,15 @@ class ProtoMediaStatisticRep : public ::google::protobuf::Message {
   inline void clear_has_ssrc();
   inline void set_has_timestamp();
   inline void clear_has_timestamp();
-  inline void set_has_total_bytes();
-  inline void clear_has_total_bytes();
+  inline void set_has_sum_bytes();
+  inline void clear_has_sum_bytes();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
   ::google::protobuf::int64 timestamp_;
-  ::google::protobuf::uint64 total_bytes_;
+  ::google::protobuf::uint64 sum_bytes_;
   ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamMediaStatistic > sub_stream_stats_;
   ::google::protobuf::uint32 ssrc_;
   friend void  protobuf_AddDesc_pb_5fmedia_5fstatistic_2eproto();
@@ -438,159 +428,135 @@ inline void ProtoSubStreamMediaStatistic::set_media_type(::stream_switch::ProtoS
   // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.media_type)
 }
 
-// optional uint64 total_packets = 10;
-inline bool ProtoSubStreamMediaStatistic::has_total_packets() const {
+// optional uint64 total_bytes = 20;
+inline bool ProtoSubStreamMediaStatistic::has_total_bytes() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_total_packets() {
+inline void ProtoSubStreamMediaStatistic::set_has_total_bytes() {
   _has_bits_[0] |= 0x00000004u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_total_packets() {
+inline void ProtoSubStreamMediaStatistic::clear_has_total_bytes() {
   _has_bits_[0] &= ~0x00000004u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_total_packets() {
-  total_packets_ = GOOGLE_ULONGLONG(0);
-  clear_has_total_packets();
+inline void ProtoSubStreamMediaStatistic::clear_total_bytes() {
+  total_bytes_ = GOOGLE_ULONGLONG(0);
+  clear_has_total_bytes();
 }
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::total_packets() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.total_packets)
-  return total_packets_;
+inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::total_bytes() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.total_bytes)
+  return total_bytes_;
 }
-inline void ProtoSubStreamMediaStatistic::set_total_packets(::google::protobuf::uint64 value) {
-  set_has_total_packets();
-  total_packets_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.total_packets)
+inline void ProtoSubStreamMediaStatistic::set_total_bytes(::google::protobuf::uint64 value) {
+  set_has_total_bytes();
+  total_bytes_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.total_bytes)
 }
 
-// optional uint64 receive_packets = 11;
-inline bool ProtoSubStreamMediaStatistic::has_receive_packets() const {
+// optional uint64 key_bytes = 21;
+inline bool ProtoSubStreamMediaStatistic::has_key_bytes() const {
   return (_has_bits_[0] & 0x00000008u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_receive_packets() {
+inline void ProtoSubStreamMediaStatistic::set_has_key_bytes() {
   _has_bits_[0] |= 0x00000008u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_receive_packets() {
+inline void ProtoSubStreamMediaStatistic::clear_has_key_bytes() {
   _has_bits_[0] &= ~0x00000008u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_receive_packets() {
-  receive_packets_ = GOOGLE_ULONGLONG(0);
-  clear_has_receive_packets();
+inline void ProtoSubStreamMediaStatistic::clear_key_bytes() {
+  key_bytes_ = GOOGLE_ULONGLONG(0);
+  clear_has_key_bytes();
 }
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::receive_packets() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.receive_packets)
-  return receive_packets_;
+inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::key_bytes() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.key_bytes)
+  return key_bytes_;
 }
-inline void ProtoSubStreamMediaStatistic::set_receive_packets(::google::protobuf::uint64 value) {
-  set_has_receive_packets();
-  receive_packets_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.receive_packets)
+inline void ProtoSubStreamMediaStatistic::set_key_bytes(::google::protobuf::uint64 value) {
+  set_has_key_bytes();
+  key_bytes_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.key_bytes)
 }
 
-// optional uint64 received_bytes = 20;
-inline bool ProtoSubStreamMediaStatistic::has_received_bytes() const {
+// optional uint64 expected_frames = 30;
+inline bool ProtoSubStreamMediaStatistic::has_expected_frames() const {
   return (_has_bits_[0] & 0x00000010u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_received_bytes() {
+inline void ProtoSubStreamMediaStatistic::set_has_expected_frames() {
   _has_bits_[0] |= 0x00000010u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_received_bytes() {
+inline void ProtoSubStreamMediaStatistic::clear_has_expected_frames() {
   _has_bits_[0] &= ~0x00000010u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_received_bytes() {
-  received_bytes_ = GOOGLE_ULONGLONG(0);
-  clear_has_received_bytes();
+inline void ProtoSubStreamMediaStatistic::clear_expected_frames() {
+  expected_frames_ = GOOGLE_ULONGLONG(0);
+  clear_has_expected_frames();
 }
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::received_bytes() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.received_bytes)
-  return received_bytes_;
+inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::expected_frames() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.expected_frames)
+  return expected_frames_;
 }
-inline void ProtoSubStreamMediaStatistic::set_received_bytes(::google::protobuf::uint64 value) {
-  set_has_received_bytes();
-  received_bytes_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.received_bytes)
+inline void ProtoSubStreamMediaStatistic::set_expected_frames(::google::protobuf::uint64 value) {
+  set_has_expected_frames();
+  expected_frames_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.expected_frames)
 }
 
-// optional uint64 key_frame_bytes = 21;
-inline bool ProtoSubStreamMediaStatistic::has_key_frame_bytes() const {
+// optional uint64 total_frames = 31;
+inline bool ProtoSubStreamMediaStatistic::has_total_frames() const {
   return (_has_bits_[0] & 0x00000020u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_key_frame_bytes() {
+inline void ProtoSubStreamMediaStatistic::set_has_total_frames() {
   _has_bits_[0] |= 0x00000020u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_key_frame_bytes() {
+inline void ProtoSubStreamMediaStatistic::clear_has_total_frames() {
   _has_bits_[0] &= ~0x00000020u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_key_frame_bytes() {
-  key_frame_bytes_ = GOOGLE_ULONGLONG(0);
-  clear_has_key_frame_bytes();
+inline void ProtoSubStreamMediaStatistic::clear_total_frames() {
+  total_frames_ = GOOGLE_ULONGLONG(0);
+  clear_has_total_frames();
 }
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::key_frame_bytes() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.key_frame_bytes)
-  return key_frame_bytes_;
+inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::total_frames() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.total_frames)
+  return total_frames_;
 }
-inline void ProtoSubStreamMediaStatistic::set_key_frame_bytes(::google::protobuf::uint64 value) {
-  set_has_key_frame_bytes();
-  key_frame_bytes_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.key_frame_bytes)
+inline void ProtoSubStreamMediaStatistic::set_total_frames(::google::protobuf::uint64 value) {
+  set_has_total_frames();
+  total_frames_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.total_frames)
 }
 
-// optional uint64 received_frames = 30;
-inline bool ProtoSubStreamMediaStatistic::has_received_frames() const {
+// optional uint64 key_frames = 32;
+inline bool ProtoSubStreamMediaStatistic::has_key_frames() const {
   return (_has_bits_[0] & 0x00000040u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_received_frames() {
+inline void ProtoSubStreamMediaStatistic::set_has_key_frames() {
   _has_bits_[0] |= 0x00000040u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_received_frames() {
+inline void ProtoSubStreamMediaStatistic::clear_has_key_frames() {
   _has_bits_[0] &= ~0x00000040u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_received_frames() {
-  received_frames_ = GOOGLE_ULONGLONG(0);
-  clear_has_received_frames();
+inline void ProtoSubStreamMediaStatistic::clear_key_frames() {
+  key_frames_ = GOOGLE_ULONGLONG(0);
+  clear_has_key_frames();
 }
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::received_frames() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.received_frames)
-  return received_frames_;
+inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::key_frames() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.key_frames)
+  return key_frames_;
 }
-inline void ProtoSubStreamMediaStatistic::set_received_frames(::google::protobuf::uint64 value) {
-  set_has_received_frames();
-  received_frames_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.received_frames)
+inline void ProtoSubStreamMediaStatistic::set_key_frames(::google::protobuf::uint64 value) {
+  set_has_key_frames();
+  key_frames_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.key_frames)
 }
 
-// optional uint64 received_key_frames = 31;
-inline bool ProtoSubStreamMediaStatistic::has_received_key_frames() const {
+// optional uint64 last_gov = 33;
+inline bool ProtoSubStreamMediaStatistic::has_last_gov() const {
   return (_has_bits_[0] & 0x00000080u) != 0;
 }
-inline void ProtoSubStreamMediaStatistic::set_has_received_key_frames() {
+inline void ProtoSubStreamMediaStatistic::set_has_last_gov() {
   _has_bits_[0] |= 0x00000080u;
 }
-inline void ProtoSubStreamMediaStatistic::clear_has_received_key_frames() {
-  _has_bits_[0] &= ~0x00000080u;
-}
-inline void ProtoSubStreamMediaStatistic::clear_received_key_frames() {
-  received_key_frames_ = GOOGLE_ULONGLONG(0);
-  clear_has_received_key_frames();
-}
-inline ::google::protobuf::uint64 ProtoSubStreamMediaStatistic::received_key_frames() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoSubStreamMediaStatistic.received_key_frames)
-  return received_key_frames_;
-}
-inline void ProtoSubStreamMediaStatistic::set_received_key_frames(::google::protobuf::uint64 value) {
-  set_has_received_key_frames();
-  received_key_frames_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoSubStreamMediaStatistic.received_key_frames)
-}
-
-// optional uint64 last_gov = 32;
-inline bool ProtoSubStreamMediaStatistic::has_last_gov() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
-}
-inline void ProtoSubStreamMediaStatistic::set_has_last_gov() {
-  _has_bits_[0] |= 0x00000100u;
-}
 inline void ProtoSubStreamMediaStatistic::clear_has_last_gov() {
-  _has_bits_[0] &= ~0x00000100u;
+  _has_bits_[0] &= ~0x00000080u;
 }
 inline void ProtoSubStreamMediaStatistic::clear_last_gov() {
   last_gov_ = GOOGLE_ULONGLONG(0);
@@ -658,28 +624,28 @@ inline void ProtoMediaStatisticRep::set_timestamp(::google::protobuf::int64 valu
   // @@protoc_insertion_point(field_set:stream_switch.ProtoMediaStatisticRep.timestamp)
 }
 
-// optional uint64 total_bytes = 3;
-inline bool ProtoMediaStatisticRep::has_total_bytes() const {
+// optional uint64 sum_bytes = 3;
+inline bool ProtoMediaStatisticRep::has_sum_bytes() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
-inline void ProtoMediaStatisticRep::set_has_total_bytes() {
+inline void ProtoMediaStatisticRep::set_has_sum_bytes() {
   _has_bits_[0] |= 0x00000004u;
 }
-inline void ProtoMediaStatisticRep::clear_has_total_bytes() {
+inline void ProtoMediaStatisticRep::clear_has_sum_bytes() {
   _has_bits_[0] &= ~0x00000004u;
 }
-inline void ProtoMediaStatisticRep::clear_total_bytes() {
-  total_bytes_ = GOOGLE_ULONGLONG(0);
-  clear_has_total_bytes();
+inline void ProtoMediaStatisticRep::clear_sum_bytes() {
+  sum_bytes_ = GOOGLE_ULONGLONG(0);
+  clear_has_sum_bytes();
 }
-inline ::google::protobuf::uint64 ProtoMediaStatisticRep::total_bytes() const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoMediaStatisticRep.total_bytes)
-  return total_bytes_;
+inline ::google::protobuf::uint64 ProtoMediaStatisticRep::sum_bytes() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoMediaStatisticRep.sum_bytes)
+  return sum_bytes_;
 }
-inline void ProtoMediaStatisticRep::set_total_bytes(::google::protobuf::uint64 value) {
-  set_has_total_bytes();
-  total_bytes_ = value;
-  // @@protoc_insertion_point(field_set:stream_switch.ProtoMediaStatisticRep.total_bytes)
+inline void ProtoMediaStatisticRep::set_sum_bytes(::google::protobuf::uint64 value) {
+  set_has_sum_bytes();
+  sum_bytes_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoMediaStatisticRep.sum_bytes)
 }
 
 // repeated .stream_switch.ProtoSubStreamMediaStatistic sub_stream_stats = 64;
