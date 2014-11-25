@@ -31,6 +31,8 @@
 
 #include<czmq.h>
 
+#include<stsw_lock_guard.h>
+
 
 #include<pb_packet.pb.h>
 #include<pb_client_heartbeat.pb.h>
@@ -65,7 +67,7 @@ StreamSource::~StreamSource()
     }
 }
 
-int StreamSource::Init(const std::string &stream_name, int tcp_port)
+int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string *errInfo)
 {
     int ret;
     //params check
@@ -302,7 +304,7 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     
 }
 
-void StreamSource::stream_meta(StreamMetadata * stream_meta)
+void StreamSource::get_stream_meta(StreamMetadata * stream_meta)
 {
     if(stream_meta != NULL){
         pthread_mutex_lock(&lock_); 
@@ -312,7 +314,7 @@ void StreamSource::stream_meta(StreamMetadata * stream_meta)
 }
 
 
-int StreamSource::Start()
+int StreamSource::Start(std::string *errInfo)
 {
     if(!IsInit()){
         return -1;
@@ -372,8 +374,30 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
                                 MediaFrameType frame_type,
                                 const struct timeval &timestamp,                               
                                 uint32_t ssrc, 
-                                std::string data)
+                                std::string data, 
+                                std::string *err_info)
 {
+    LockGuard guard(&lock_);
+    
+    // check metadata
+    if(stream_meta_.ssrc != ssrc){
+        SET_ERR_INFO(err_info, "ssrc not match");
+        return ERROR_CODE_PARAM;
+    }
+    // check sub stream index
+    if(sub_stream_index >= stream_meta_.sub_streams.size()){
+        char tmp[64];
+        sprintf(tmp, "Sub Stream(%d) Not Found", sub_stream_index);
+        SET_ERR_INFO(err_info, tmp);
+        return ERROR_CODE_PARAM;        
+    }
+    
+    
+    //update the statistic
+    cur_bytes += data.size();
+        
+    
+  
     return 0;
 }
 

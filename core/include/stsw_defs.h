@@ -194,6 +194,18 @@ enum MediaFrameType{
    
 };    
 
+
+enum ErrorCode{
+    ERROR_CODE_OK = 0,    //successful
+    ERROR_CODE_GENERAL = -1,   //general error
+    ERROR_CODE_TIMEOUT = -2,   //timeout error
+    ERROR_CODE_PARAM  = -3,    //parameter check error
+    ERROR_CODE_SERVER = -4,    //remote server reported error
+    
+};
+
+#define SET_ERR_INFO(err_info, str_value) if(err_info) (*err_info) = str_value;
+
 }
 
 #endif

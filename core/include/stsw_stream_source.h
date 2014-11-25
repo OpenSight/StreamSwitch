@@ -44,6 +44,15 @@ class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
 struct ReceiversInfoType;
 typedef void * SocketHandle;
+
+
+// the Source class
+//     A source class is used for a stream source application to emit its media 
+// frames to multi stream receiver
+// Thread safety: 
+//     most of methods(excepts for init/uninit) are thread safe which means
+// multi threads can invoke its methods on the same instance of this class 
+// simultaneously without additional lock mechanism
     
 class StreamSource{
 public:
@@ -52,19 +61,20 @@ public:
     
     // The following methods should be invoked by clients
     
-    // init this source
+    // init this source, note that it's not thread-safe
     // Args:
     //     stream_name string in: the stream name of this source, 
-    //     which is used to bind the api socket to unix domain address
+    //         which is used to bind the api socket to unix domain address
     //     tcp_port int in: the tcp port of this source, api socket would listen
-    //     on this port, and publish socket would listen on tcp_port + 1. If
-    //     this param is 0, means this source never listen on tcp
+    //         on this port, and publish socket would listen on tcp_port + 1. If
+    //         this param is 0, means this source never listen on tcp
+    //     errInfo string out: error tips if failed
     //
     // return:
     //     0 if successful, or -1 if error;
-    virtual int Init(const std::string &stream_name, int tcp_port);
+    virtual int Init(const std::string &stream_name, int tcp_port, std::string *err_info);
     
-    // un-init the source
+    // un-init the source, note that it's not thread-safe
     virtual void Uninit();
     
     virtual bool IsInit();
@@ -82,13 +92,13 @@ public:
     // Args:
     //     stream_meta StreamMetadata out: the retrieved stream meta data
     //
-    virtual void stream_meta(StreamMetadata * stream_meta);
+    virtual void get_stream_meta(StreamMetadata *stream_meta);
     
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
     // then the source would begin to handle the incoming request and 
     // sent out its stream info message at intervals
-    virtual int Start();
+    virtual int Start(std::string *errInfo);
     
     // Stop the source
     // Stop the internal thread and wait for it.
@@ -96,12 +106,25 @@ public:
     // sent out its stream info message 
     virtual void Stop();
     
+    // send out a media frame
+    // send out a media frame of a specific sub stream with a valid sequence number
+    // Args:
+    //     sub_stream_index int32_t in: the sub stream index in the configured 
+    //         metadata of the source
+    //     frame_seq uint64_t in: the seq of this frame in sub stream, it should be 
+    //         start from 1, and increased by 1 for each next frame in the sub stream.
+    //         if the seq skips, the source would consider frame loss
+    //     frame_type MediaFrameType in: the frame type 
+    //     timestamp timeval in: the pts for the frame
+    //     ssrc uint32_t in: must match the ssrc in the metadata of source
+    //     data string in: the data in the frame
     virtual int SendMediaData(int32_t sub_stream_index, 
                               uint64_t frame_seq,     
                               MediaFrameType frame_type,
                               const struct timeval &timestamp, 
                               uint32_t ssrc, 
-                              std::string data);
+                              std::string data, 
+                              std::string *errInfo);
     
     virtual void set_stream_state(int stream_state);
     virtual int stream_state();
