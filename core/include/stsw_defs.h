@@ -10,6 +10,8 @@
 #define STSW_SOCKET_NAME_CONNECTOR  "/"
 #define STSW_SOCKET_NAME_STREAM_API  "api"
 #define STSW_SOCKET_NAME_STREAM_PUBLISH  "broadcast"
+#define STSW_PUBLISH_MEDIA_CHANNEL "media"
+#define STSW_PUBLISH_INFO_CHANNEL "info"
 
 
 #define STSW_PUBLISH_SOCKET_HWM  250
@@ -193,6 +195,7 @@ enum MediaFrameType{
     MEDIA_FRAME_TYPE_PARAM_FRAME = 2,    //frame only include some codec parameter of the stream
    
 };    
+
 
 
 enum ErrorCode{

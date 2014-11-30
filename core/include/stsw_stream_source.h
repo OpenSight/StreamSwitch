@@ -77,9 +77,10 @@ public:
     // un-init the source, note that it's not thread-safe
     virtual void Uninit();
     
+    //flag check methods
     virtual bool IsInit();
     virtual bool IsMetaReady();
-    
+    virtual bool IsStarted();
     
     // configure the meta data of this source. 
     // After meta data change, the statistic in the source would auto clear
@@ -89,16 +90,16 @@ public:
     virtual void set_stream_meta(const StreamMetadata & stream_meta);
     
     // get the meta data of this source 
-    // Args:
-    //     stream_meta StreamMetadata out: the retrieved stream meta data
+    // Return:
+    //     A temporary StreamMetadata object which copy from stream_meta_ 
     //
-    virtual void get_stream_meta(StreamMetadata *stream_meta);
-    
+    virtual StreamMetadata stream_meta() 
+   
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
     // then the source would begin to handle the incoming request and 
     // sent out its stream info message at intervals
-    virtual int Start(std::string *errInfo);
+    virtual int Start(std::string *err_info);
     
     // Stop the source
     // Stop the internal thread and wait for it.
@@ -113,7 +114,9 @@ public:
     //         metadata of the source
     //     frame_seq uint64_t in: the seq of this frame in sub stream, it should be 
     //         start from 1, and increased by 1 for each next frame in the sub stream.
-    //         if the seq skips, the source would consider frame loss
+    //         if the seq skips, the source would consider frame loss. If your source 
+    //         stream cannot provide frame seq calculation, this param should be set
+    //         to 0 forever.
     //     frame_type MediaFrameType in: the frame type 
     //     timestamp timeval in: the pts for the frame
     //     ssrc uint32_t in: must match the ssrc in the metadata of source
@@ -124,7 +127,7 @@ public:
                               const struct timeval &timestamp, 
                               uint32_t ssrc, 
                               std::string data, 
-                              std::string *errInfo);
+                              std::string *err_info);
     
     virtual void set_stream_state(int stream_state);
     virtual int stream_state();
@@ -163,7 +166,13 @@ protected:
     static void * ThreadRoutine(void *);
     
     
-    virtual int SendStreamInfo(void);
+    virtual void SendStreamInfo(void);
+    
+    
+    // send the msg from the publish socket on the given channel
+    // 
+    void SendPublishMsg(char * channel_name, ProtoCommonPacket * msg);
+    
     
 private:
     std::string stream_name_;

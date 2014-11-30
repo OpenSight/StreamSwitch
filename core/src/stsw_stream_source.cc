@@ -28,14 +28,17 @@
 #include<stsw_stream_source.h>
 #include<stdint.h>
 #include<list>
+#include<string.h>
+#include<errno.h>
 
 #include<czmq.h>
 
 #include<stsw_lock_guard.h>
 
-
 #include<pb_packet.pb.h>
 #include<pb_client_heartbeat.pb.h>
+#include<pb_media.pb.h>
+#include<pb_stream_info.pb.h>
 
 namespace stream_switch {
 
@@ -277,16 +280,19 @@ bool StreamSource::IsMetaReady()
      return (flags_ & STREAM_SOURCE_FLAG_META_READY) != 0;   
 }
 
+bool StreamSource::IsStarted()
+{
+     return (flags_ & STREAM_SOURCE_FLAG_STARTED) != 0;   
+}
 
 void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
 {
-    pthread_mutex_lock(&lock_); 
+    LockGuard guard(&lock_);
     
     //update meta
     stream_meta_ = stream_meta;       
     
     int sub_stream_num = stream_meta.sub_streams.size();
-    
     
     // clear the statistic
     statistic_.clear();
@@ -296,47 +302,45 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     cur_bytes = 0;
     last_frame_sec_ = 0;
     last_frame_usec_ = 0;
-     
     
     flags_ |= STREAM_SOURCE_FLAG_META_READY;  
-    
-    pthread_mutex_unlock(&lock_); 
-    
 }
 
-void StreamSource::get_stream_meta(StreamMetadata * stream_meta)
+StreamMetadata StreamSource::stream_meta()
 {
-    if(stream_meta != NULL){
-        pthread_mutex_lock(&lock_); 
-        *stream_meta = stream_meta_;
-        pthread_mutex_unlock(&lock_); 
-    }
+    LockGuard guard(&lock_);  
+    return stream_meta_;
 }
 
 
-int StreamSource::Start(std::string *errInfo)
+int StreamSource::Start(std::string *err_info)
 {
     if(!IsInit()){
+        SET_ERR_INFO(err_info, "Source not init");          
         return -1;
     }
     
-    pthread_mutex_lock(&lock_); 
+    LockGuard guard(&lock_);      
+
     if(flags_ & STREAM_SOURCE_FLAG_STARTED){
         //already start
         pthread_mutex_unlock(&lock_); 
         return 0;        
     }
     flags_ |= STREAM_SOURCE_FLAG_STARTED;    
-    pthread_mutex_unlock(&lock_);     
     
     //start the internal thread
     int ret = pthread_create(&api_thread_id_, NULL, ThreadRoutine, this);
     if(ret){
+        if(err_info){
+            err_info = "pthread_create failed:";
+            char tmp[64];
+            err_info += strerror_r(errno, tmp, 64);            
+        }
+
         perror("Start Source internal thread failed");
-        pthread_mutex_lock(&lock_); 
         flags_ &= ~(STREAM_SOURCE_FLAG_STARTED); 
         api_thread_id_  = 0;
-        pthread_mutex_unlock(&lock_);  
         return -1;
     }
 
@@ -377,6 +381,13 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
                                 std::string data, 
                                 std::string *err_info)
 {
+
+
+    if(!IsInit()){
+        SET_ERR_INFO(err_info, "Source not init");        
+        return ERROR_CODE_GENERAL;
+    }
+
     LockGuard guard(&lock_);
     
     // check metadata
@@ -393,11 +404,67 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     }
     
     
-    //update the statistic
+    //
+    // update the statistic
+    //
     cur_bytes += data.size();
-        
+    last_frame_sec_ = timestamp.tv_sec;
+    last_frame_usec_ = timestamp.tv_usec;
     
-  
+    if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+       frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+        //the frames contains media data   
+        statistic_[sub_stream_index].total_frames++;
+        statistic_[sub_stream_index].total_bytes += data.size();
+        if(statistic_[sub_stream_index].last_seq == 0  || 
+           frame_seq <= statistic_[sub_stream_index].last_seq){
+            statistic_[sub_stream_index].expected_frames ++;
+            
+        }else{
+            statistic_[sub_stream_index].expected_frames += 
+                frame_seq - statistic_[sub_stream_index].last_seq;
+        }
+        statistic_[sub_stream_index].last_seq = frame_seq;   
+        if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+            statistic_[sub_stream_index].key_frames ++;
+            statistic_[sub_stream_index].key_bytes += data.size();
+            
+            //start a new gov
+            statistic_[sub_stream_index].last_gov = 
+                statistic_[sub_stream_index].cur_gov;
+            statistic_[sub_stream_index].cur_gov = 0;            
+        }
+        statistic_[sub_stream_index].cur_gov ++;
+        
+    }else{ 
+        //not contain media data
+        //just update the last_seq
+        statistic_[sub_stream_index].last_seq = frame_seq;  
+    }//if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+    
+    //
+    // pack the frame to pb packet
+    //
+    ProtoMediaFrameMsg media_info;
+    ProtoCommonPacket media_msg;
+    std::string body_data;
+    media_info.set_stream_index(sub_stream_index);
+    media_info.set_sec(timestamp.tv_sec);
+    media_info.set_usec(timestamp.tv_usec);
+    media_info.set_frame_type(frame_type);
+    media_info.set_ssrc(ssrc);
+    media_info.set_data(data);
+    media_info.SerializeToString(&body_data);
+    media_msg.mutable_header().set_type(PROTO_PACKET_TYPE_MESSAGE);
+    media_msg.mutable_header().set_code(PROTO_PACKET_CODE_MEDIA);
+    media_msg.set_body(body_data);
+    
+    //
+    // send out from publish socket
+    //
+    SendPublishMsg(STSW_PUBLISH_MEDIA_CHANNEL, media_msg)
+    
+    
     return 0;
 }
 
@@ -407,16 +474,17 @@ void StreamSource::set_stream_state(int stream_state)
     if(!IsInit()){
         return;
     }
+
+    LockGuard guard(&lock_);    
     
-    pthread_mutex_lock(&lock_); 
+
     int old_stream_state = stream_state_;
     stream_state_ = stream_state;
     if(old_stream_state != stream_state){
         //state change, send out a stream info msg at once
         SendStreamInfo();
     }
-        
-    pthread_mutex_unlock(&lock_);
+
     
 }
 int StreamSource::stream_state()
@@ -620,10 +688,69 @@ void * StreamSource::ThreadRoutine(void * arg)
 }
     
     
-int SendStreamInfo(void)
+void StreamSource::SendStreamInfo(void)
 {
+    
+    LockGuard guard(&lock_);
+    ProtoStreamInfoMsg stream_info;
+    ProtoCommonPacket info_msg;
+    std::string body_data;  
+
+    stream_info.set_state(stream_state_);
+    stream_info.set_play_type(stream_meta_.play_type);
+    stream_info.set_ssrc(stream_meta_.ssrc);
+    stream_info.set_source_proto(stream_meta_.source_proto);
+    stream_info.set_bps(cur_bps_);
+    stream_info.set_last_frame_sec(last_frame_sec_);
+    stream_info.set_last_frame_usec(last_frame_usec_);
+    
+    ClientHeartbeatList::iterator it;
+    for(it = receivers_info_->receiver_list.begin(); 
+        it != receivers_info_->receiver_list.end();
+        it ++){
+        ProtoClientHeartbeatReq * new_client = 
+            stream_info.add_clients();
+        *new_client = *it;            
+    }
+    stream_info.SerializeToString(&body_data);
+    info_msg.mutable_header().set_type(PROTO_PACKET_TYPE_MESSAGE);
+    info_msg.mutable_header().set_code(PROTO_PACKET_CODE_STREAM_INFO);
+    info_msg.set_body(body_data);
+
+    
+    //
+    // send out from publish socket
+    //
+    SendPublishMsg(STSW_PUBLISH_INFO_CHANNEL, info_msg)
+ 
     return 0;
 }
+
+
+void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg)
+{
+    if(channel_name == NULL || strlen(channel_name) == 0){
+        //no channel, just ignore
+        return;
+    }
+    if(!IsInit()){
+        //if uninit, just ignore
+        return;
+    }    
+
+    LockGuard guard(&lock_);
+    
+    std::string packet_data;
+    msg.SerializeToString(&packet_data);
+
+    zsock_send(publish_socket_, "sb",  
+               channel_name, 
+               packet_data.data(), packet_data.size();      
+    
+    
+}
+
+
 
 }
 
