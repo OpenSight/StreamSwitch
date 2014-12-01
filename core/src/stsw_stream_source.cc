@@ -25,15 +25,15 @@
  * date: 2014-11-8
 **/ 
 
-#include<stsw_stream_source.h>
-#include<stdint.h>
-#include<list>
-#include<string.h>
-#include<errno.h>
+#include <stsw_stream_source.h>
+#include <stdint.h>
+#include <list>
+#include <string.h>
+#include <errno.h>
 
-#include<czmq.h>
+#include <czmq.h>
 
-#include<stsw_lock_guard.h>
+#include <stsw_lock_guard.h>
 
 #include<pb_packet.pb.h>
 #include<pb_client_heartbeat.pb.h>
@@ -333,9 +333,10 @@ int StreamSource::Start(std::string *err_info)
     int ret = pthread_create(&api_thread_id_, NULL, ThreadRoutine, this);
     if(ret){
         if(err_info){
-            err_info = "pthread_create failed:";
+            *err_info = "pthread_create failed:";
             char tmp[64];
-            err_info += strerror_r(errno, tmp, 64);            
+            //*err_info += strerror_r(errno, tmp, 64);
+            *err_info += strerror(errno);
         }
 
         perror("Start Source internal thread failed");
@@ -451,18 +452,18 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     media_info.set_stream_index(sub_stream_index);
     media_info.set_sec(timestamp.tv_sec);
     media_info.set_usec(timestamp.tv_usec);
-    media_info.set_frame_type(frame_type);
+    media_info.set_frame_type((ProtoMediaFrameType)frame_type);
     media_info.set_ssrc(ssrc);
     media_info.set_data(data);
     media_info.SerializeToString(&body_data);
-    media_msg.mutable_header().set_type(PROTO_PACKET_TYPE_MESSAGE);
-    media_msg.mutable_header().set_code(PROTO_PACKET_CODE_MEDIA);
+    media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
+    media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
     media_msg.set_body(body_data);
     
     //
     // send out from publish socket
     //
-    SendPublishMsg(STSW_PUBLISH_MEDIA_CHANNEL, media_msg)
+    SendPublishMsg((char *)STSW_PUBLISH_MEDIA_CHANNEL, media_msg);
     
     
     return 0;
@@ -696,11 +697,11 @@ void StreamSource::SendStreamInfo(void)
     ProtoCommonPacket info_msg;
     std::string body_data;  
 
-    stream_info.set_state(stream_state_);
-    stream_info.set_play_type(stream_meta_.play_type);
+    stream_info.set_state((ProtoSourceStreamState )stream_state_);
+    stream_info.set_play_type((ProtoPlayType)stream_meta_.play_type);
     stream_info.set_ssrc(stream_meta_.ssrc);
     stream_info.set_source_proto(stream_meta_.source_proto);
-    stream_info.set_bps(cur_bps_);
+    stream_info.set_cur_bps(cur_bps_);
     stream_info.set_last_frame_sec(last_frame_sec_);
     stream_info.set_last_frame_usec(last_frame_usec_);
     
@@ -713,17 +714,16 @@ void StreamSource::SendStreamInfo(void)
         *new_client = *it;            
     }
     stream_info.SerializeToString(&body_data);
-    info_msg.mutable_header().set_type(PROTO_PACKET_TYPE_MESSAGE);
-    info_msg.mutable_header().set_code(PROTO_PACKET_CODE_STREAM_INFO);
+    info_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
+    info_msg.mutable_header()->set_code(PROTO_PACKET_CODE_STREAM_INFO);
     info_msg.set_body(body_data);
 
     
     //
     // send out from publish socket
     //
-    SendPublishMsg(STSW_PUBLISH_INFO_CHANNEL, info_msg)
- 
-    return 0;
+    SendPublishMsg((char *)STSW_PUBLISH_INFO_CHANNEL, info_msg);
+
 }
 
 
@@ -745,7 +745,7 @@ void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &
 
     zsock_send(publish_socket_, "sb",  
                channel_name, 
-               packet_data.data(), packet_data.size();      
+               packet_data.data(), packet_data.size());      
     
     
 }

@@ -36,6 +36,7 @@
 namespace stream_switch {
 
 class LockGuard{
+public:    
     LockGuard(pthread_mutex_t *lock): lock_(lock)
     {
         if(lock_ != NULL){
@@ -54,7 +55,7 @@ private:
     pthread_mutex_t *lock_;
 
     
-}
+};
 
 }
 #endif

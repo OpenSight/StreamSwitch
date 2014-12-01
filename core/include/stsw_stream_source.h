@@ -93,7 +93,7 @@ public:
     // Return:
     //     A temporary StreamMetadata object which copy from stream_meta_ 
     //
-    virtual StreamMetadata stream_meta() 
+    virtual StreamMetadata stream_meta(); 
    
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
@@ -171,7 +171,7 @@ protected:
     
     // send the msg from the publish socket on the given channel
     // 
-    void SendPublishMsg(char * channel_name, ProtoCommonPacket * msg);
+    void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
     
     
 private:
