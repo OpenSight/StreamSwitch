@@ -557,14 +557,74 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
 }
 int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
+    if(request == NULL || reply == NULL){
+        //nothing to do
+        return 0;
+    }   
+    KeyFrame();
+    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply->mutable_header()->set_info("");    
     return 0;
 }
 int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
+    
     return 0;
 }
 int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
+    if(request == NULL || reply == NULL){
+        //nothing to do
+        return 0;
+    }
+    ProtoClientHeartbeatReq client_heartbeat;
+    if(client_heartbeat.ParseFromString(request->body())){
+        int64_t now = time(NULL);
+        client_heartbeat.set_last_active_time(now);
+        {
+            LockGuard guard(&lock());
+            
+            //
+            // find the client
+            //
+            ClientHeartbeatList::iterator it;
+            bool found = false;
+            for(it = receivers_info_->receiver_list.begin(); 
+                it != receivers_info_->receiver_list.end();
+                it++){
+                if(client_heartbeat.client_ip() == it->client_ip() &&
+                   client_heartbeat.client_port() == it->client_port()){
+                    found = true;
+                    break;                                           
+                }
+            }
+            if(found){
+                //client already exit, just update it's active time.
+                *it = client_heartbeat;
+            }else{
+                //client no exist
+                receivers_info_->receiver_list.push_back(client_heartbeat);
+            }
+            
+        }
+        ProtoClientHeartbeatRep reply_info;
+        std::string payload_data;
+        reply_info.set_timestamp(now);
+        reply_info.set_lease(STSW_CLIENT_LEASE);
+        reply_info.SerializeToString(&payload_data);
+        
+
+        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+        reply->mutable_header()->set_info("");    
+        reply->set_body(payload_data);
+            
+        
+    }else{
+        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
+    }
+
+    
     return 0;
 }
 
@@ -635,9 +695,30 @@ int StreamSource::Heartbeat(int64_t now)
     if(now == 0){
         now = zclock_mono();
     }
-    
-    
 
+    LockGuard guard(&lock_);
+    
+    int64_t elapse = now - last_heartbeat_time_;
+    last_heartbeat_time_ = now;    
+    cur_bps_ = cur_bytes * 1000 / elapse;
+    int64_t now_sec = now / 1000;
+    
+    //
+    // kick out the timeout client
+    //
+    ClientHeartbeatList::iterator it;
+    for(it = receivers_info_->receiver_list.begin(); 
+        it != receivers_info_->receiver_list.end();){
+        if(now_sec - it->last_active_time() >= STSW_CLIENT_LEASE){
+            //the client timeout
+            it = receivers_info_->receiver_list.erase(it);
+        }else{
+            it++;
+        }
+    }    
+   
+    SendStreamInfo(); // publish the stream info at heartbeat interval
+    
 }
     
 void * StreamSource::ThreadRoutine(void * arg)

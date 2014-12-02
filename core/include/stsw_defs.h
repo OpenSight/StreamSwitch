@@ -17,6 +17,7 @@
 #define STSW_PUBLISH_SOCKET_HWM  250
 #define STSW_PUBLISH_SOCKET_LINGER  100    
 
+#define STSW_CLIENT_LEASE  15  //client heartbeat lease, in sec
 
 namespace stream_switch {
     

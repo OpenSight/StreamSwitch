@@ -82,18 +82,7 @@ public:
     virtual bool IsMetaReady();
     virtual bool IsStarted();
     
-    // configure the meta data of this source. 
-    // After meta data change, the statistic in the source would auto clear
-    // Args:
-    //     stream_meta StreamMetadata in: new stream metatdata
-    //
-    virtual void set_stream_meta(const StreamMetadata & stream_meta);
-    
-    // get the meta data of this source 
-    // Return:
-    //     A temporary StreamMetadata object which copy from stream_meta_ 
-    //
-    virtual StreamMetadata stream_meta(); 
+
    
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
@@ -129,8 +118,16 @@ public:
                               std::string data, 
                               std::string *err_info);
     
-    virtual void set_stream_state(int stream_state);
-    virtual int stream_state();
+    
+    // accessors 
+    void set_stream_state(int stream_state);
+    int stream_state();
+    void set_stream_meta(const StreamMetadata & stream_meta);
+    StreamMetadata stream_meta();
+    pthread_mutex_t& lock(){
+        return lock_;
+    }
+    
 
    
     virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
