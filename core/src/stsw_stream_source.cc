@@ -35,10 +35,12 @@
 
 #include <stsw_lock_guard.h>
 
-#include<pb_packet.pb.h>
-#include<pb_client_heartbeat.pb.h>
-#include<pb_media.pb.h>
-#include<pb_stream_info.pb.h>
+#include <pb_packet.pb.h>
+#include <pb_client_heartbeat.pb.h>
+#include <pb_media.pb.h>
+#include <pb_stream_info.pb.h>
+#include <pb_metadata.pb.h>
+#include <pb_media_statistic.pb.h>
 
 namespace stream_switch {
 
@@ -55,7 +57,7 @@ struct ReceiversInfoType{
 StreamSource::StreamSource()
 :tcp_port_(0), 
 api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
-thread_end_(true), flags_(0), cur_bytes(0), cur_bps_(0), 
+thread_end_(true), flags_(0), cur_bytes_(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
 last_heartbeat_time_(0)
 {
@@ -70,14 +72,19 @@ StreamSource::~StreamSource()
     }
 }
 
-int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string *errInfo)
+int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string *err_info)
 {
     int ret;
     //params check
     if(stream_name.size() == 0){
-        return -1;
+        SET_ERR_INFO(err_info, "stream_name cannot be 0");   
+        return ERROR_CODE_PARAM;
+    }else if(stream_name.size() >= 64){
+        SET_ERR_INFO(err_info, "stream_name cannot be larger than 64");   
+        return ERROR_CODE_PARAM;        
     }
     if(flags_ & STREAM_SOURCE_FLAG_INIT != 0){
+        SET_ERR_INFO(err_info, "source already init");           
         return -1;
     }
     
@@ -89,6 +96,8 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     pthread_mutexattr_init(&attr);
     ret = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  
     if(ret){
+        SET_ERR_INFO(err_info, "pthread_mutexattr_settype failed");   
+        ret = ERROR_CODE_SYSTEM;
         perror("pthread_mutexattr_settype failed");   
         pthread_mutexattr_destroy(&attr);      
         goto error_0;
@@ -96,7 +105,9 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     }    
     ret = pthread_mutex_init(&lock_, &attr);  
     if(ret){
-        perror("pthread_mutexattr_settype failed");
+        SET_ERR_INFO(err_info, "pthread_mutex_init failed"); 
+        ret = ERROR_CODE_SYSTEM;
+        perror("pthread_mutex_init failed");
         pthread_mutexattr_destroy(&attr); 
         goto error_0;
     }
@@ -116,9 +127,11 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
                        stream_name.c_str(), 
                        STSW_SOCKET_NAME_STREAM_API);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            ret = ERROR_CODE_PARAM;
             fprintf(stderr, "socket address too long: %s", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
+            ret = ERROR_CODE_SYSTEM;
             perror("snprintf for socket address failed");
             goto error_2;              
         }
@@ -133,9 +146,11 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
                        STSW_SOCKET_NAME_STREAM_API, 
                        tcp_port);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            ret = ERROR_CODE_PARAM;
             fprintf(stderr, "socket address too long: %s", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
+            ret = ERROR_CODE_SYSTEM;
             perror("snprintf for socket address failed");
             goto error_2;              
         }
@@ -143,7 +158,9 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     }       
     api_socket_ = zsock_new_rep(tmp_addr);
     if(api_socket_ == NULL){
-        fprintf(stderr, "zsock_new_rep create publish socket failed: maybe address conflict", tmp_addr);
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_new_rep create api socket failed: maybe address conflict");   
+        fprintf(stderr, "zsock_new_rep create api socket failed: maybe address (%s) conflict", tmp_addr);
         goto error_2;            
     }
     zsock_set_linger(api_socket_, 0); //no linger
@@ -158,9 +175,11 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
                        stream_name.c_str(), 
                        STSW_SOCKET_NAME_STREAM_PUBLISH);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            ret = ERROR_CODE_PARAM;
             fprintf(stderr, "socket address too long: %s", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
+            ret = ERROR_CODE_SYSTEM;
             perror("snprintf for socket address failed");
             goto error_2;              
         }
@@ -175,9 +194,11 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
                        STSW_SOCKET_NAME_STREAM_PUBLISH, 
                        tcp_port + 1);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
+            ret = ERROR_CODE_PARAM;
             fprintf(stderr, "socket address too long: %s", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
+            ret = ERROR_CODE_SYSTEM;
             perror("snprintf for socket address failed");
             goto error_2;              
         }
@@ -185,6 +206,8 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     }    
     publish_socket_ = zsock_new_pub(tmp_addr);
     if(api_socket_ == NULL){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_new_pub create publish socket failed: maybe address conflict");          
         fprintf(stderr, "zsock_new_pub create publish socket failed: "
                 "maybe address conflict", tmp_addr);
         goto error_1;            
@@ -197,9 +220,9 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     
     //init handlers
     RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, NULL);
-    RegisterApiHandler(0, (SourceApiHandler)StaticKeyFrameHandler, NULL);    
-    RegisterApiHandler(0, (SourceApiHandler)StaticStatisticHandler, NULL);
-    RegisterApiHandler(0, (SourceApiHandler)StaticClientHeartbeatHandler, NULL);   
+    RegisterApiHandler(PROTO_PACKET_CODE_KEY_FRAME, (SourceApiHandler)StaticKeyFrameHandler, NULL);    
+    RegisterApiHandler(PROTO_PACKET_CODE_MEDIA_STATISTIC, (SourceApiHandler)StaticStatisticHandler, NULL);
+    RegisterApiHandler(PROTO_PACKET_CODE_CLIENT_HEARTBEAT, (SourceApiHandler)StaticClientHeartbeatHandler, NULL);   
 
     //init metadata
     stream_meta_.sub_streams.clear();
@@ -234,7 +257,7 @@ error_1:
     
 error_0:
     
-    return -1;
+    return ret;
 }
 
 
@@ -299,7 +322,7 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     statistic_.resize(sub_stream_num);
     
     cur_bps_ = 0;
-    cur_bytes = 0;
+    cur_bytes_ = 0;
     last_frame_sec_ = 0;
     last_frame_usec_ = 0;
     
@@ -324,7 +347,6 @@ int StreamSource::Start(std::string *err_info)
 
     if(flags_ & STREAM_SOURCE_FLAG_STARTED){
         //already start
-        pthread_mutex_unlock(&lock_); 
         return 0;        
     }
     flags_ |= STREAM_SOURCE_FLAG_STARTED;    
@@ -379,7 +401,7 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
                                 MediaFrameType frame_type,
                                 const struct timeval &timestamp,                               
                                 uint32_t ssrc, 
-                                std::string data, 
+                                const std::string &data, 
                                 std::string *err_info)
 {
 
@@ -408,7 +430,7 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     //
     // update the statistic
     //
-    cur_bytes += data.size();
+    cur_bytes_ += data.size();
     last_frame_sec_ = timestamp.tv_sec;
     last_frame_usec_ = timestamp.tv_usec;
     
@@ -496,33 +518,30 @@ int StreamSource::stream_state()
 
 void StreamSource::RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data)
 {
-    pthread_mutex_lock(&lock_); 
+    LockGuard guard(&lock_);   
     
     api_handler_map_[op_code].handler = handler;
     api_handler_map_[op_code].user_data = user_data;
     
-    pthread_mutex_unlock(&lock_);
-    
+
 }
 void StreamSource::UnregisterApiHandler(int op_code)
 {
     SourceApiHanderMap::iterator it;
-    pthread_mutex_lock(&lock_); 
+    LockGuard guard(&lock_);   
     
     it = api_handler_map_.find(op_code);
     if(it != api_handler_map_.end()){
         api_handler_map_.erase(it);
     }
-   
-    pthread_mutex_unlock(&lock_);   
+
 }
 void StreamSource::UnregisterAllApiHandler()
 {
-    pthread_mutex_lock(&lock_); 
+    LockGuard guard(&lock_);   
     
     api_handler_map_.clear();
-   
-    pthread_mutex_unlock(&lock_);     
+ 
 }
 
 
@@ -553,6 +572,76 @@ int StreamSource::StaticClientHeartbeatHandler(StreamSource * source, ProtoCommo
     
 int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
+    if(request == NULL || reply == NULL){
+        //nothing to do
+        return 0;
+    }
+    
+    ProtoMetaRep metadata;    
+    
+    {
+        LockGuard guard(&lock());
+
+        metadata.set_play_type((ProtoPlayType)stream_meta_.play_type);
+        metadata.set_source_proto(stream_meta_.source_proto);
+        metadata.set_ssrc(stream_meta_.ssrc);
+        metadata.set_bps(stream_meta_.bps);
+
+        SubStreamMetadataVector::iterator it;
+        for(it = stream_meta_.sub_streams.begin(); 
+            it != stream_meta_.sub_streams.end();
+            it++){
+            ProtoSubStreamInfo * sub_stream = 
+                metadata.add_sub_streams();
+            sub_stream->set_index(it->sub_stream_index);
+            sub_stream->set_media_type((ProtoSubStreamMediaType)it->media_type);
+            sub_stream->set_codec_name(it->codec_name);
+            sub_stream->set_direction((ProtoSubStreamDirectionType)it->direction);
+            sub_stream->set_extra_data(it->extra_data);
+            switch(it->media_type){
+                case SUB_STREAM_MEIDA_TYPE_VIDEO:
+                {
+                    sub_stream->set_height(it->media_param.video.height);
+                    sub_stream->set_width(it->media_param.video.width);   
+                    sub_stream->set_fps(it->media_param.video.fps);
+                    sub_stream->set_gov(it->media_param.video.gov);  
+                    break;                      
+                }
+
+                case SUB_STREAM_MEIDA_TYPE_AUDIO:
+                {
+                        
+                    sub_stream->set_samples_per_second(it->media_param.audio.samples_per_second);
+                    sub_stream->set_channels(it->media_param.audio.channels);  
+                    sub_stream->set_bits_per_sample(it->media_param.audio.bits_per_sample);
+                    sub_stream->set_sampele_per_frame(it->media_param.audio.sampele_per_frame);                        
+                    break;
+                        
+                }
+                    
+                case SUB_STREAM_MEIDA_TYPE_TEXT:
+                {
+                        
+                    sub_stream->set_x(it->media_param.text.x);
+                    sub_stream->set_y(it->media_param.text.y);  
+                    sub_stream->set_fone_size(it->media_param.text.fone_size);
+                    sub_stream->set_font_type(it->media_param.text.font_type);                        
+                    break;
+                        
+                }
+
+                default:
+                    break;
+            }
+        }// for(it = stream_meta_.sub_streams.begin();  
+    }
+
+    std::string payload_data;
+    metadata.SerializeToString(&payload_data);
+    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply->mutable_header()->set_info("");    
+    reply->set_body(payload_data);    
+  
     return 0;
 }
 int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
@@ -568,6 +657,47 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
 }
 int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
+    if(request == NULL || reply == NULL){
+        //nothing to do
+        return 0;
+    }
+    ProtoMediaStatisticRep statistic;
+    {
+        LockGuard guard(&lock());
+
+        statistic.set_timestamp((int64_t)time(NULL));
+        statistic.set_ssrc(stream_meta_.ssrc);
+        uint64_t sum_bytes = 0;
+        int i;
+        
+        SubStreamMediaStatisticVector::iterator it;
+        for(it = statistic_.begin(), i= 0; 
+            it != statistic_.end();
+            it++, i++){
+            ProtoSubStreamMediaStatistic * sub_stream_stat = 
+                statistic.add_sub_stream_stats();
+                
+            
+            sub_stream_stat->set_sub_stream_index(i);
+            sub_stream_stat->set_media_type(
+                (ProtoSubStreamMediaType)stream_meta_.sub_streams[i].media_type
+                );
+            sub_stream_stat->set_total_bytes(it->total_bytes);
+            sub_stream_stat->set_key_bytes(it->key_bytes);
+            sub_stream_stat->set_total_frames(it->total_frames);
+            sub_stream_stat->set_key_frames(it->key_frames);
+            sub_stream_stat->set_expected_frames(it->expected_frames);
+            sub_stream_stat->set_last_gov(it->last_gov);
+            
+        }// for(it = stream_meta_.sub_streams.begin();  
+                
+    }// release lock
+
+    std::string payload_data;
+    statistic.SerializeToString(&payload_data);
+    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply->mutable_header()->set_info("");    
+    reply->set_body(payload_data);        
     
     return 0;
 }
@@ -700,8 +830,8 @@ int StreamSource::Heartbeat(int64_t now)
     
     int64_t elapse = now - last_heartbeat_time_;
     last_heartbeat_time_ = now;    
-    cur_bps_ = cur_bytes * 1000 / elapse;
-    int64_t now_sec = now / 1000;
+    cur_bps_ = cur_bytes_ * 1000 / elapse;
+    int64_t now_sec = time(NULL);
     
     //
     // kick out the timeout client

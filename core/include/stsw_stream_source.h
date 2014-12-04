@@ -115,7 +115,7 @@ public:
                               MediaFrameType frame_type,
                               const struct timeval &timestamp, 
                               uint32_t ssrc, 
-                              std::string data, 
+                              const std::string &data, 
                               std::string *err_info);
     
     
@@ -189,7 +189,7 @@ private:
 
     SubStreamMediaStatisticVector statistic_;
     StreamMetadata stream_meta_;
-    uint32_t cur_bytes;
+    uint32_t cur_bytes_;
     uint32_t cur_bps_;
     int64_t last_frame_sec_;
     int32_t last_frame_usec_;

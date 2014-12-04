@@ -103,12 +103,11 @@ struct TextMediaParam{
     uint32_t x;  //text top-left position, in video picture
     uint32_t y;   //text top-left position, in video picture
     uint32_t fone_size; 
-    uint32_t font_type; 
+    std::string font_type; 
     TextMediaParam(){
         x = 0;
         y = 0;
-        fone_size = 0;
-        font_type = 0;        
+        fone_size = 0;      
     }
 };
 
@@ -205,6 +204,7 @@ enum ErrorCode{
     ERROR_CODE_TIMEOUT = -2,   //timeout error
     ERROR_CODE_PARAM  = -3,    //parameter check error
     ERROR_CODE_SERVER = -4,    //remote server reported error
+    ERROR_CODE_SYSTEM = -4,    //the low level system API report error    
     
 };
 
