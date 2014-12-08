@@ -60,7 +60,7 @@ public:
     virtual ~StreamReceiver();
 
     virtual int InitRemote(const std::string &source_ip, int source_tcp_port, std::string *err_info);    
-    virtual int InitLocal(const std::string &source_ip, int source_tcp_port, std::string *err_info);      
+    virtual int InitLocal(const std::string &stream_name, std::string *err_info);      
   
     virtual void Uninit();
     
@@ -88,6 +88,13 @@ public:
     pthread_mutex_t& lock(){
         return lock_;
     }
+    
+    virtual StreamMetadata GetMedaData();
+    virtual GetStreamInfo();
+    virtual virtual registerSSRC(uint32_t ssrc);
+    virtual 
+    
+    
     
 
 

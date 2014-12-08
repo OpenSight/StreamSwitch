@@ -59,9 +59,10 @@ message ProtoMetaReq{
 message ProtoMetaRep{
     optional ProtoPlayType play_type = 1 ;  //playing type of this stream
     optional string source_proto = 2;  //the protocol of this source
-    optional uint32 ssrc = 3; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
+	optional double stream_len =3; //the stream length in seconds, only valid for replay stream 
+    optional uint32 ssrc = 4; //ssrc of this stream, if the receive frame must has the same ssrc with this stream, 
                                               //otherwise the media frame cannot be described by this meta data
-    optional uint32 bps = 4 ; //announced bps for the total throughput of this stream, 0 means the source has no announce for throughput
+    optional uint32 bps = 5 ; //announced bps for the total throughput of this stream, 0 means the source has no announce for throughput
     //tag below 64 is reserved to future extension    
     
     repeated ProtoSubStreamInfo sub_streams = 64;

@@ -57,7 +57,7 @@ struct ReceiversInfoType{
 StreamSource::StreamSource()
 :tcp_port_(0), 
 api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
-thread_end_(true), flags_(0), cur_bytes_(0), cur_bps_(0), 
+flags_(0), cur_bytes_(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
 last_heartbeat_time_(0)
 {
@@ -396,13 +396,8 @@ void StreamSource::Stop()
 }
 
 
-int StreamSource::SendMediaData(int32_t sub_stream_index, 
-                                uint64_t frame_seq,     
-                                MediaFrameType frame_type,
-                                const struct timeval &timestamp,                               
-                                uint32_t ssrc, 
-                                const std::string &data, 
-                                std::string *err_info)
+int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame, 
+                                     std::string *err_info)
 {
 
 
@@ -414,12 +409,12 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     LockGuard guard(&lock_);
     
     // check metadata
-    if(stream_meta_.ssrc != ssrc){
+    if(stream_meta_.ssrc != media_frame.ssrc){
         SET_ERR_INFO(err_info, "ssrc not match");
         return ERROR_CODE_PARAM;
     }
     // check sub stream index
-    if(sub_stream_index >= stream_meta_.sub_streams.size()){
+    if(media_frame.sub_stream_index >= stream_meta_.sub_streams.size()){
         char tmp[64];
         sprintf(tmp, "Sub Stream(%d) Not Found", sub_stream_index);
         SET_ERR_INFO(err_info, tmp);
@@ -430,27 +425,29 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     //
     // update the statistic
     //
-    cur_bytes_ += data.size();
-    last_frame_sec_ = timestamp.tv_sec;
-    last_frame_usec_ = timestamp.tv_usec;
+    cur_bytes_ += media_frame.data.size();
+    last_frame_sec_ = media_frame.timestamp.tv_sec;
+    last_frame_usec_ = media_frame.timestamp.tv_usec;
     
-    if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
-       frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+    int sub_stream_index = media_frame.sub_stream_index;
+    
+    if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+       media_frame.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
         //the frames contains media data   
         statistic_[sub_stream_index].total_frames++;
-        statistic_[sub_stream_index].total_bytes += data.size();
+        statistic_[sub_stream_index].total_bytes += media_frame.data.size();
         if(statistic_[sub_stream_index].last_seq == 0  || 
-           frame_seq <= statistic_[sub_stream_index].last_seq){
+           media_frame.frame_seq <= statistic_[sub_stream_index].last_seq){
             statistic_[sub_stream_index].expected_frames ++;
             
         }else{
             statistic_[sub_stream_index].expected_frames += 
-                frame_seq - statistic_[sub_stream_index].last_seq;
+                media_frame.frame_seq - statistic_[sub_stream_index].last_seq;
         }
-        statistic_[sub_stream_index].last_seq = frame_seq;   
-        if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+        statistic_[sub_stream_index].last_seq = media_frame.frame_seq;   
+        if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
             statistic_[sub_stream_index].key_frames ++;
-            statistic_[sub_stream_index].key_bytes += data.size();
+            statistic_[sub_stream_index].key_bytes += media_frame.data.size();
             
             //start a new gov
             statistic_[sub_stream_index].last_gov = 
@@ -462,7 +459,7 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     }else{ 
         //not contain media data
         //just update the last_seq
-        statistic_[sub_stream_index].last_seq = frame_seq;  
+        statistic_[sub_stream_index].last_seq = media_frame.frame_seq;  
     }//if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
     
     //
@@ -471,12 +468,12 @@ int StreamSource::SendMediaData(int32_t sub_stream_index,
     ProtoMediaFrameMsg media_info;
     ProtoCommonPacket media_msg;
     std::string body_data;
-    media_info.set_stream_index(sub_stream_index);
-    media_info.set_sec(timestamp.tv_sec);
-    media_info.set_usec(timestamp.tv_usec);
-    media_info.set_frame_type((ProtoMediaFrameType)frame_type);
-    media_info.set_ssrc(ssrc);
-    media_info.set_data(data);
+    media_info.set_stream_index(media_frame.sub_stream_index);
+    media_info.set_sec(media_frame.timestamp.tv_sec);
+    media_info.set_usec(media_frame.timestamp.tv_usec);
+    media_info.set_frame_type((ProtoMediaFrameType)media_frame.frame_type);
+    media_info.set_ssrc(media_frame.ssrc);
+    media_info.set_data(media_frame.data);
     media_info.SerializeToString(&body_data);
     media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);

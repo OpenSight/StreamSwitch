@@ -96,26 +96,13 @@ public:
     // sent out its stream info message 
     virtual void Stop();
     
-    // send out a media frame
-    // send out a media frame of a specific sub stream with a valid sequence number
+    // send out a live media frame
+    // send out a llive media frame of a specific sub stream with a valid sequence number.
+    // replay source should not invoke this method.
     // Args:
-    //     sub_stream_index int32_t in: the sub stream index in the configured 
-    //         metadata of the source
-    //     frame_seq uint64_t in: the seq of this frame in sub stream, it should be 
-    //         start from 1, and increased by 1 for each next frame in the sub stream.
-    //         if the seq skips, the source would consider frame loss. If your source 
-    //         stream cannot provide frame seq calculation, this param should be set
-    //         to 0 forever.
-    //     frame_type MediaFrameType in: the frame type 
-    //     timestamp timeval in: the pts for the frame
-    //     ssrc uint32_t in: must match the ssrc in the metadata of source
-    //     data string in: the data in the frame
-    virtual int SendMediaData(int32_t sub_stream_index, 
-                              uint64_t frame_seq,     
-                              MediaFrameType frame_type,
-                              const struct timeval &timestamp, 
-                              uint32_t ssrc, 
-                              const std::string &data, 
+    //     media_frame MediaDataFrame in : the media frame to send
+    //     err_info string out: the error info if failed
+    virtual int SendLiveMediaFrame(const MediaDataFrame &media_frame, 
                               std::string *err_info);
     
     
@@ -178,7 +165,6 @@ private:
     SocketHandle publish_socket_;
     pthread_mutex_t lock_;
     pthread_t api_thread_id_;
-    bool thread_end_;
     SourceApiHanderMap api_handler_map_;
     
 // stream source flags
