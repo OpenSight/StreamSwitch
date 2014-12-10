@@ -43,7 +43,7 @@ namespace stream_switch {
 class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
 struct ReceiversInfoType;
-typedef void * SocketHandle;
+
 
 
 // the Source class
@@ -122,14 +122,7 @@ public:
     virtual void UnregisterAllApiHandler();    
     
         
-    // the following methods need client to override
-    // to fulfill its functions. They would be invoked
-    // by the internal api thread 
-        
-    // key_frame
-    // When the receiver request a key frame, it would be 
-    // invoked
-    virtual void KeyFrame(void);
+
         
 
 protected:
@@ -157,7 +150,16 @@ protected:
     // 
     void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
     
-    
+ 
+    // the following methods need application to override
+    // to fulfill its functions. They would be invoked
+    // by the internal api thread 
+        
+    // OnKeyFrame
+    // When the receiver request a key frame, it would be 
+    // invoked
+    virtual void OnKeyFrame(void);
+   
 private:
     std::string stream_name_;
     int tcp_port_;

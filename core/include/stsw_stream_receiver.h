@@ -40,10 +40,11 @@
 
 namespace stream_switch {
 
-class ProtoClientHeartbeatReq;
-typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
-struct ReceiversInfoType;
-typedef void * SocketHandle;
+    
+//opcode -> ReceiverSubHandlerEntry map
+typedef std::map<int, ReceiverSubHandlerEntry> ReceiverSubHanderMap;
+
+
 
 
 // the Receiver class
@@ -59,16 +60,19 @@ public:
     StreamReceiver();
     virtual ~StreamReceiver();
 
-    virtual int InitRemote(const std::string &source_ip, int source_tcp_port, std::string *err_info);    
-    virtual int InitLocal(const std::string &stream_name, std::string *err_info);      
+    virtual int InitRemote(const std::string &source_ip, int source_tcp_port, 
+                           const StreamClientInfo &client_info,
+                           std::string *err_info);    
+    virtual int InitLocal(const std::string &stream_name, 
+                          const StreamClientInfo &client_info,
+                          std::string *err_info);      
   
     virtual void Uninit();
     
     //flag check methods
     virtual bool IsInit();
     virtual bool IsMetaReady();
-    virtual bool IsStarted();
-    
+    virtual bool IsStarted();  
 
    
     // Start up the receiver 
@@ -82,36 +86,55 @@ public:
     // After that, he source would no longer handle the incoming request nor 
     // sent out its stream info message 
     virtual void Stop();
+    
+    
+    virtual void RegisterSubHandler(int op_code, const char * channel_name, 
+                                    ReceiverSubHandler handler, void * user_data);
+    virtual void UnregisterSubHandler(int op_code);
+    virtual void UnregisterAllSubHandler();      
 
     
     // accessors 
     pthread_mutex_t& lock(){
         return lock_;
     }
-    
-    virtual StreamMetadata GetMedaData();
-    virtual GetStreamInfo();
-    virtual virtual registerSSRC(uint32_t ssrc);
-    virtual 
+    StreamClientInfo client_info();
+    void set_client_info(const StreamClientInfo &client_info);
+    StreamMetadata stream_meta();
     
     
+    virtual int RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info);
+    virtual void RegisterSSRC(uint32_t ssrc);
+    virtual int RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
+    virtual int RequestKeyFrame(int timeout, std::string *err_info);
     
-
-
-        
-
 protected:
-    virtual int InitBase(std::string *err_info);   
 
+
+    static int StaticMediaFrameHandler(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data);
+    virtual int MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data);
+
+
+    virtual int InitBase(const StreamClientInfo &client_info, std::string *err_info);   
+
+    virtual int SendRpcRequest(ProtoCommonPacket * request, ProtoCommonPacket * reply,  int timeout);    
 
     virtual int Heartbeat(int64_t now);
     
+    virtual int SubscriberHandler();
+    
     static void * ThreadRoutine(void *);
-    
-    
-    virtual void SendStreamInfo(void);
-    
 
+    virtual int SendClientHeartbeat(int timeout, std::string *err_info);    
+    
+    // the following methods need application to override
+    // to fulfill its functions. They would be invoked
+    // by the internal api thread 
+        
+    // OnLiveMediaFrame
+    // When a live media frame is received, this method would be invoked
+    // by the internal thread
+    virtual void OnLiveMediaFrame(const MediaDataFrame &media_frame);    
     
     
 private:
@@ -124,6 +147,7 @@ private:
     pthread_t worker_thread_id_;
     uint32_t ssrc;
     
+    ReceiverSubHanderMap subsriber_handler_map_;
     
 // stream source flags
 #define STREAM_RECEIVER_FLAG_INIT 1
@@ -133,9 +157,11 @@ private:
 
     StreamMetadata stream_meta_;
 
-
-
     int64_t last_heartbeat_time_;     // in milli-sec
+    
+    int64_t next_send_client_heartbeat_msec;
+    
+    StreamClientInfo client_info_;
                              
 };
 

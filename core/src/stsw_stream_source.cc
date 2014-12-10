@@ -67,9 +67,7 @@ last_heartbeat_time_(0)
 
 StreamSource::~StreamSource()
 {
-    if(receivers_info_ != NULL){
-        delete receivers_info_;
-    }
+    SAFE_DELETE(receivers_info_);
 }
 
 int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string *err_info)
@@ -416,7 +414,7 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     // check sub stream index
     if(media_frame.sub_stream_index >= stream_meta_.sub_streams.size()){
         char tmp[64];
-        sprintf(tmp, "Sub Stream(%d) Not Found", sub_stream_index);
+        sprintf(tmp, "Sub Stream(%d) Not Found", media_frame.sub_stream_index);
         SET_ERR_INFO(err_info, tmp);
         return ERROR_CODE_PARAM;        
     }
@@ -542,7 +540,7 @@ void StreamSource::UnregisterAllApiHandler()
 }
 
 
-void StreamSource::KeyFrame(void)
+void StreamSource::OnKeyFrame(void)
 {
     //default nothing to do
     //need child class to implement this function
@@ -647,7 +645,7 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
         //nothing to do
         return 0;
     }   
-    KeyFrame();
+    OnKeyFrame();
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
     reply->mutable_header()->set_info("");    
     return 0;
@@ -721,6 +719,7 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
                 it++){
                 if(client_heartbeat.client_ip() == it->client_ip() &&
                    client_heartbeat.client_port() == it->client_port()){
+                    //TODO(jamken): check client token
                     found = true;
                     break;                                           
                 }

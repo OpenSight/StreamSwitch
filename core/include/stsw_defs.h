@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <sys/time.h>
 
 #define STSW_SOCKET_NAME_STREAM_PREFIX  "stsw_stream"
 #define STSW_SOCKET_NAME_CONNECTOR  "/"
@@ -22,6 +23,7 @@
 namespace stream_switch {
     
 class StreamSource;
+class StreamReceiver;
 class ProtoCommonPacket;
 
 
@@ -34,6 +36,15 @@ typedef int (*SourceApiHandler)(StreamSource *source, const ProtoCommonPacket * 
 
 struct SourceApiHandlerEntry{
     SourceApiHandler handler;
+    void * user_data;
+};
+
+
+typedef int (*ReceiverSubHandler)(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data);
+
+struct ReceiverSubHandlerEntry{
+    ReceiverSubHandler handler;
+    std::string channel_name;
     void * user_data;
 };
 
@@ -169,9 +180,9 @@ struct StreamMetadata{
     uint64_t total_frames;    // the received frame number
     uint64_t key_frames;   // the received key frame number
     uint64_t last_gov;           //last gov  
-    uint64_t cur_gov;            //current calculating gov  
     
-    uint64_t last_seq;     //the last frame's seq number
+    uint64_t cur_gov;            //current calculating gov, internal used by StreamSource
+    uint64_t last_seq;     //the last frame's seq number, internal used by StreamSource
     
     SubStreamMediaStatistic(){
         total_bytes = 0;
@@ -189,8 +200,11 @@ typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
 
 
 struct MediaStatisticInfo{
-    SubStreamMediaStatisticVector sub_streams_
-}
+    uint32_t ssrc;
+    int64_t timestamp;   //the statistic generation time
+    uint64_t sum_bytes;  //the sum bytes received of all sub streams    
+    SubStreamMediaStatisticVector sub_streams;
+};
        
     
 enum MediaFrameType{
@@ -226,7 +240,34 @@ struct MediaDataFrame{
     
     //the media data
     std::string data;
-}
+};
+
+
+enum StreamClientIPVersion {
+    STREAM_IP_VERSION_V4 = 0,
+    STREAM_IP_VERSION_V6 = 1,    
+};
+
+struct StreamClientInfo{
+    StreamClientIPVersion client_ip_version;         //client IP version
+    std::string client_ip;       // client ip address, ipv4/ipv6
+    int32_t client_port;      //client source port
+    std::string client_token;     // client token, used to identify client with same IP and port
+    std::string client_protocol; //stream media protocol used by the client
+    std::string client_text;  // text to describe this connected client
+    int64_t last_active_time; //last active timestamp of this client    
+    
+    StreamClientInfo(){
+        client_ip_version = STREAM_IP_VERSION_V4;
+        client_ip = "127.0.0.1";
+        client_port = 0;
+        client_protocol = "uninit";
+        client_text = "";
+        last_active_time = 0;
+    }
+    
+};
+
 
 
 enum ErrorCode{
@@ -235,11 +276,13 @@ enum ErrorCode{
     ERROR_CODE_TIMEOUT = -2,   //timeout error
     ERROR_CODE_PARAM  = -3,    //parameter check error
     ERROR_CODE_SERVER = -4,    //remote server reported error
-    ERROR_CODE_SYSTEM = -4,    //the low level system API report error    
+    ERROR_CODE_SYSTEM = -5,    //the low level system API report error    
     
 };
 
 #define SET_ERR_INFO(err_info, str_value) if(err_info) (*err_info) = str_value;
+#define SAFE_DELETE(obj) if(obj != NULL) {delete obj; obj = NULL;}
+
 
 }
 

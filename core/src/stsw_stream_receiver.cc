@@ -44,6 +44,20 @@
 
 namespace stream_switch {
 
+StreamReceiver::StreamReceiver()
+:api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
+worker_thread_id_(0), ssrc(0), flags_(0), 
+last_heartbeat_time_(0), next_send_client_heartbeat_msec(0)
+{
+    
+}
+
+
+StreamReceiver::~StreamReceiver()
+{
+    
+}
+
 
 
 

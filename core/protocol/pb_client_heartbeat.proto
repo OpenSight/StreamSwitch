@@ -11,6 +11,7 @@ message ProtoClientHeartbeatReq{
     optional ProtoClientIPVersion client_ip_version = 1;         //client IP version
     optional string client_ip = 2;       // client ip address, ipv4/ipv6
     optional int32 client_port = 3;      //client source port
+    optional string client_token = 4;     // client token, used to identify client with same IP and port
     optional string client_protocol = 5; //stream media protocol used by the client
     optional string client_text = 6;  // text to describe this connected client
     optional int64 last_active_time = 7; //last active timestamp of this client

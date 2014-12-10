@@ -4,7 +4,7 @@
 //inclue the main class header file
 #include <stsw_defs.h>
 #include <stsw_stream_source.h>
-
+#include <stsw_stream_receiver.h>
 
 
 #endif
