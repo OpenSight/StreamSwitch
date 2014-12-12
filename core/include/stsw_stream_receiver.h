@@ -139,8 +139,8 @@ protected:
     
 private:
     std::string api_addr;
-    std::string publish_addr;
-    SocketHandle api_socket_;    
+    std::string subscriber_addr;
+    SocketHandle last_api_socket_;      //cache the last used api request sokcet
     SocketHandle client_hearbeat_socket_;
     SocketHandle subscriber_socket_;
     pthread_mutex_t lock_;
@@ -158,7 +158,8 @@ private:
     StreamMetadata stream_meta_;
 
     int64_t last_heartbeat_time_;     // in milli-sec
-    
+
+    int64_t last_send_client_heartbeat_msec;    
     int64_t next_send_client_heartbeat_msec;
     
     StreamClientInfo client_info_;

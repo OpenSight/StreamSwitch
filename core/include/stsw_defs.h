@@ -16,6 +16,7 @@
 
 
 #define STSW_PUBLISH_SOCKET_HWM  250
+#define STSW_SUBSCRIBE_SOCKET_HWM  250
 #define STSW_PUBLISH_SOCKET_LINGER  100    
 
 #define STSW_CLIENT_LEASE  15  //client heartbeat lease, in sec
@@ -277,6 +278,7 @@ enum ErrorCode{
     ERROR_CODE_PARAM  = -3,    //parameter check error
     ERROR_CODE_SERVER = -4,    //remote server reported error
     ERROR_CODE_SYSTEM = -5,    //the low level system API report error    
+    ERROR_CODE_BUSY = -6,     
     
 };
 

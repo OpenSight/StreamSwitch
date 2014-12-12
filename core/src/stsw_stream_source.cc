@@ -207,8 +207,8 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
         ret = ERROR_CODE_SYSTEM;
         SET_ERR_INFO(err_info, "zsock_new_pub create publish socket failed: maybe address conflict");          
         fprintf(stderr, "zsock_new_pub create publish socket failed: "
-                "maybe address conflict", tmp_addr);
-        goto error_1;            
+                "maybe address (%s) conflict", tmp_addr);
+        goto error_2;            
     }    
     //wait for 100 ms to send the remaining packet before close
     zsock_set_linger(publish_socket_, STSW_PUBLISH_SOCKET_LINGER);
@@ -347,6 +347,14 @@ int StreamSource::Start(std::string *err_info)
         //already start
         return 0;        
     }
+    if(api_thread_id_ != 0){
+        //STREAM_SOURCE_FLAG_STARTED is clear but api_thread_id_
+        // is set, means other thread is stopping the source, just
+        //return error
+        SET_ERR_INFO(err_info, "An other thread is stopping the source, try later");       
+        return ERROR_CODE_BUSY;
+    }    
+    
     flags_ |= STREAM_SOURCE_FLAG_STARTED;    
     
     //start the internal thread
@@ -364,6 +372,8 @@ int StreamSource::Start(std::string *err_info)
         api_thread_id_  = 0;
         return -1;
     }
+    
+    return 0;
 
 }
 
@@ -378,18 +388,23 @@ void StreamSource::Stop()
         return ;        
     }
     flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);
-    pthread_mutex_unlock(&lock_);  
+    
 
     //wait for the thread terminated
     if(api_thread_id_ != 0){
         void * res;
         int ret;
-        ret = pthread_join(api_thread_id_, &res);
+        pthread_t api_thread_id = api_thread_id_;
+        pthread_mutex_unlock(&lock_);  
+        ret = pthread_join(api_thread_id, &res);
         if (ret != 0){
             perror("Stop Source internal thread failed");
         }
+        pthread_mutex_lock(&lock_); 
         api_thread_id_ = 0;      
     }
+    
+    pthread_mutex_unlock(&lock_);  
     
 }
 
