@@ -87,7 +87,7 @@ public:
     // sent out its stream info message 
     virtual void Stop();
     
-    
+    //the register/unregister function must call before start or after stop
     virtual void RegisterSubHandler(int op_code, const char * channel_name, 
                                     ReceiverSubHandler handler, void * user_data);
     virtual void UnregisterSubHandler(int op_code);
@@ -117,11 +117,13 @@ protected:
 
     virtual int InitBase(const StreamClientInfo &client_info, std::string *err_info);   
 
-    virtual int SendRpcRequest(ProtoCommonPacket * request, ProtoCommonPacket * reply,  int timeout);    
+    virtual int SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
 
     virtual int Heartbeat(int64_t now);
     
     virtual int SubscriberHandler();
+    
+    virtual void ClientHeartbeatHandler(int64_t now);
     
     static void * ThreadRoutine(void *);
 
@@ -138,14 +140,14 @@ protected:
     
     
 private:
-    std::string api_addr;
-    std::string subscriber_addr;
+    std::string api_addr_;
+    std::string subscriber_addr_;
     SocketHandle last_api_socket_;      //cache the last used api request sokcet
     SocketHandle client_hearbeat_socket_;
     SocketHandle subscriber_socket_;
     pthread_mutex_t lock_;
     pthread_t worker_thread_id_;
-    uint32_t ssrc;
+    uint32_t ssrc_;
     
     ReceiverSubHanderMap subsriber_handler_map_;
     
@@ -159,8 +161,8 @@ private:
 
     int64_t last_heartbeat_time_;     // in milli-sec
 
-    int64_t last_send_client_heartbeat_msec;    
-    int64_t next_send_client_heartbeat_msec;
+    int64_t last_send_client_heartbeat_msec_;    
+    int64_t next_send_client_heartbeat_msec_;
     
     StreamClientInfo client_info_;
                              
