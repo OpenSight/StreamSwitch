@@ -646,11 +646,10 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
         }// for(it = stream_meta_.sub_streams.begin();  
     }
 
-    std::string payload_data;
-    metadata.SerializeToString(&payload_data);
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info("");    
-    reply->set_body(payload_data);    
+    reply->mutable_header()->set_info(""); 
+    metadata.SerializeToString(reply->mutable_body());
+  
   
     return 0;
 }
@@ -703,11 +702,9 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
                 
     }// release lock
 
-    std::string payload_data;
-    statistic.SerializeToString(&payload_data);
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info("");    
-    reply->set_body(payload_data);        
+    reply->mutable_header()->set_info(""); 
+    statistic.SerializeToString(reply->mutable_body());      
     
     return 0;
 }
@@ -749,15 +746,13 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
             
         }
         ProtoClientHeartbeatRep reply_info;
-        std::string payload_data;
         reply_info.set_timestamp(now);
         reply_info.set_lease(STSW_CLIENT_LEASE);
-        reply_info.SerializeToString(&payload_data);
         
 
         reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-        reply->mutable_header()->set_info("");    
-        reply->set_body(payload_data);
+        reply->mutable_header()->set_info("");  
+        reply_info.SerializeToString(reply->mutable_body());     
             
         
     }else{

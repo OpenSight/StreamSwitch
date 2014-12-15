@@ -653,7 +653,7 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
 {
     
     LockGuard guard(&lock_);      
- #define STSW_RECEIVER_CLIENT_HEARTBEAT_TIMEOUT 5000  //wait for hearbeat reply for 5 sec
+ #define STSW_RECEIVER_CLIENT_HEARTBEAT_TIMEOUT 3000  //3 sec timeout for hearbeat reply
     
     if(last_send_client_heartbeat_msec_ != 0){
         //already send a client heartbeat request, but not receive a reply
@@ -681,27 +681,30 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
                 if(reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT &&
                    reply.header().status() == PROTO_PACKET_STATUS_OK &&
                    reply.header().type() == PROTO_PACKET_TYPE_REPLY){
-                       
+                    std::string body = reply.body();
+                    ProtoClientHeartbeatRep client_heartbeat_reply;
+                    if(client_heartbeat_reply.ParseFromString(body)){
+                        int lease = client_heartbeat_reply.lease();
+                        // send next heartbeat request at 1/3 lease
+                        next_send_client_heartbeat_msec_ = 
+                            next_send_client_heartbeat_msec_ + lease * 1000 / 3;                        
+                        
+                    }else{
+                        //not a valid client heartbeat reply
+                        next_send_client_heartbeat_msec_ = now + 5000; //resend after 5 sec                               
+                    }                       
                 }else{
                     //not a valid client heartbeat reply
-                    last_send_client_heartbeat_msec_ = 0;
                     next_send_client_heartbeat_msec_ = now + 5000; //resend after 5 sec                    
                 }
-        
-        
+       
             }else{
                 //reply parse error, I have no idea, just 
                 //send client heartbeat request again after a time
-                last_send_client_heartbeat_msec_ = 0;
-                next_send_client_heartbeat_msec_ = now + 5000; //resend after 5 sec
-      
-            }            
-
-              
-            
+                 next_send_client_heartbeat_msec_ = now + 5000; //resend after 5 sec
+            }               
 
             last_send_client_heartbeat_msec_ = 0; // clean;
-            
         }else{
             // no reply
             if(now - last_send_client_heartbeat_msec_ >= 
@@ -732,8 +735,25 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
         }
         
         // send the client heartbeat request
+        ProtoClientHeartbeatReq client_heartbeat_req;
+        ProtoCommonPacket request;
+        client_heartbeat_req.set_client_ip_version(
+            (ProtoClientIPVersion)client_info_.client_ip_version);
+        client_heartbeat_req.set_client_ip(client_info_.client_ip);
+        client_heartbeat_req.set_client_protocol(client_info_.client_protocol);
+        client_heartbeat_req.set_client_port(client_info_.client_port);
+        client_heartbeat_req.set_client_text(client_info_.client_text);
+        // TODO(jiankai): set_client_token
+        request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
+        request.mutable_header()->set_seq(0);
+        request.mutable_header()->set_code(PROTO_PACKET_CODE_CLIENT_HEARTBEAT);
+        client_heartbeat_req.SerializeToString(request.mutable_body());
         
-        
+        std::string out_data;
+        request.SerializeToString(&out_data);
+        zframe_t * out_frame = NULL;
+        out_frame = zframe_new(out_data.data(), out_data.size());
+        zframe_send(&out_frame, client_hearbeat_socket_, ZFRAME_DONTWAIT);         
         
         last_send_client_heartbeat_msec_ = now;
         next_send_client_heartbeat_msec_ = 0;
