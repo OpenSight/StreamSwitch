@@ -88,9 +88,10 @@ void protobuf_AssignDesc_pb_5fmetadata_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(ProtoMetaReq));
   ProtoMetaRep_descriptor_ = file->message_type(2);
-  static const int ProtoMetaRep_offsets_[5] = {
+  static const int ProtoMetaRep_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, play_type_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, source_proto_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, stream_len_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, ssrc_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, bps_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoMetaRep, sub_streams_),
@@ -159,21 +160,21 @@ void protobuf_AddDesc_pb_5fmetadata_2eproto() {
     "\030\036 \001(\r\022\020\n\010channels\030\037 \001(\r\022\027\n\017bits_per_sam"
     "ple\030  \001(\r\022\031\n\021sampele_per_frame\030! \001(\r\022\t\n\001"
     "x\030( \001(\r\022\t\n\001y\030) \001(\r\022\021\n\tfone_size\030* \001(\r\022\021\n"
-    "\tfont_type\030+ \001(\t\"\016\n\014ProtoMetaReq\"\250\001\n\014Pro"
+    "\tfont_type\030+ \001(\t\"\016\n\014ProtoMetaReq\"\274\001\n\014Pro"
     "toMetaRep\022/\n\tplay_type\030\001 \001(\0162\034.stream_sw"
     "itch.ProtoPlayType\022\024\n\014source_proto\030\002 \001(\t"
-    "\022\014\n\004ssrc\030\003 \001(\r\022\013\n\003bps\030\004 \001(\r\0226\n\013sub_strea"
-    "ms\030@ \003(\0132!.stream_switch.ProtoSubStreamI"
-    "nfo*E\n\rProtoPlayType\022\030\n\024PROTO_PLAY_TYPE_"
-    "LIVE\020\000\022\032\n\026PROTO_PLAY_TYPE_REPLAY\020\001*\266\001\n\027P"
-    "rotoSubStreamMediaType\022%\n!PROTO_SUB_STRE"
-    "AM_MEIDA_TYPE_VIDEO\020\000\022%\n!PROTO_SUB_STREA"
-    "M_MEIDA_TYPE_AUDIO\020\001\022$\n PROTO_SUB_STREAM"
-    "_MEIDA_TYPE_TEXT\020\002\022\'\n#PROTO_SUB_STREAM_M"
-    "EIDA_TYPE_PRIVATE\020\003*n\n\033ProtoSubStreamDir"
-    "ectionType\022\'\n#PROTO_SUB_STREAM_DIRECTION"
-    "_OUTBOUND\020\000\022&\n\"PROTO_SUB_STREAM_DIRECTIO"
-    "N_INBOUND\020\001", 1011);
+    "\022\022\n\nstream_len\030\003 \001(\001\022\014\n\004ssrc\030\004 \001(\r\022\013\n\003bp"
+    "s\030\005 \001(\r\0226\n\013sub_streams\030@ \003(\0132!.stream_sw"
+    "itch.ProtoSubStreamInfo*E\n\rProtoPlayType"
+    "\022\030\n\024PROTO_PLAY_TYPE_LIVE\020\000\022\032\n\026PROTO_PLAY"
+    "_TYPE_REPLAY\020\001*\266\001\n\027ProtoSubStreamMediaTy"
+    "pe\022%\n!PROTO_SUB_STREAM_MEIDA_TYPE_VIDEO\020"
+    "\000\022%\n!PROTO_SUB_STREAM_MEIDA_TYPE_AUDIO\020\001"
+    "\022$\n PROTO_SUB_STREAM_MEIDA_TYPE_TEXT\020\002\022\'"
+    "\n#PROTO_SUB_STREAM_MEIDA_TYPE_PRIVATE\020\003*"
+    "n\n\033ProtoSubStreamDirectionType\022\'\n#PROTO_"
+    "SUB_STREAM_DIRECTION_OUTBOUND\020\000\022&\n\"PROTO"
+    "_SUB_STREAM_DIRECTION_INBOUND\020\001", 1031);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_metadata.proto", &protobuf_RegisterTypes);
   ProtoSubStreamInfo::_default_codec_name_ =
@@ -1340,6 +1341,7 @@ void ProtoMetaReq::Swap(ProtoMetaReq* other) {
 #ifndef _MSC_VER
 const int ProtoMetaRep::kPlayTypeFieldNumber;
 const int ProtoMetaRep::kSourceProtoFieldNumber;
+const int ProtoMetaRep::kStreamLenFieldNumber;
 const int ProtoMetaRep::kSsrcFieldNumber;
 const int ProtoMetaRep::kBpsFieldNumber;
 const int ProtoMetaRep::kSubStreamsFieldNumber;
@@ -1366,6 +1368,7 @@ void ProtoMetaRep::SharedCtor() {
   _cached_size_ = 0;
   play_type_ = 0;
   source_proto_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  stream_len_ = 0;
   ssrc_ = 0u;
   bps_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -1416,8 +1419,8 @@ void ProtoMetaRep::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 15) {
-    ZR_(play_type_, ssrc_);
+  if (_has_bits_[0 / 32] & 31) {
+    ZR_(play_type_, stream_len_);
     if (has_source_proto()) {
       if (source_proto_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         source_proto_->clear();
@@ -1476,13 +1479,28 @@ bool ProtoMetaRep::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(24)) goto parse_ssrc;
+        if (input->ExpectTag(25)) goto parse_stream_len;
         break;
       }
 
-      // optional uint32 ssrc = 3;
+      // optional double stream_len = 3;
       case 3: {
-        if (tag == 24) {
+        if (tag == 25) {
+         parse_stream_len:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &stream_len_)));
+          set_has_stream_len();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(32)) goto parse_ssrc;
+        break;
+      }
+
+      // optional uint32 ssrc = 4;
+      case 4: {
+        if (tag == 32) {
          parse_ssrc:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
@@ -1491,13 +1509,13 @@ bool ProtoMetaRep::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(32)) goto parse_bps;
+        if (input->ExpectTag(40)) goto parse_bps;
         break;
       }
 
-      // optional uint32 bps = 4;
-      case 4: {
-        if (tag == 32) {
+      // optional uint32 bps = 5;
+      case 5: {
+        if (tag == 40) {
          parse_bps:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
@@ -1565,14 +1583,19 @@ void ProtoMetaRep::SerializeWithCachedSizes(
       2, this->source_proto(), output);
   }
 
-  // optional uint32 ssrc = 3;
-  if (has_ssrc()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->ssrc(), output);
+  // optional double stream_len = 3;
+  if (has_stream_len()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(3, this->stream_len(), output);
   }
 
-  // optional uint32 bps = 4;
+  // optional uint32 ssrc = 4;
+  if (has_ssrc()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->ssrc(), output);
+  }
+
+  // optional uint32 bps = 5;
   if (has_bps()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->bps(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(5, this->bps(), output);
   }
 
   // repeated .stream_switch.ProtoSubStreamInfo sub_streams = 64;
@@ -1608,14 +1631,19 @@ void ProtoMetaRep::SerializeWithCachedSizes(
         2, this->source_proto(), target);
   }
 
-  // optional uint32 ssrc = 3;
-  if (has_ssrc()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->ssrc(), target);
+  // optional double stream_len = 3;
+  if (has_stream_len()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(3, this->stream_len(), target);
   }
 
-  // optional uint32 bps = 4;
+  // optional uint32 ssrc = 4;
+  if (has_ssrc()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->ssrc(), target);
+  }
+
+  // optional uint32 bps = 5;
   if (has_bps()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->bps(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(5, this->bps(), target);
   }
 
   // repeated .stream_switch.ProtoSubStreamInfo sub_streams = 64;
@@ -1650,14 +1678,19 @@ int ProtoMetaRep::ByteSize() const {
           this->source_proto());
     }
 
-    // optional uint32 ssrc = 3;
+    // optional double stream_len = 3;
+    if (has_stream_len()) {
+      total_size += 1 + 8;
+    }
+
+    // optional uint32 ssrc = 4;
     if (has_ssrc()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
           this->ssrc());
     }
 
-    // optional uint32 bps = 4;
+    // optional uint32 bps = 5;
     if (has_bps()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
@@ -1706,6 +1739,9 @@ void ProtoMetaRep::MergeFrom(const ProtoMetaRep& from) {
     if (from.has_source_proto()) {
       set_source_proto(from.source_proto());
     }
+    if (from.has_stream_len()) {
+      set_stream_len(from.stream_len());
+    }
     if (from.has_ssrc()) {
       set_ssrc(from.ssrc());
     }
@@ -1737,6 +1773,7 @@ void ProtoMetaRep::Swap(ProtoMetaRep* other) {
   if (other != this) {
     std::swap(play_type_, other->play_type_);
     std::swap(source_proto_, other->source_proto_);
+    std::swap(stream_len_, other->stream_len_);
     std::swap(ssrc_, other->ssrc_);
     std::swap(bps_, other->bps_);
     sub_streams_.Swap(&other->sub_streams_);

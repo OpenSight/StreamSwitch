@@ -137,6 +137,18 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   inline ::google::protobuf::int32 client_port() const;
   inline void set_client_port(::google::protobuf::int32 value);
 
+  // optional string client_token = 4;
+  inline bool has_client_token() const;
+  inline void clear_client_token();
+  static const int kClientTokenFieldNumber = 4;
+  inline const ::std::string& client_token() const;
+  inline void set_client_token(const ::std::string& value);
+  inline void set_client_token(const char* value);
+  inline void set_client_token(const char* value, size_t size);
+  inline ::std::string* mutable_client_token();
+  inline ::std::string* release_client_token();
+  inline void set_allocated_client_token(::std::string* client_token);
+
   // optional string client_protocol = 5;
   inline bool has_client_protocol() const;
   inline void clear_client_protocol();
@@ -176,6 +188,8 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   inline void clear_has_client_ip();
   inline void set_has_client_port();
   inline void clear_has_client_port();
+  inline void set_has_client_token();
+  inline void clear_has_client_token();
   inline void set_has_client_protocol();
   inline void clear_has_client_protocol();
   inline void set_has_client_text();
@@ -190,6 +204,7 @@ class ProtoClientHeartbeatReq : public ::google::protobuf::Message {
   ::std::string* client_ip_;
   int client_ip_version_;
   ::google::protobuf::int32 client_port_;
+  ::std::string* client_token_;
   ::std::string* client_protocol_;
   ::std::string* client_text_;
   ::google::protobuf::int64 last_active_time_;
@@ -421,15 +436,91 @@ inline void ProtoClientHeartbeatReq::set_client_port(::google::protobuf::int32 v
   // @@protoc_insertion_point(field_set:stream_switch.ProtoClientHeartbeatReq.client_port)
 }
 
-// optional string client_protocol = 5;
-inline bool ProtoClientHeartbeatReq::has_client_protocol() const {
+// optional string client_token = 4;
+inline bool ProtoClientHeartbeatReq::has_client_token() const {
   return (_has_bits_[0] & 0x00000008u) != 0;
 }
-inline void ProtoClientHeartbeatReq::set_has_client_protocol() {
+inline void ProtoClientHeartbeatReq::set_has_client_token() {
   _has_bits_[0] |= 0x00000008u;
 }
-inline void ProtoClientHeartbeatReq::clear_has_client_protocol() {
+inline void ProtoClientHeartbeatReq::clear_has_client_token() {
   _has_bits_[0] &= ~0x00000008u;
+}
+inline void ProtoClientHeartbeatReq::clear_client_token() {
+  if (client_token_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    client_token_->clear();
+  }
+  clear_has_client_token();
+}
+inline const ::std::string& ProtoClientHeartbeatReq::client_token() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoClientHeartbeatReq.client_token)
+  return *client_token_;
+}
+inline void ProtoClientHeartbeatReq::set_client_token(const ::std::string& value) {
+  set_has_client_token();
+  if (client_token_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    client_token_ = new ::std::string;
+  }
+  client_token_->assign(value);
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoClientHeartbeatReq.client_token)
+}
+inline void ProtoClientHeartbeatReq::set_client_token(const char* value) {
+  set_has_client_token();
+  if (client_token_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    client_token_ = new ::std::string;
+  }
+  client_token_->assign(value);
+  // @@protoc_insertion_point(field_set_char:stream_switch.ProtoClientHeartbeatReq.client_token)
+}
+inline void ProtoClientHeartbeatReq::set_client_token(const char* value, size_t size) {
+  set_has_client_token();
+  if (client_token_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    client_token_ = new ::std::string;
+  }
+  client_token_->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:stream_switch.ProtoClientHeartbeatReq.client_token)
+}
+inline ::std::string* ProtoClientHeartbeatReq::mutable_client_token() {
+  set_has_client_token();
+  if (client_token_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    client_token_ = new ::std::string;
+  }
+  // @@protoc_insertion_point(field_mutable:stream_switch.ProtoClientHeartbeatReq.client_token)
+  return client_token_;
+}
+inline ::std::string* ProtoClientHeartbeatReq::release_client_token() {
+  clear_has_client_token();
+  if (client_token_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    return NULL;
+  } else {
+    ::std::string* temp = client_token_;
+    client_token_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    return temp;
+  }
+}
+inline void ProtoClientHeartbeatReq::set_allocated_client_token(::std::string* client_token) {
+  if (client_token_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete client_token_;
+  }
+  if (client_token) {
+    set_has_client_token();
+    client_token_ = client_token;
+  } else {
+    clear_has_client_token();
+    client_token_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  // @@protoc_insertion_point(field_set_allocated:stream_switch.ProtoClientHeartbeatReq.client_token)
+}
+
+// optional string client_protocol = 5;
+inline bool ProtoClientHeartbeatReq::has_client_protocol() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void ProtoClientHeartbeatReq::set_has_client_protocol() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void ProtoClientHeartbeatReq::clear_has_client_protocol() {
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void ProtoClientHeartbeatReq::clear_client_protocol() {
   if (client_protocol_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -499,13 +590,13 @@ inline void ProtoClientHeartbeatReq::set_allocated_client_protocol(::std::string
 
 // optional string client_text = 6;
 inline bool ProtoClientHeartbeatReq::has_client_text() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void ProtoClientHeartbeatReq::set_has_client_text() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void ProtoClientHeartbeatReq::clear_has_client_text() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void ProtoClientHeartbeatReq::clear_client_text() {
   if (client_text_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -575,13 +666,13 @@ inline void ProtoClientHeartbeatReq::set_allocated_client_text(::std::string* cl
 
 // optional int64 last_active_time = 7;
 inline bool ProtoClientHeartbeatReq::has_last_active_time() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
+  return (_has_bits_[0] & 0x00000040u) != 0;
 }
 inline void ProtoClientHeartbeatReq::set_has_last_active_time() {
-  _has_bits_[0] |= 0x00000020u;
+  _has_bits_[0] |= 0x00000040u;
 }
 inline void ProtoClientHeartbeatReq::clear_has_last_active_time() {
-  _has_bits_[0] &= ~0x00000020u;
+  _has_bits_[0] &= ~0x00000040u;
 }
 inline void ProtoClientHeartbeatReq::clear_last_active_time() {
   last_active_time_ = GOOGLE_LONGLONG(0);

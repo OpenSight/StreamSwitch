@@ -38,10 +38,11 @@ void protobuf_AssignDesc_pb_5fclient_5fheartbeat_2eproto() {
       "pb_client_heartbeat.proto");
   GOOGLE_CHECK(file != NULL);
   ProtoClientHeartbeatReq_descriptor_ = file->message_type(0);
-  static const int ProtoClientHeartbeatReq_offsets_[6] = {
+  static const int ProtoClientHeartbeatReq_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_ip_version_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_ip_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_port_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_token_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_protocol_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, client_text_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoClientHeartbeatReq, last_active_time_),
@@ -109,15 +110,16 @@ void protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\031pb_client_heartbeat.proto\022\rstream_swit"
-    "ch\"\311\001\n\027ProtoClientHeartbeatReq\022>\n\021client"
+    "ch\"\337\001\n\027ProtoClientHeartbeatReq\022>\n\021client"
     "_ip_version\030\001 \001(\0162#.stream_switch.ProtoC"
     "lientIPVersion\022\021\n\tclient_ip\030\002 \001(\t\022\023\n\013cli"
-    "ent_port\030\003 \001(\005\022\027\n\017client_protocol\030\005 \001(\t\022"
-    "\023\n\013client_text\030\006 \001(\t\022\030\n\020last_active_time"
-    "\030\007 \001(\003\";\n\027ProtoClientHeartbeatRep\022\r\n\005lea"
-    "se\030\001 \001(\005\022\021\n\ttimestamp\030\002 \001(\003*H\n\024ProtoClie"
-    "ntIPVersion\022\027\n\023PROTO_IP_VERSION_V4\020\000\022\027\n\023"
-    "PROTO_IP_VERSION_V6\020\001", 381);
+    "ent_port\030\003 \001(\005\022\024\n\014client_token\030\004 \001(\t\022\027\n\017"
+    "client_protocol\030\005 \001(\t\022\023\n\013client_text\030\006 \001"
+    "(\t\022\030\n\020last_active_time\030\007 \001(\003\";\n\027ProtoCli"
+    "entHeartbeatRep\022\r\n\005lease\030\001 \001(\005\022\021\n\ttimest"
+    "amp\030\002 \001(\003*H\n\024ProtoClientIPVersion\022\027\n\023PRO"
+    "TO_IP_VERSION_V4\020\000\022\027\n\023PROTO_IP_VERSION_V"
+    "6\020\001", 403);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_client_heartbeat.proto", &protobuf_RegisterTypes);
   ProtoClientHeartbeatReq::default_instance_ = new ProtoClientHeartbeatReq();
@@ -154,6 +156,7 @@ bool ProtoClientIPVersion_IsValid(int value) {
 const int ProtoClientHeartbeatReq::kClientIpVersionFieldNumber;
 const int ProtoClientHeartbeatReq::kClientIpFieldNumber;
 const int ProtoClientHeartbeatReq::kClientPortFieldNumber;
+const int ProtoClientHeartbeatReq::kClientTokenFieldNumber;
 const int ProtoClientHeartbeatReq::kClientProtocolFieldNumber;
 const int ProtoClientHeartbeatReq::kClientTextFieldNumber;
 const int ProtoClientHeartbeatReq::kLastActiveTimeFieldNumber;
@@ -181,6 +184,7 @@ void ProtoClientHeartbeatReq::SharedCtor() {
   client_ip_version_ = 0;
   client_ip_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   client_port_ = 0;
+  client_token_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   client_protocol_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   client_text_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   last_active_time_ = GOOGLE_LONGLONG(0);
@@ -195,6 +199,9 @@ ProtoClientHeartbeatReq::~ProtoClientHeartbeatReq() {
 void ProtoClientHeartbeatReq::SharedDtor() {
   if (client_ip_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
     delete client_ip_;
+  }
+  if (client_token_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete client_token_;
   }
   if (client_protocol_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
     delete client_protocol_;
@@ -238,11 +245,16 @@ void ProtoClientHeartbeatReq::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 63) {
+  if (_has_bits_[0 / 32] & 127) {
     ZR_(client_ip_version_, client_port_);
     if (has_client_ip()) {
       if (client_ip_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         client_ip_->clear();
+      }
+    }
+    if (has_client_token()) {
+      if (client_token_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        client_token_->clear();
       }
     }
     if (has_client_protocol()) {
@@ -319,6 +331,23 @@ bool ProtoClientHeartbeatReq::MergePartialFromCodedStream(
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
                  input, &client_port_)));
           set_has_client_port();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(34)) goto parse_client_token;
+        break;
+      }
+
+      // optional string client_token = 4;
+      case 4: {
+        if (tag == 34) {
+         parse_client_token:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_client_token()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            this->client_token().data(), this->client_token().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "client_token");
         } else {
           goto handle_unusual;
         }
@@ -421,6 +450,16 @@ void ProtoClientHeartbeatReq::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt32(3, this->client_port(), output);
   }
 
+  // optional string client_token = 4;
+  if (has_client_token()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->client_token().data(), this->client_token().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "client_token");
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      4, this->client_token(), output);
+  }
+
   // optional string client_protocol = 5;
   if (has_client_protocol()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
@@ -476,6 +515,17 @@ void ProtoClientHeartbeatReq::SerializeWithCachedSizes(
   // optional int32 client_port = 3;
   if (has_client_port()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(3, this->client_port(), target);
+  }
+
+  // optional string client_token = 4;
+  if (has_client_token()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->client_token().data(), this->client_token().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "client_token");
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        4, this->client_token(), target);
   }
 
   // optional string client_protocol = 5;
@@ -537,6 +587,13 @@ int ProtoClientHeartbeatReq::ByteSize() const {
           this->client_port());
     }
 
+    // optional string client_token = 4;
+    if (has_client_token()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->client_token());
+    }
+
     // optional string client_protocol = 5;
     if (has_client_protocol()) {
       total_size += 1 +
@@ -594,6 +651,9 @@ void ProtoClientHeartbeatReq::MergeFrom(const ProtoClientHeartbeatReq& from) {
     if (from.has_client_port()) {
       set_client_port(from.client_port());
     }
+    if (from.has_client_token()) {
+      set_client_token(from.client_token());
+    }
     if (from.has_client_protocol()) {
       set_client_protocol(from.client_protocol());
     }
@@ -629,6 +689,7 @@ void ProtoClientHeartbeatReq::Swap(ProtoClientHeartbeatReq* other) {
     std::swap(client_ip_version_, other->client_ip_version_);
     std::swap(client_ip_, other->client_ip_);
     std::swap(client_port_, other->client_port_);
+    std::swap(client_token_, other->client_token_);
     std::swap(client_protocol_, other->client_protocol_);
     std::swap(client_text_, other->client_text_);
     std::swap(last_active_time_, other->last_active_time_);

@@ -495,17 +495,24 @@ class ProtoMetaRep : public ::google::protobuf::Message {
   inline ::std::string* release_source_proto();
   inline void set_allocated_source_proto(::std::string* source_proto);
 
-  // optional uint32 ssrc = 3;
+  // optional double stream_len = 3;
+  inline bool has_stream_len() const;
+  inline void clear_stream_len();
+  static const int kStreamLenFieldNumber = 3;
+  inline double stream_len() const;
+  inline void set_stream_len(double value);
+
+  // optional uint32 ssrc = 4;
   inline bool has_ssrc() const;
   inline void clear_ssrc();
-  static const int kSsrcFieldNumber = 3;
+  static const int kSsrcFieldNumber = 4;
   inline ::google::protobuf::uint32 ssrc() const;
   inline void set_ssrc(::google::protobuf::uint32 value);
 
-  // optional uint32 bps = 4;
+  // optional uint32 bps = 5;
   inline bool has_bps() const;
   inline void clear_bps();
-  static const int kBpsFieldNumber = 4;
+  static const int kBpsFieldNumber = 5;
   inline ::google::protobuf::uint32 bps() const;
   inline void set_bps(::google::protobuf::uint32 value);
 
@@ -527,6 +534,8 @@ class ProtoMetaRep : public ::google::protobuf::Message {
   inline void clear_has_play_type();
   inline void set_has_source_proto();
   inline void clear_has_source_proto();
+  inline void set_has_stream_len();
+  inline void clear_has_stream_len();
   inline void set_has_ssrc();
   inline void clear_has_ssrc();
   inline void set_has_bps();
@@ -539,6 +548,7 @@ class ProtoMetaRep : public ::google::protobuf::Message {
   ::std::string* source_proto_;
   int play_type_;
   ::google::protobuf::uint32 ssrc_;
+  double stream_len_;
   ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamInfo > sub_streams_;
   ::google::protobuf::uint32 bps_;
   friend void  protobuf_AddDesc_pb_5fmetadata_2eproto();
@@ -1230,15 +1240,39 @@ inline void ProtoMetaRep::set_allocated_source_proto(::std::string* source_proto
   // @@protoc_insertion_point(field_set_allocated:stream_switch.ProtoMetaRep.source_proto)
 }
 
-// optional uint32 ssrc = 3;
-inline bool ProtoMetaRep::has_ssrc() const {
+// optional double stream_len = 3;
+inline bool ProtoMetaRep::has_stream_len() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
-inline void ProtoMetaRep::set_has_ssrc() {
+inline void ProtoMetaRep::set_has_stream_len() {
   _has_bits_[0] |= 0x00000004u;
 }
-inline void ProtoMetaRep::clear_has_ssrc() {
+inline void ProtoMetaRep::clear_has_stream_len() {
   _has_bits_[0] &= ~0x00000004u;
+}
+inline void ProtoMetaRep::clear_stream_len() {
+  stream_len_ = 0;
+  clear_has_stream_len();
+}
+inline double ProtoMetaRep::stream_len() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoMetaRep.stream_len)
+  return stream_len_;
+}
+inline void ProtoMetaRep::set_stream_len(double value) {
+  set_has_stream_len();
+  stream_len_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoMetaRep.stream_len)
+}
+
+// optional uint32 ssrc = 4;
+inline bool ProtoMetaRep::has_ssrc() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void ProtoMetaRep::set_has_ssrc() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void ProtoMetaRep::clear_has_ssrc() {
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void ProtoMetaRep::clear_ssrc() {
   ssrc_ = 0u;
@@ -1254,15 +1288,15 @@ inline void ProtoMetaRep::set_ssrc(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:stream_switch.ProtoMetaRep.ssrc)
 }
 
-// optional uint32 bps = 4;
+// optional uint32 bps = 5;
 inline bool ProtoMetaRep::has_bps() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void ProtoMetaRep::set_has_bps() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void ProtoMetaRep::clear_has_bps() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void ProtoMetaRep::clear_bps() {
   bps_ = 0u;

@@ -170,6 +170,13 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline ::google::protobuf::int32 last_frame_usec() const;
   inline void set_last_frame_usec(::google::protobuf::int32 value);
 
+  // optional int64 send_time = 8;
+  inline bool has_send_time() const;
+  inline void clear_send_time();
+  static const int kSendTimeFieldNumber = 8;
+  inline ::google::protobuf::int64 send_time() const;
+  inline void set_send_time(::google::protobuf::int64 value);
+
   // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
   inline int clients_size() const;
   inline void clear_clients();
@@ -198,6 +205,8 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline void clear_has_last_frame_sec();
   inline void set_has_last_frame_usec();
   inline void clear_has_last_frame_usec();
+  inline void set_has_send_time();
+  inline void clear_has_send_time();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -209,6 +218,7 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   ::google::protobuf::uint32 ssrc_;
   ::google::protobuf::uint32 cur_bps_;
   ::google::protobuf::int64 last_frame_sec_;
+  ::google::protobuf::int64 send_time_;
   ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq > clients_;
   ::google::protobuf::int32 last_frame_usec_;
   friend void  protobuf_AddDesc_pb_5fstream_5finfo_2eproto();
@@ -445,6 +455,30 @@ inline void ProtoStreamInfoMsg::set_last_frame_usec(::google::protobuf::int32 va
   set_has_last_frame_usec();
   last_frame_usec_ = value;
   // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.last_frame_usec)
+}
+
+// optional int64 send_time = 8;
+inline bool ProtoStreamInfoMsg::has_send_time() const {
+  return (_has_bits_[0] & 0x00000080u) != 0;
+}
+inline void ProtoStreamInfoMsg::set_has_send_time() {
+  _has_bits_[0] |= 0x00000080u;
+}
+inline void ProtoStreamInfoMsg::clear_has_send_time() {
+  _has_bits_[0] &= ~0x00000080u;
+}
+inline void ProtoStreamInfoMsg::clear_send_time() {
+  send_time_ = GOOGLE_LONGLONG(0);
+  clear_has_send_time();
+}
+inline ::google::protobuf::int64 ProtoStreamInfoMsg::send_time() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.send_time)
+  return send_time_;
+}
+inline void ProtoStreamInfoMsg::set_send_time(::google::protobuf::int64 value) {
+  set_has_send_time();
+  send_time_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.send_time)
 }
 
 // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
