@@ -44,9 +44,6 @@ namespace stream_switch {
 //opcode -> ReceiverSubHandlerEntry map
 typedef std::map<int, ReceiverSubHandlerEntry> ReceiverSubHanderMap;
 
-
-
-
 // the Receiver class
 //     A Receiver class is used for a stream receiver application to receive the media 
 // frames from one stream source
@@ -126,8 +123,6 @@ protected:
     virtual void ClientHeartbeatHandler(int64_t now);
     
     static void * ThreadRoutine(void *);
-
-    virtual int SendClientHeartbeat(int timeout, std::string *err_info);    
     
     // the following methods need application to override
     // to fulfill its functions. They would be invoked
@@ -148,6 +143,7 @@ private:
     pthread_mutex_t lock_;
     pthread_t worker_thread_id_;
     uint32_t ssrc_;
+    uint32_t next_seq_;
     
     ReceiverSubHanderMap subsriber_handler_map_;
     

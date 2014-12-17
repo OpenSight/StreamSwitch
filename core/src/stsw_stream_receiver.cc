@@ -47,7 +47,7 @@ namespace stream_switch {
 
 StreamReceiver::StreamReceiver()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
-worker_thread_id_(0), ssrc_(0), flags_(0), 
+worker_thread_id_(0), ssrc_(0), next_seq_(1), flags_(0), 
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0)
@@ -66,6 +66,11 @@ int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port
                                std::string *err_info)
 {
     int ret;
+    
+    if(source_ip.size == 0 || source_tcp_port == 0){
+        SET_ERR_INFO(err_info, "ip or port is invalid");
+        return ERROR_CODE_PARAM;
+    }
     
     //generate api socket address
 
@@ -110,7 +115,12 @@ int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port
     }
     subscriber_addr_ = tmp_addr;
     
-    return InitBase(client_info, err_info);
+    ret = InitBase(client_info, err_info);
+    if(ret){
+        goto error_out;
+    }
+    
+    return 0;
 
 error_out:
     api_addr_.clear();
@@ -125,6 +135,11 @@ int StreamReceiver::InitLocal(const std::string &stream_name,
                           std::string *err_info)
 {
     int ret;
+
+    if(stream_name.size() == 0){
+        SET_ERR_INFO(err_info, "stream_name cannot be empty");
+        return ERROR_CODE_PARAM;
+    }
     
     //generate api socket address
 
@@ -179,6 +194,8 @@ int StreamReceiver::InitLocal(const std::string &stream_name,
     if(ret){
         goto error_out;
     }
+    
+    return 0;
 
 error_out:
     api_addr_.clear();
@@ -338,6 +355,11 @@ void StreamReceiver::set_client_info(const StreamClientInfo &client_info)
 
 int StreamReceiver::Start(std::string *err_info)
 {
+    int ret;
+    std::set<std::string> subsribe_keys;
+    ReceiverSubHanderMap::iterator it;
+    std::set<std::string>::iterator set_it;
+    
     if(!IsInit()){
         SET_ERR_INFO(err_info, "Receiver not init");          
         return -1;
@@ -356,14 +378,14 @@ int StreamReceiver::Start(std::string *err_info)
         SET_ERR_INFO(err_info, "An other thread is stopping the receiver, try later");       
         return ERROR_CODE_BUSY;
     }
-    flags_ |= STREAM_RECEIVER_FLAG_STARTED;    
+
     
     //
     // create a new subscriber socket
     // moving subscribe socket from init() to start() is for cleanning 
     // the socket context to avoid receiving a overdue broadcast 
     // frame. If create subscrber socket in init() ,and keep the same 
-    // subscribe socket for the whole life time of receiver. The receiver
+    // subscribe socket for the whole life time of receiver, the receiver
     // may get a overdue frame ater next time start()
     subscriber_socket_ = zsock_new_sub(subscriber_addr_.c_str(), NULL);
     if(subscriber_socket_ == NULL){
@@ -380,18 +402,15 @@ int StreamReceiver::Start(std::string *err_info)
     // 
     // subscribe the channel key
     //
-    std::set<std::string> subsribe_keys;
-    
-    // find all keys
-    ReceiverSubHanderMap::iterator it;
+        
+    // find all keys    
     for(it = subsriber_handler_map_.begin();
         it != subsriber_handler_map_.end();
         it ++){
         subsribe_keys.insert(it->second.channel_name);
     }
     
-    // register keys
-    std::set<std::string>::iterator set_it;
+    // register keys    
     for(set_it = subsribe_keys.begin();
         set_it != subsribe_keys.end();
         set_it ++){
@@ -399,7 +418,7 @@ int StreamReceiver::Start(std::string *err_info)
     }    
     
     //start the internal thread
-    int ret = pthread_create(&worker_thread_id_, NULL, ThreadRoutine, this);
+    ret = pthread_create(&worker_thread_id_, NULL, ThreadRoutine, this);
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
@@ -409,11 +428,12 @@ int StreamReceiver::Start(std::string *err_info)
         }
 
         perror("Start Source internal thread failed");
-        flags_ &= ~(STREAM_RECEIVER_FLAG_STARTED); 
         worker_thread_id_  = 0;
         ret = ERROR_CODE_SYSTEM;
         goto error_2;
     }
+
+    flags_ |= STREAM_RECEIVER_FLAG_STARTED;    
     
     return 0;
 
@@ -583,20 +603,19 @@ int StreamReceiver::SubscriberHandler()
 {
     zframe_t * in_frame = NULL;
     char *channel_name = NULL;
+    std::string in_data;
+    ProtoCommonPacket msg;
     int ret;
-    ret = zsock_recv(subscriber_addr_, "sf", &channel_name, &in_frame);
+    ret = zsock_recv(subscriber_socket_, "sf", &channel_name, &in_frame);
     if(ret || in_frame == NULL || channel_name == NULL){
 
         goto out;  // no frame receive
     }
-    std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
-    
-    ProtoCommonPacket msg;
+    in_data.assign((const char *)zframe_data(in_frame), zframe_size(in_frame));    
     
         
     if(msg.ParseFromString(in_data)){
         
-
         int op_code = msg.header().code();
         ReceiverSubHanderMap::iterator it;
         pthread_mutex_lock(&lock_); 
@@ -627,9 +646,6 @@ out:
     } 
            
     return 0; 
-
-
-
       
 }
 
@@ -743,9 +759,10 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
         client_heartbeat_req.set_client_protocol(client_info_.client_protocol);
         client_heartbeat_req.set_client_port(client_info_.client_port);
         client_heartbeat_req.set_client_text(client_info_.client_text);
-        // TODO(jiankai): set_client_token
+        client_heartbeat_req.set_client_token(client_info_.client_token);
+
         request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
-        request.mutable_header()->set_seq(0);
+        request.mutable_header()->set_seq(next_seq_++);
         request.mutable_header()->set_code(PROTO_PACKET_CODE_CLIENT_HEARTBEAT);
         client_heartbeat_req.SerializeToString(request.mutable_body());
         
@@ -761,6 +778,95 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
        
 }
 
+
+int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
+{
+    int ret;    
+    
+    if(request == NULL || reply == NULL || timeout < 0){
+        SET_ERR_INFO(err_info, "request/reply cannot be NULL");          
+        return -1;        
+    }
+    if(timeout < 0){
+        SET_ERR_INFO(err_info, "timeout cannot be less than 0");          
+        return -1;        
+    }
+    
+    if(!IsInit()){
+        SET_ERR_INFO(err_info, "Receiver not init");          
+        return -1;
+    }    
+    
+    // get api socket
+    SocketHandle api_socket = NULL;
+    std::string api_addr
+    pthread_mutex_lock(&lock_); 
+    api_socket = last_api_socket_;
+    api_addr = api_addr_;
+    last_api_socket_ = NULL;
+    pthread_mutex_unlock(&lock_);  
+
+    if(api_socket == NULL){
+        //no api_socket is idle, just create a new one
+        api_socket = zsock_new_req(api_addr.c_str());
+        if(api_socket == NULL){
+            ret = ERROR_CODE_SYSTEM;
+            SET_ERR_INFO(err_info, "zsock_new_req create api socket failed: maybe address error");   
+            fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error", api_addr.c_str());
+            return -1;         
+        }
+        zsock_set_linger(api_socket, 0); //no linger                   
+    }
+    
+    
+    std::string out_data;    
+    //
+    // send the request
+    //
+    
+    if(reply->SerializeToString(&out_data) == false){
+        
+    };
+    zframe_t * out_frame = NULL;
+    out_frame = zframe_new(out_data.data(), out_data.size());
+    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);    
+
+    
+    //
+    // wait for the reply
+    //
+    
+    //cache the api socket in receiver
+    pthread_mutex_lock(&lock_); 
+    if(IsInit() && last_api_socket_ == NULL){
+        last_api_socket_ = api_socket;
+        api_socket = NULL;
+    }
+    pthread_mutex_unlock(&lock_);  
+
+    //destroy the socket 
+    if(api_socket != NULL){
+        zsock_destroy((zsock_t **)&api_socket);
+        api_socket = NULL;        
+    }
+
+    return 0;
+    
+error_1:
+    
+    //destroy the socket 
+    if(api_socket != NULL){
+        zsock_destroy((zsock_t **)&api_socket);
+        api_socket = NULL;        
+    }
+
+    return ret;    
+    
+
+   
+    
+    
+}  
 
 
 }
