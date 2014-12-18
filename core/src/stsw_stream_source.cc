@@ -318,6 +318,11 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     // clear the statistic
     statistic_.clear();
     statistic_.resize(sub_stream_num);
+    int i;
+    for(i=0;i<sub_stream_num;i++){
+        statistic_[i].sub_stream_index = i;
+        statistic_[i].media_type = (SubStreamMediaType)stream_meta.sub_streams[i].media_type;     
+    }
     
     cur_bps_ = 0;
     cur_bytes_ = 0;
@@ -687,10 +692,8 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
                 statistic.add_sub_stream_stats();
                 
             
-            sub_stream_stat->set_sub_stream_index(i);
-            sub_stream_stat->set_media_type(
-                (ProtoSubStreamMediaType)stream_meta_.sub_streams[i].media_type
-                );
+            sub_stream_stat->set_sub_stream_index(it->sub_stream_index);
+            sub_stream_stat->set_media_type((ProtoSubStreamMediaType)it->media_type);
             sub_stream_stat->set_total_bytes(it->total_bytes);
             sub_stream_stat->set_key_bytes(it->key_bytes);
             sub_stream_stat->set_total_frames(it->total_frames);

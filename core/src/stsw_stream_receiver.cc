@@ -43,8 +43,42 @@
 #include <pb_metadata.pb.h>
 #include <pb_media_statistic.pb.h>
 
+
+
 namespace stream_switch {
 
+    
+    
+ static int ReplyStatus2ErrorCode(const ProtoCommonPacket &reply,  std::string *err_info){
+    
+    int ret;
+    //check reply status
+
+    if(reply.header().status() == PROTO_PACKET_STATUS_OK){
+        ret = ERROR_CODE_OK;
+            
+    }else if(reply.header().status()>= 400 && reply.header().status() <= 499){
+        ret = ERROR_CODE_CLIENT;
+    }else if(reply.header().status()>= 500 && reply.header().status() <= 599){
+        ret = ERROR_CODE_SERVER;
+    }else{
+        ret = ERROR_CODE_GENERAL;            
+    }
+    
+    if(ret){
+        char temp[64];
+        sprintf(temp, " (status:%d)", reply.header().status());
+        if(err_info){
+            err_info->assign(reply.header().info());
+            err_info->append(temp);
+        }
+    }
+    
+    return ret; 
+    
+}        
+    
+    
 StreamReceiver::StreamReceiver()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
 worker_thread_id_(0), ssrc_(0), next_seq_(1), flags_(0), 
@@ -67,7 +101,7 @@ int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port
 {
     int ret;
     
-    if(source_ip.size == 0 || source_tcp_port == 0){
+    if(source_ip.size() == 0 || source_tcp_port == 0){
         SET_ERR_INFO(err_info, "ip or port is invalid");
         return ERROR_CODE_PARAM;
     }
@@ -684,7 +718,7 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
             zframe_t * in_frame = NULL;
             in_frame = zframe_recv(client_hearbeat_socket_);
             if(in_frame == NULL){
-                return 0;  // no frame receive
+                return;// no frame receive
             }
             std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
             //after used, need free the frame
@@ -779,27 +813,233 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
 }
 
 
+int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info)
+{
+    ProtoCommonPacket request;
+    ProtoCommonPacket reply;
+    int ret;
+    
+    if(metadata == NULL){
+        ret = ERROR_CODE_PARAM;
+        SET_ERR_INFO(err_info, "metadata cannot be NULL");
+        return ret;          
+    }
+    
+    request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
+    request.mutable_header()->set_seq(GetNextSeq());
+    request.mutable_header()->set_code(PROTO_PACKET_CODE_METADATA);    
+
+    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    if(ret){
+        //error
+        return ret;
+    }
+    
+    ret = ReplyStatus2ErrorCode(reply, err_info);
+    if(ret){
+        return ret;
+    }  
+    
+    //extract metadata from reply
+    ProtoMetaRep metadata_rep;
+    if(! metadata_rep.ParseFromString(reply.body())){
+        //body parse error
+        ret = ERROR_CODE_PARSE;
+        SET_ERR_INFO(err_info, "reply body parse to metadata error");
+        return ret;                
+    }
+    metadata->play_type = (StreamPlayType) metadata_rep.play_type();
+    metadata->source_proto = metadata_rep.source_proto();
+    metadata->ssrc = metadata_rep.ssrc();
+    metadata->bps = metadata_rep.bps();  
+    metadata->sub_streams.reserve(metadata_rep.sub_streams_size());
+
+    ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamInfo >::const_iterator it;    
+    for(it = metadata_rep.sub_streams().begin();
+        it != metadata_rep.sub_streams().end();
+        it ++){
+        
+        SubStreamMetadata sub_stream;
+        sub_stream.sub_stream_index = it->index();
+        sub_stream.media_type = (SubStreamMediaType)it->media_type();
+        sub_stream.codec_name = it->codec_name();      
+        sub_stream.direction = (SubStreamDirectionType)it->direction();    
+        sub_stream.extra_data = it->extra_data();  
+
+        switch(sub_stream.media_type){
+            case SUB_STREAM_MEIDA_TYPE_VIDEO:
+            {
+                sub_stream.media_param.video.height = it->height();
+                sub_stream.media_param.video.width = it->width();
+                sub_stream.media_param.video.fps = it->fps();                
+                sub_stream.media_param.video.gov = it->gov();
+                
+                break;
+            }
+            case SUB_STREAM_MEIDA_TYPE_AUDIO:
+            {
+                sub_stream.media_param.audio.samples_per_second = it->samples_per_second();
+                sub_stream.media_param.audio.channels = it->channels();
+                sub_stream.media_param.audio.bits_per_sample = it->bits_per_sample();                
+                sub_stream.media_param.audio.sampele_per_frame = it->sampele_per_frame();                
+                
+                break;
+            }
+            case SUB_STREAM_MEIDA_TYPE_TEXT:
+            {
+                sub_stream.media_param.text.x = it->x();
+                sub_stream.media_param.text.y = it->y();
+                sub_stream.media_param.text.fone_size = it->fone_size();                
+                sub_stream.media_param.text.font_type = it->font_type();                   
+                
+                break;
+            }
+            default:
+            {
+                break;
+                
+            }
+        }
+        metadata->sub_streams.push_back(sub_stream); 
+    }
+    
+    
+    //cache in receiver
+    {
+        LockGuard guard(&lock_);  
+        stream_meta_ = *metadata;
+    }
+    
+    return 0;
+}
+
+int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
+{
+    ProtoCommonPacket request;
+    ProtoCommonPacket reply;
+    int ret;
+    
+    if(statistic == NULL){
+        ret = ERROR_CODE_PARAM;
+        SET_ERR_INFO(err_info, "statistic cannot be NULL");
+        return ret;          
+    }
+    
+    request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
+    request.mutable_header()->set_seq(GetNextSeq());
+    request.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA_STATISTIC);    
+
+    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    if(ret){
+        //error
+        return ret;
+    }
+    
+    ret = ReplyStatus2ErrorCode(reply, err_info);
+    if(ret){
+        return ret;
+    }  
+    
+    //extract statistic from reply
+    ProtoMediaStatisticRep statistic_rep;
+    if(! statistic_rep.ParseFromString(reply.body())){
+        //body parse error
+        ret = ERROR_CODE_PARSE;
+        SET_ERR_INFO(err_info, "reply body parse to statistic error");
+        return ret;                
+    }
+    statistic->ssrc = statistic_rep.ssrc();
+    statistic->timestamp = statistic_rep.timestamp();    
+    statistic->sum_bytes = statistic_rep.sum_bytes();
+    statistic->sub_streams.reserve(statistic_rep.sub_stream_stats_size());
+
+    ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamMediaStatistic >::const_iterator it;    
+    for(it = statistic_rep.sub_stream_stats().begin();
+        it != statistic_rep.sub_stream_stats().end();
+        it ++){
+        SubStreamMediaStatistic sub_stream;  
+        sub_stream.sub_stream_index = it->sub_stream_index();
+        sub_stream.media_type = (SubStreamMediaType)it->media_type();        
+        sub_stream.total_bytes = it->total_bytes();
+        sub_stream.key_bytes = it->key_bytes();
+        sub_stream.expected_frames = it->total_bytes();
+        sub_stream.total_frames = it->total_bytes();        
+        sub_stream.key_frames = it->total_bytes();
+        sub_stream.last_gov = it->total_bytes();
+        statistic->sub_streams.push_back(sub_stream); 
+    }
+    
+    return 0;
+    
+}  
+  
+int StreamReceiver::RequestKeyFrame(int timeout, std::string *err_info)
+{
+    ProtoCommonPacket request;
+    ProtoCommonPacket reply;
+    int ret;
+    
+    request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
+    request.mutable_header()->set_seq(GetNextSeq());
+    request.mutable_header()->set_code(PROTO_PACKET_CODE_KEY_FRAME);
+
+    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    if(ret){
+        //error
+        return ret;
+    }
+    
+    ret = ReplyStatus2ErrorCode(reply, err_info);
+    if(ret){
+        return ret;
+    }
+    
+
+    return 0;        
+}
+
+uint32_t StreamReceiver::GetNextSeq()
+{
+    uint32_t seq;
+    LockGuard guard(&lock_);   
+    seq = next_seq_++;
+    
+    return seq;    
+    
+}
+
 int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
 {
     int ret;    
     
-    if(request == NULL || reply == NULL || timeout < 0){
+    if(request == NULL || reply == NULL){
         SET_ERR_INFO(err_info, "request/reply cannot be NULL");          
-        return -1;        
+        return ERROR_CODE_PARAM;        
     }
     if(timeout < 0){
         SET_ERR_INFO(err_info, "timeout cannot be less than 0");          
-        return -1;        
+        return ERROR_CODE_PARAM;        
+    }
+    if(request->header().type() != PROTO_PACKET_TYPE_REQUEST){
+        SET_ERR_INFO(err_info, "Request' packet type is incorrect");          
+        return ERROR_CODE_PARAM;         
     }
     
     if(!IsInit()){
         SET_ERR_INFO(err_info, "Receiver not init");          
-        return -1;
+        return ERROR_CODE_PARAM;
     }    
     
-    // get api socket
+    
     SocketHandle api_socket = NULL;
-    std::string api_addr
+    std::string api_addr;
+    std::string out_data;
+    zframe_t * out_frame = NULL;
+    zframe_t * in_frame = NULL;
+    zpoller_t  * poller = NULL;
+    SocketHandle reader_socket = NULL;   
+    
+    // get api socket
     pthread_mutex_lock(&lock_); 
     api_socket = last_api_socket_;
     api_addr = api_addr_;
@@ -813,28 +1053,63 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
             ret = ERROR_CODE_SYSTEM;
             SET_ERR_INFO(err_info, "zsock_new_req create api socket failed: maybe address error");   
             fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error", api_addr.c_str());
-            return -1;         
+            return ret;         
         }
         zsock_set_linger(api_socket, 0); //no linger                   
-    }
-    
-    
-    std::string out_data;    
+    }    
+
     //
     // send the request
-    //
-    
-    if(reply->SerializeToString(&out_data) == false){
-        
+    //    
+    if(request->SerializeToString(&out_data) == false){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "failed to serialize the request");   
+        goto error_1;                
     };
-    zframe_t * out_frame = NULL;
     out_frame = zframe_new(out_data.data(), out_data.size());
-    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);    
-
+    zframe_send(&out_frame, api_socket, ZFRAME_DONTWAIT);    
     
     //
     // wait for the reply
     //
+    poller =zpoller_new (api_socket); 
+    reader_socket = zpoller_wait(poller, timeout);  
+    zpoller_destroy(&poller);
+    if(reader_socket == NULL){   
+        //timeout
+        ret = ERROR_CODE_TIMEOUT;
+        SET_ERR_INFO(err_info, "Request Timeout");   
+        goto error_1;            
+      
+    }
+    //receive the reply
+    in_frame = zframe_recv(api_socket);
+    if(in_frame == NULL){
+        ret = ERROR_CODE_GENERAL;
+        SET_ERR_INFO(err_info, "NULL Reply");   
+        goto error_1;  
+    }
+    //after used, need free the frame
+        
+    if(!reply->ParseFromString(
+        std::string((const char *)zframe_data(in_frame), zframe_size(in_frame)))){
+ 
+        zframe_destroy(&in_frame);  
+        ret = ERROR_CODE_GENERAL;
+        SET_ERR_INFO(err_info, "Reply Parse Error");   
+        goto error_1;
+    }
+    
+    //check reply basic info
+    if( reply->header().type() != PROTO_PACKET_TYPE_REPLY ||
+        request->header().seq() != reply->header().seq() ||
+        request->header().code() != reply->header().code()){
+        ret = ERROR_CODE_GENERAL;
+        SET_ERR_INFO(err_info, "Received Reply basic info error");    
+        goto error_2;
+    }
+    
+    //successful here    
     
     //cache the api socket in receiver
     pthread_mutex_lock(&lock_); 
@@ -852,6 +1127,16 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
 
     return 0;
     
+error_2:
+
+    pthread_mutex_lock(&lock_); 
+    if(IsInit() && last_api_socket_ == NULL){
+        last_api_socket_ = api_socket;
+        api_socket = NULL;
+    }
+    pthread_mutex_unlock(&lock_);  
+        
+    
 error_1:
     
     //destroy the socket 
@@ -861,11 +1146,7 @@ error_1:
     }
 
     return ret;    
-    
-
-   
-    
-    
+        
 }  
 
 

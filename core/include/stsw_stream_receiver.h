@@ -101,9 +101,14 @@ public:
     
     
     virtual int RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info);
-    virtual void RegisterSSRC(uint32_t ssrc);
+    virtual void RegisterSSRC(uint32_t ssrc)
+    {
+        ssrc_ = ssrc;
+    }
     virtual int RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
     virtual int RequestKeyFrame(int timeout, std::string *err_info);
+    
+    virtual uint32_t GetNextSeq();
     
 protected:
 
@@ -123,6 +128,7 @@ protected:
     virtual void ClientHeartbeatHandler(int64_t now);
     
     static void * ThreadRoutine(void *);
+    
     
     // the following methods need application to override
     // to fulfill its functions. They would be invoked

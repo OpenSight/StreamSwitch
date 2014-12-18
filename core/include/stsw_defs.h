@@ -172,6 +172,9 @@ struct StreamMetadata{
 };  
     
  struct SubStreamMediaStatistic{
+    int32_t sub_stream_index;
+    SubStreamMediaType media_type;
+     
     //about bytes
     uint64_t total_bytes;  //the bytes received of this sub stream
     uint64_t key_bytes; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
@@ -186,6 +189,8 @@ struct StreamMetadata{
     uint64_t last_seq;     //the last frame's seq number, internal used by StreamSource
     
     SubStreamMediaStatistic(){
+        sub_stream_index = 0;
+        media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
         total_bytes = 0;
         key_bytes = 0;
         total_frames = 0;
@@ -276,9 +281,11 @@ enum ErrorCode{
     ERROR_CODE_GENERAL = -1,   //general error
     ERROR_CODE_TIMEOUT = -2,   //timeout error
     ERROR_CODE_PARAM  = -3,    //parameter check error
-    ERROR_CODE_SERVER = -4,    //remote server reported error
-    ERROR_CODE_SYSTEM = -5,    //the low level system API report error    
-    ERROR_CODE_BUSY = -6,     
+    ERROR_CODE_CLIENT = -4,    //remote server reported client error
+    ERROR_CODE_SERVER = -5,    //remote server reported internal error
+    ERROR_CODE_SYSTEM = -6,    //the low level system API report error    
+    ERROR_CODE_BUSY = -7,      //system is busy now, retry later  
+    ERROR_CODE_PARSE = -8,     //protocol parse error
     
 };
 
