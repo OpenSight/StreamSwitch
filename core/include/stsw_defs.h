@@ -275,6 +275,10 @@ struct StreamClientInfo{
 };
 
 
+#define DEBUG_FLAG_DUMP_API          1     //dump the api request/reply, except client hearbeat
+#define DEBUG_FLAG_DUMP_PUBLISH      2     //dump api request/reply, and publish/subsribe message
+#define DEBUG_FLAG_DUMP_HEARTBEAT    4     //dump client heartbeat 
+
 
 enum ErrorCode{
     ERROR_CODE_OK = 0,    //successful

@@ -81,7 +81,7 @@ namespace stream_switch {
     
 StreamReceiver::StreamReceiver()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
-worker_thread_id_(0), ssrc_(0), next_seq_(1), flags_(0), 
+worker_thread_id_(0), ssrc_(0), next_seq_(1), debug_flags(0), flags_(0), 
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0)
@@ -96,7 +96,8 @@ StreamReceiver::~StreamReceiver()
 }
 
 int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port, 
-                               const StreamClientInfo &client_info,
+                               const StreamClientInfo &client_info, 
+                               uint32_t debug_flags,
                                std::string *err_info)
 {
     int ret;
@@ -149,7 +150,7 @@ int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, err_info);
+    ret = InitBase(client_info, debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -165,8 +166,9 @@ error_out:
     
 }
 int StreamReceiver::InitLocal(const std::string &stream_name, 
-                          const StreamClientInfo &client_info,
-                          std::string *err_info)
+                              const StreamClientInfo &client_info, 
+                              uint32_t debug_flags,
+                              std::string *err_info)
 {
     int ret;
 
@@ -224,7 +226,7 @@ int StreamReceiver::InitLocal(const std::string &stream_name,
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, err_info);
+    ret = InitBase(client_info, debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -241,7 +243,9 @@ error_out:
 }
 
 
-int StreamReceiver::InitBase(const StreamClientInfo &client_info, std::string *err_info)
+int StreamReceiver::InitBase(const StreamClientInfo &client_info, 
+                             uint32_t debug_flags, 
+                             std::string *err_info)
 {
     int ret;
     
@@ -294,6 +298,8 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info, std::string *e
     //init client info
     client_info_ = client_info;
     
+    debug_flags_ = debug_flags;
+    
     
     
     flags_ |= STREAM_RECEIVER_FLAG_INIT;        
@@ -311,7 +317,8 @@ error_2:
     }
 error_1:    
     
-    pthread_mutex_destroy(&lock_);   
+    pthread_mutex_destroy(&lock_);  
+    
     
 error_0:
     
@@ -526,12 +533,6 @@ void StreamReceiver::Stop()
     
 }
 
-
-
-
-
-
-
 void StreamReceiver::RegisterSubHandler(int op_code, const char * channel_name, 
                                     ReceiverSubHandler handler, void * user_data)
 {
@@ -580,6 +581,40 @@ int StreamReceiver::StaticMediaFrameHandler(StreamReceiver *receiver, const Prot
 }
 int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data)
 {
+    
+    MediaDataFrame media_frame;
+    uint32_t ssrc = ssrc();
+    
+    //extract media frame from message
+    ProtoMediaFrameMsg frame_msg;
+    if(! frame_msg.ParseFromString(msg.body())){
+        //body parse error
+        ret = ERROR_CODE_PARSE;
+        fprintf(stderr, "media frame Parse Error");
+        return ret;                
+    } 
+    
+    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+        fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA message in MediaFrameHandler:\n");
+        fprintf(stderr, "%s\n", frame_msg.DebugString().c_str());
+    }    
+    
+    // check ssrc
+    if(ssrc != 0 && ssrc != frame_msg.ssrc()){
+        //ssrc mismatch, just ignore this frame
+        return 0;
+    }    
+    
+    media_frame.sub_stream_index = frame_msg.stream_index();
+    media_frame.frame_seq = frame_msg.seq();
+    media_frame.frame_type = (MediaFrameType)frame_msg.frame_type();
+    media_frame.ssrc = frame_msg.ssrc();
+    media_frame.timestamp.tv_sec = frame_msg.sec();
+    media_frame.timestamp.tv_usec = frame_msg.usec();
+    media_frame.data = frame_msg.data();   
+    
+    OnLiveMediaFrame(media_frame);
+       
     return 0;
 }
 
@@ -649,6 +684,13 @@ int StreamReceiver::SubscriberHandler()
     
         
     if(msg.ParseFromString(in_data)){
+        
+        if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+            fprintf(stderr, "Received the following packet from subsriber socket channel %s (timestamp:%lld ms):\n", 
+                    channel_name, 
+                    (long long)zclock_time());
+            fprintf(stderr, "%s\n", msg.DebugString().c_str());
+        }
         
         int op_code = msg.header().code();
         ReceiverSubHanderMap::iterator it;
@@ -726,6 +768,13 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
             ProtoCommonPacket reply;
             
             if(reply.ParseFromString(in_data)){
+                
+                if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+                    fprintf(stderr, 
+                            "Received the following packet from client heartbeat socket (timestamp:%lld ms):\n",
+                             (long long)zclock_time());
+                    fprintf(stderr, "%s\n", reply.DebugString().c_str());
+                }               
         
 
                 if(reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT &&
@@ -734,6 +783,13 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
                     std::string body = reply.body();
                     ProtoClientHeartbeatRep client_heartbeat_reply;
                     if(client_heartbeat_reply.ParseFromString(body)){
+
+                        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+                            fprintf(stderr, 
+                                    "Decode the following body from a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
+                            fprintf(stderr, "%s\n", client_heartbeat_reply.DebugString().c_str())
+                        } 
+                        
                         int lease = client_heartbeat_reply.lease();
                         // send next heartbeat request at 1/3 lease
                         next_send_client_heartbeat_msec_ = 
@@ -795,10 +851,24 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
         client_heartbeat_req.set_client_text(client_info_.client_text);
         client_heartbeat_req.set_client_token(client_info_.client_token);
 
+
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, 
+                    "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT request:\n");
+            fprintf(stderr, "%s\n", client_heartbeat_req.DebugString().c_str());
+        } 
+
         request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
         request.mutable_header()->set_seq(next_seq_++);
         request.mutable_header()->set_code(PROTO_PACKET_CODE_CLIENT_HEARTBEAT);
         client_heartbeat_req.SerializeToString(request.mutable_body());
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, 
+                    "Send out the following packet to client heartbeat socket (timestamp:%lld ms):\n",
+                    (long long)zclock_time());
+            fprintf(stderr, "%s\n", request.DebugString().c_str());
+        }           
+        
         
         std::string out_data;
         request.SerializeToString(&out_data);
@@ -829,6 +899,11 @@ int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata
     request.mutable_header()->set_seq(GetNextSeq());
     request.mutable_header()->set_code(PROTO_PACKET_CODE_METADATA);    
 
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_METADATA request\n");
+    }
+
     ret = SendRpcRequest(&request, timeout, &reply, err_info);
     if(ret){
         //error
@@ -848,6 +923,12 @@ int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata
         SET_ERR_INFO(err_info, "reply body parse to metadata error");
         return ret;                
     }
+    
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_METADATA reply:\n");
+        fprintf(stderr, "%s\n", metadata_rep.DebugString().c_str())
+    }      
+    
     metadata->play_type = (StreamPlayType) metadata_rep.play_type();
     metadata->source_proto = metadata_rep.source_proto();
     metadata->ssrc = metadata_rep.ssrc();
@@ -929,11 +1010,17 @@ int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * sta
     request.mutable_header()->set_seq(GetNextSeq());
     request.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA_STATISTIC);    
 
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
+    }
+
     ret = SendRpcRequest(&request, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
     }
+
+    
     
     ret = ReplyStatus2ErrorCode(reply, err_info);
     if(ret){
@@ -948,6 +1035,12 @@ int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * sta
         SET_ERR_INFO(err_info, "reply body parse to statistic error");
         return ret;                
     }
+    
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA_STATISTIC reply\n");
+        fprintf(stderr, "%s\n", statistic_rep.DebugString().c_str())
+    }       
+    
     statistic->ssrc = statistic_rep.ssrc();
     statistic->timestamp = statistic_rep.timestamp();    
     statistic->sum_bytes = statistic_rep.sum_bytes();
@@ -983,17 +1076,24 @@ int StreamReceiver::RequestKeyFrame(int timeout, std::string *err_info)
     request.mutable_header()->set_seq(GetNextSeq());
     request.mutable_header()->set_code(PROTO_PACKET_CODE_KEY_FRAME);
 
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Send out a PROTO_PACKET_CODE_KEY_FRAME request with no body\n");
+    }
+
     ret = SendRpcRequest(&request, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
     }
-    
+ 
+   
     ret = ReplyStatus2ErrorCode(reply, err_info);
     if(ret){
         return ret;
     }
-    
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_KEY_FRAME reply\n");
+    }    
 
     return 0;        
 }
@@ -1058,6 +1158,12 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
         zsock_set_linger(api_socket, 0); //no linger                   
     }    
 
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Send out the following packet to api socket (timestamp:%lld ms):\n",
+                (long long)zclock_time());
+        fprintf(stderr, "%s\n", request.DebugString().c_str());
+    }
+
     //
     // send the request
     //    
@@ -1098,6 +1204,12 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
         ret = ERROR_CODE_GENERAL;
         SET_ERR_INFO(err_info, "Reply Parse Error");   
         goto error_1;
+    }
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
+                (long long)zclock_time());
+        fprintf(stderr, "%s\n", reply.DebugString().c_str());
     }
     
     //check reply basic info

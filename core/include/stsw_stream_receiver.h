@@ -59,9 +59,11 @@ public:
 
     virtual int InitRemote(const std::string &source_ip, int source_tcp_port, 
                            const StreamClientInfo &client_info,
+                           uint32_t debug_flags,
                            std::string *err_info);    
     virtual int InitLocal(const std::string &stream_name, 
                           const StreamClientInfo &client_info,
+                          uint32_t debug_flags,
                           std::string *err_info);      
   
     virtual void Uninit();
@@ -98,13 +100,19 @@ public:
     StreamClientInfo client_info();
     void set_client_info(const StreamClientInfo &client_info);
     StreamMetadata stream_meta();
-    
-    
-    virtual int RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info);
-    virtual void RegisterSSRC(uint32_t ssrc)
+    uint32_t ssrc(){
+        return ssrc_;
+    }
+    void set_ssrc(uint32_t ssrc)
     {
         ssrc_ = ssrc;
     }
+    uint32_t debug_flags(){
+        return debug_flags_;
+    }
+    
+        
+    virtual int RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info);
     virtual int RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
     virtual int RequestKeyFrame(int timeout, std::string *err_info);
     
@@ -117,7 +125,7 @@ protected:
     virtual int MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data);
 
 
-    virtual int InitBase(const StreamClientInfo &client_info, std::string *err_info);   
+    virtual int InitBase(const StreamClientInfo &client_info, uint32_t debug_flags, std::string *err_info);   
 
     virtual int SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
 
@@ -150,6 +158,7 @@ private:
     pthread_t worker_thread_id_;
     uint32_t ssrc_;
     uint32_t next_seq_;
+    uint32_t debug_flags_;
     
     ReceiverSubHanderMap subsriber_handler_map_;
     

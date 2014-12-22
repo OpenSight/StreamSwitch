@@ -72,7 +72,8 @@ public:
     //
     // return:
     //     0 if successful, or -1 if error;
-    virtual int Init(const std::string &stream_name, int tcp_port, std::string *err_info);
+    virtual int Init(const std::string &stream_name, int tcp_port, 
+                     uint32_t debug_flags, std::string *err_info);
     
     // un-init the source, note that it's not thread-safe
     virtual void Uninit();
@@ -114,7 +115,9 @@ public:
     pthread_mutex_t& lock(){
         return lock_;
     }
-    
+    uint32_t debug_flags(){
+        return debug_flags_;
+    }    
 
    
     virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
@@ -168,6 +171,7 @@ private:
     pthread_mutex_t lock_;
     pthread_t api_thread_id_;
     SourceApiHanderMap api_handler_map_;
+    uint32_t debug_flags_;
     
 // stream source flags
 #define STREAM_SOURCE_FLAG_INIT 1

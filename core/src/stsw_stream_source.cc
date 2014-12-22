@@ -70,7 +70,8 @@ StreamSource::~StreamSource()
     SAFE_DELETE(receivers_info_);
 }
 
-int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string *err_info)
+int StreamSource::Init(const std::string &stream_name, int tcp_port, 
+                       uint32_t debug_flags, std::string *err_info)
 {
     int ret;
     //params check
@@ -86,8 +87,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
         return -1;
     }
     
-    stream_name_ = stream_name;
-    tcp_port_ = tcp_port;
+
     
     //init lock
     pthread_mutexattr_t  attr;
@@ -231,6 +231,11 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port, std::string
     
     //init statistic 
     statistic_.clear();
+
+    stream_name_ = stream_name;
+    tcp_port_ = tcp_port;
+    debug_flags_ = debug_flags;
+
     
     flags_ |= STREAM_SOURCE_FLAG_INIT;        
    
@@ -485,17 +490,21 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     //
     ProtoMediaFrameMsg media_info;
     ProtoCommonPacket media_msg;
-    std::string body_data;
     media_info.set_stream_index(media_frame.sub_stream_index);
     media_info.set_sec(media_frame.timestamp.tv_sec);
     media_info.set_usec(media_frame.timestamp.tv_usec);
     media_info.set_frame_type((ProtoMediaFrameType)media_frame.frame_type);
     media_info.set_ssrc(media_frame.ssrc);
     media_info.set_data(media_frame.data);
-    media_info.SerializeToString(&body_data);
+
     media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
-    media_msg.set_body(body_data);
+    media_info.SerializeToString(media_msg->mutable_body());    
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA message in SendLiveMediaFrame():\n");
+        fprintf(stderr, "%s\n", media_info.DebugString().c_str());
+    }     
     
     //
     // send out from publish socket
@@ -591,7 +600,9 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
         //nothing to do
         return 0;
     }
-    
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_METADATA request\n");
+    }      
     ProtoMetaRep metadata;    
     
     {
@@ -654,7 +665,12 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
     reply->mutable_header()->set_info(""); 
     metadata.SerializeToString(reply->mutable_body());
-  
+
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_METADATA reply:\n");
+        fprintf(stderr, "%s\n", metadata.DebugString().c_str())
+    }  
   
     return 0;
 }
@@ -664,9 +680,16 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
         //nothing to do
         return 0;
     }   
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_KEY_FRAME request\n");
+    }     
     OnKeyFrame();
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info("");    
+    reply->mutable_header()->set_info("");  
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode no body from a PROTO_PACKET_CODE_KEY_FRAME reply\n");
+    }    
     return 0;
 }
 int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
@@ -675,6 +698,10 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
         //nothing to do
         return 0;
     }
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
+    }    
+    
     ProtoMediaStatisticRep statistic;
     {
         LockGuard guard(&lock());
@@ -708,6 +735,12 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
     reply->mutable_header()->set_info(""); 
     statistic.SerializeToString(reply->mutable_body());      
+
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA_STATISTIC reply:\n");
+        fprintf(stderr, "%s\n", statistic.DebugString().c_str())
+    }
     
     return 0;
 }
@@ -721,6 +754,12 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
     if(client_heartbeat.ParseFromString(request->body())){
         int64_t now = time(NULL);
         client_heartbeat.set_last_active_time(now);
+        
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_HEARTBEAT request:\n");
+            fprintf(stderr, "%s\n", client_heartbeat.DebugString().c_str())
+        }        
+        
         {
             LockGuard guard(&lock());
             
@@ -756,6 +795,11 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
         reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
         reply->mutable_header()->set_info("");  
         reply_info.SerializeToString(reply->mutable_body());     
+
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
+            fprintf(stderr, "%s\n", reply_info.DebugString().c_str())
+        } 
             
         
     }else{
@@ -790,6 +834,18 @@ int StreamSource::RpcHandler()
         
     if(request.ParseFromString(in_data)){
         
+     
+        if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
+            (reply.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
+            ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
+            (reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
+            
+            fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
+                    (long long)zclock_time());
+            fprintf(stderr, "%s\n", request.DebugString().c_str());
+        }
+           
+        
         reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
         reply.mutable_header()->set_info("Unknown Error");        
         reply.mutable_header()->set_code(request.header().code());   
@@ -815,6 +871,17 @@ int StreamSource::RpcHandler()
     }else{
         reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
         reply.mutable_header()->set_info("Request Parse Error");        
+    }
+
+
+    if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
+        (reply.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
+        ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
+        (reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
+            
+        fprintf(stderr, "Send out the following packet to api socket (timestamp:%lld ms):\n",
+                (long long)zclock_time());
+        fprintf(stderr, "%s\n", request.DebugString().c_str());
     }
 
     
@@ -915,7 +982,7 @@ void StreamSource::SendStreamInfo(void)
     LockGuard guard(&lock_);
     ProtoStreamInfoMsg stream_info;
     ProtoCommonPacket info_msg;
-    std::string body_data;  
+
 
     stream_info.set_state((ProtoSourceStreamState )stream_state_);
     stream_info.set_play_type((ProtoPlayType)stream_meta_.play_type);
@@ -933,11 +1000,17 @@ void StreamSource::SendStreamInfo(void)
             stream_info.add_clients();
         *new_client = *it;            
     }
-    stream_info.SerializeToString(&body_data);
+
     info_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     info_msg.mutable_header()->set_code(PROTO_PACKET_CODE_STREAM_INFO);
-    info_msg.set_body(body_data);
+    stream_info.SerializeToString(info_msg.mutable_body());   
 
+
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_STREAM_INFO message in SendStreamInfo():\n");
+        fprintf(stderr, "%s\n", stream_info.DebugString().c_str());
+    }  
     
     //
     // send out from publish socket
@@ -957,6 +1030,13 @@ void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &
         //if uninit, just ignore
         return;
     }    
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+        fprintf(stderr, "Send out the following packet into publish socket channel %s (timestamp:%lld ms):\n", 
+                channel_name, 
+                (long long)zclock_time());
+        fprintf(stderr, "%s\n", msg.DebugString().c_str());
+    }
 
     LockGuard guard(&lock_);
     
