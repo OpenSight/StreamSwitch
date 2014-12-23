@@ -44,28 +44,42 @@ public:
     RotateLogger();
     virtual ~RotateLogger();
     
-    virtual int Init(const std::string &prog_name, const std::string &base_name, int file_size, int file_num, bool stderr_redirect);
+    virtual int Init(const std::string &prog_name, const std::string &base_name, 
+                     int file_size, int file_num,  
+                     int log_level, 
+                     bool stderr_redirect);
     virtual void Uninit();
+
+
+    //flag check methods
+    virtual bool IsInit();
     
-    virtual void check();
-    virtual void set_log_level();
+    //accessors
+    virtual void set_log_level(int log_level);
     virtual int log_level();
     
+    
+    virtual void CheckRotate();
     virtual void Log(int level, char * filename, int line, char * fmt, ...);
     
 protected:
 
     virtual bool IsTooLarge();
-    virtual int ShiftFile() ;
-    virtual int Reopen();    
+    
+    virtual void ShiftFile() ;
+    virtual int Reopen();  
+    virtual void CloseFile();
     
 private:
     std::string prog_name_;
     std::string base_name_;
     int file_size_;
-    int file_num_;
+    int rotate_num_;
     bool stderr_redirect_;
     pthread_mutex_t lock_;
+    int log_level_;
+    int fd_;
+    int redirect_fd_;    
     
 // rotate logger flags
 #define ROTATE_LOGGER_FLAG_INIT 1
@@ -73,6 +87,15 @@ private:
     uint32_t flags_;      
 
 };
+
+
+
+
+
+inline bool RotateLogger::IsInit()
+{
+    return (flags_ & ROTATE_LOGGER_FLAG_INIT) != 0;        
+}  
 
 }
 

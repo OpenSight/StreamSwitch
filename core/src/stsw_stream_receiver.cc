@@ -81,7 +81,7 @@ namespace stream_switch {
     
 StreamReceiver::StreamReceiver()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
-worker_thread_id_(0), ssrc_(0), next_seq_(1), debug_flags(0), flags_(0), 
+worker_thread_id_(0), ssrc_(0), next_seq_(1), debug_flags_(0), flags_(0), 
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0)
@@ -583,11 +583,12 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user
 {
     
     MediaDataFrame media_frame;
-    uint32_t ssrc = ssrc();
+    uint32_t check_ssrc = ssrc();
+    int ret;
     
     //extract media frame from message
     ProtoMediaFrameMsg frame_msg;
-    if(! frame_msg.ParseFromString(msg.body())){
+    if(! frame_msg.ParseFromString(msg->body())){
         //body parse error
         ret = ERROR_CODE_PARSE;
         fprintf(stderr, "media frame Parse Error");
@@ -600,7 +601,7 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user
     }    
     
     // check ssrc
-    if(ssrc != 0 && ssrc != frame_msg.ssrc()){
+    if(check_ssrc != 0 && check_ssrc != frame_msg.ssrc()){
         //ssrc mismatch, just ignore this frame
         return 0;
     }    
@@ -787,7 +788,7 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
                         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
                             fprintf(stderr, 
                                     "Decode the following body from a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
-                            fprintf(stderr, "%s\n", client_heartbeat_reply.DebugString().c_str())
+                            fprintf(stderr, "%s\n", client_heartbeat_reply.DebugString().c_str());
                         } 
                         
                         int lease = client_heartbeat_reply.lease();
@@ -926,7 +927,7 @@ int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata
     
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_METADATA reply:\n");
-        fprintf(stderr, "%s\n", metadata_rep.DebugString().c_str())
+        fprintf(stderr, "%s\n", metadata_rep.DebugString().c_str());
     }      
     
     metadata->play_type = (StreamPlayType) metadata_rep.play_type();
@@ -1038,7 +1039,7 @@ int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * sta
     
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA_STATISTIC reply\n");
-        fprintf(stderr, "%s\n", statistic_rep.DebugString().c_str())
+        fprintf(stderr, "%s\n", statistic_rep.DebugString().c_str());
     }       
     
     statistic->ssrc = statistic_rep.ssrc();
@@ -1161,7 +1162,7 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Send out the following packet to api socket (timestamp:%lld ms):\n",
                 (long long)zclock_time());
-        fprintf(stderr, "%s\n", request.DebugString().c_str());
+        fprintf(stderr, "%s\n", request->DebugString().c_str());
     }
 
     //
@@ -1209,7 +1210,7 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
                 (long long)zclock_time());
-        fprintf(stderr, "%s\n", reply.DebugString().c_str());
+        fprintf(stderr, "%s\n", reply->DebugString().c_str());
     }
     
     //check reply basic info

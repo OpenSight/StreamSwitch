@@ -280,6 +280,18 @@ struct StreamClientInfo{
 #define DEBUG_FLAG_DUMP_HEARTBEAT    4     //dump client heartbeat 
 
 
+enum LogLevel{
+    LOG_LEVEL_EMERG = 0,    
+    LOG_LEVEL_ALERT = 1,        
+    LOG_LEVEL_CRIT = 2,    
+    LOG_LEVEL_ERR = 3,       
+    LOG_LEVEL_WARNING = 4, 
+    LOG_LEVEL_NOTICE = 5,    
+    LOG_LEVEL_INFO = 6,       
+    LOG_LEVEL_DEBUG = 7,        
+};
+#define MAX_LOG_ROW_SIZE 1024
+
 enum ErrorCode{
     ERROR_CODE_OK = 0,    //successful
     ERROR_CODE_GENERAL = -1,   //general error

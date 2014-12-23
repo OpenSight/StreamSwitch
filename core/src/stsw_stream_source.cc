@@ -499,7 +499,7 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
 
     media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
-    media_info.SerializeToString(media_msg->mutable_body());    
+    media_info.SerializeToString(media_msg.mutable_body());    
 
     if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA message in SendLiveMediaFrame():\n");
@@ -669,7 +669,7 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_METADATA reply:\n");
-        fprintf(stderr, "%s\n", metadata.DebugString().c_str())
+        fprintf(stderr, "%s\n", metadata.DebugString().c_str());
     }  
   
     return 0;
@@ -739,7 +739,7 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA_STATISTIC reply:\n");
-        fprintf(stderr, "%s\n", statistic.DebugString().c_str())
+        fprintf(stderr, "%s\n", statistic.DebugString().c_str());
     }
     
     return 0;
@@ -757,7 +757,7 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
         
         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
             fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_HEARTBEAT request:\n");
-            fprintf(stderr, "%s\n", client_heartbeat.DebugString().c_str())
+            fprintf(stderr, "%s\n", client_heartbeat.DebugString().c_str());
         }        
         
         {
@@ -798,7 +798,7 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
 
         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
             fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
-            fprintf(stderr, "%s\n", reply_info.DebugString().c_str())
+            fprintf(stderr, "%s\n", reply_info.DebugString().c_str());
         } 
             
         
