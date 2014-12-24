@@ -60,7 +60,7 @@ public:
     
     
     virtual void CheckRotate();
-    virtual void Log(int level, char * filename, int line, char * fmt, ...);
+    virtual void Log(int level, const char * filename, int line, const char * fmt, ...);
     
 protected:
 
@@ -79,7 +79,8 @@ private:
     pthread_mutex_t lock_;
     int log_level_;
     int fd_;
-    int redirect_fd_;    
+    int redirect_fd_old_; 
+
     
 // rotate logger flags
 #define ROTATE_LOGGER_FLAG_INIT 1
@@ -88,15 +89,18 @@ private:
 
 };
 
-
-
-
-
 inline bool RotateLogger::IsInit()
 {
     return (flags_ & ROTATE_LOGGER_FLAG_INIT) != 0;        
 }  
 
+
 }
+
+
+#define ROTATE_LOG(logger, level, fmt, ...)  \
+do {         \
+    logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
+}while(0)
 
 #endif

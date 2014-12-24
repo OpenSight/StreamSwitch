@@ -39,8 +39,13 @@
 #include <stsw_lock_guard.h>
 
 
+#define STDERR_FD   2 
+
+
 namespace stream_switch {
 
+    
+    
 
 static const char *log_level_str[] = 
 {
@@ -54,6 +59,21 @@ static const char *log_level_str[] =
     "DEBUG",
 };    
     
+
+RotateLogger::RotateLogger()
+:file_size_(0), rotate_num_(0), stderr_redirect_(false), 
+log_level_(0), fd_(-1), redirect_fd_old_(-1), flags_(0)
+{
+    
+}
+
+
+
+RotateLogger::~RotateLogger()
+{
+    Uninit();
+}
+
     
 int RotateLogger::Init(const std::string &prog_name, const std::string &base_name, 
                        int file_size, int rotate_num,  
@@ -85,7 +105,12 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
 
     stderr_redirect_ = stderr_redirect;
     if(stderr_redirect_){
-        redirect_fd_ = 2; //stderr fd is 2
+        //back up original stderr fd
+        redirect_fd_old_ = dup(STDERR_FD);
+        if(redirect_fd_old_ < 0){
+            ret = ERROR_CODE_SYSTEM;
+            goto error_0;
+        }
     }
     
 
@@ -97,7 +122,7 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
         ret = ERROR_CODE_SYSTEM;
         perror("pthread_mutexattr_settype failed");   
         pthread_mutexattr_destroy(&attr);      
-        goto error_0;
+        goto error_1;
         
     }    
     ret = pthread_mutex_init(&lock_, &attr);  
@@ -105,7 +130,7 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
         ret = ERROR_CODE_SYSTEM;
         perror("pthread_mutex_init failed");
         pthread_mutexattr_destroy(&attr); 
-        goto error_0;
+        goto error_1;
     }
     pthread_mutexattr_destroy(&attr);   
 
@@ -114,14 +139,21 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
     ret = Reopen();
     if(ret){
         perror("Open log file failed"); 
-        goto error_1;
+        goto error_2;
     }        
     flags_ |= ROTATE_LOGGER_FLAG_INIT;  
    
     return 0;
     
-error_1:
+error_2:
+
     pthread_mutex_destroy(&lock_);   
+    
+error_1:    
+    if(redirect_fd_old_ >= 0){
+        close(redirect_fd_old_);
+        redirect_fd_old_ = -1;
+    }
     
 error_0:
     //clean field
@@ -131,7 +163,8 @@ error_0:
     rotate_num_ = 0;
     log_level_ = LOG_LEVEL_EMERG; 
     stderr_redirect_ = false;
-    redirect_fd_ = 0; 
+    redirect_fd_old_ = -1; 
+
     
     return ret;
 }
@@ -139,10 +172,22 @@ error_0:
 void RotateLogger::Uninit()
 {
     
+    if(flags_ & ROTATE_LOGGER_FLAG_INIT == 0){
+        //not init yet or already uninit
+        return;
+    }  
     
     CloseFile();
 
     pthread_mutex_destroy(&lock_);   
+    
+    if(redirect_fd_old_ >= 0){
+        //restore the original stderr fd
+        dup2(redirect_fd_old_, STDERR_FD);
+        close(redirect_fd_old_);
+        redirect_fd_old_ = -1;
+    }    
+    
 
     //clean field
     prog_name_.clear();
@@ -151,7 +196,7 @@ void RotateLogger::Uninit()
     rotate_num_ = 0;
     log_level_ = LOG_LEVEL_EMERG; 
     stderr_redirect_ = false;
-    redirect_fd_ = 0; 
+
 
     flags_ &= ~(ROTATE_LOGGER_FLAG_INIT); 
     
@@ -186,12 +231,12 @@ void RotateLogger::CheckRotate()
     if(IsTooLarge()){
         ShiftFile();
         Reopen();        
-    }    
+    }
 }
 
 #define MAX_LOG_RECORD_SIZE 1024
 
-void RotateLogger::Log(int level, char * filename, int line, char * fmt, ...)
+void RotateLogger::Log(int level, const char * filename, int line, const char * fmt, ...)
 {
     
     if(!IsInit()){
@@ -245,7 +290,7 @@ void RotateLogger::Log(int level, char * filename, int line, char * fmt, ...)
         CheckRotate();  
       
         LockGuard guard(&lock_);  
-        if(fd_ != 0){
+        if(fd_ >= 0){
             write(fd_, log_str.c_str(), log_str.length());            
         }
     }
@@ -257,7 +302,7 @@ out:
     
 bool RotateLogger::IsTooLarge()
 {
-    if(fd_ == 0){
+    if(fd_ < 0){
         // no open log file
         return false;
     }
@@ -273,6 +318,7 @@ bool RotateLogger::IsTooLarge()
     
 void RotateLogger::ShiftFile()
 {
+    
     char log_file[1024];
     char log_file_old[1024];
     memset(log_file, 0, 1024);
@@ -313,9 +359,19 @@ int RotateLogger::Reopen()
     
     int fd = open(base_name_.c_str(), O_CREAT|O_APPEND|O_WRONLY, 0777);
     if (fd < 0) {
-        return ERROR_CODE_SYSTEM;
-    }
         
+        if(stderr_redirect_){
+            dup2(redirect_fd_old_, STDERR_FD);
+        }                   
+        return ERROR_CODE_SYSTEM;
+    }else{
+
+        if(stderr_redirect_){
+            dup2(fd, STDERR_FD);
+        }        
+    }
+    
+
     fd_ = fd;
     
     return 0;
@@ -323,9 +379,9 @@ int RotateLogger::Reopen()
 
 void RotateLogger::CloseFile()
 {
-    if(fd_ != 0){
+    if(fd_ >= 0){
         ::close(fd_);
-        fd_ = 0;
+        fd_ = -1;
     }
         
 }    
