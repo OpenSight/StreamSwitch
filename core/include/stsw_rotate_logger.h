@@ -37,7 +37,15 @@
 
 namespace stream_switch {
 
-
+// the Rotate logger class
+//     A  Rotate logger is used to log the output message to a specified on-disk file with rotate function. 
+// When the log file reach the specified size, it would be automatic rotates and keep the fix number rotate 
+// log files. This rotate logger also providing the feature of redirecting stderr to its log file so that
+// the application which outputs its message to stderr can make use of this logger without changing its code
+// Thread safety: 
+//     most of methods(excepts for init/uninit) are thread safe, which means
+// multi threads can invoke its methods on the same instance of this class 
+// simultaneously without additional lock mechanism
 
 class RotateLogger{
 public:

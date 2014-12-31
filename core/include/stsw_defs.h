@@ -50,6 +50,20 @@ struct ReceiverSubHandlerEntry{
 };
 
 
+typedef int (*ArgParseFunc)(ArgParser *parser, const std::string &opt_name, 
+                            const char * opt_value, void * user_data);
+
+
+struct ArgParserOptionsEntry{
+    std::string &opt_name;
+    char opt_key;
+    int has_arg;
+    std::string help_info; 
+    ArgParseFunc parse_func;
+    void * user_data;
+};
+
+
 enum SourceStreamState {
   SOURCE_STREAM_STATE_CONNECTING = 0,
   SOURCE_STREAM_STATE_OK = 1,
