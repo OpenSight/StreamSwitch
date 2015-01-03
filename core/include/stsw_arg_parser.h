@@ -44,11 +44,12 @@ typedef std::map<ArgParserOptionsEntry>  ArgOptionMap
 // provide a common commandline arguments parsing functions for these application.
 // This arg Parser make use of getopt_long() API internal, so that the user can follow
 // the general argument format when execute the applications of stream switch
+//
 // Thread safety: 
-//    This arg Parser make use of getopt_long() API internal, which is not 
-// thread safe, so that the methods of this class are not thread-safe, 
-// even for different instance
-    
+//    This class are not thread-safe, User cannot invoke its methods
+// on the same instance in different thread 
+//    The static function ParseArgs() is global thread unsafe, that means User
+// should call the functions in the same thread even for dirrent parser instance
 
 class ArgParser{
 public:
@@ -87,18 +88,23 @@ public:
                                 const std::string help_info, 
                                 ArgParseFunc parse_func, void * user_data);
                                 
-    virtual int Parse(int argc, char ** argv);    
     
+    // parse the given args with the specific parser
+    // This function make use of getopt_long, so it's not thread-safe, even
+    // for different parser instance.
+    static int ParseArgs(const ArgParser &parser, int argc, char ** argv);
     
     
     
     //access methods
     uint32_t has_bits();
     void set_has_bits(uint32_t has_bits);
+    
     bool has_stream_name();  
     std::string stream_name();
+    
     bool has_port();
-    std::string port();
+    int port();
     
     bool has_host();
     std::string host();    
@@ -111,8 +117,18 @@ public:
     
     
 protected:
+    
+    // Do the actual task of parsing the args for this parser
+    // The default implementation is using getopt_long, 
+    // user can override this method to use his implemenation
+    virtual int DoParse(int argc, char ** argv);  
+        
+    const ArgOptionMap & options();
 
 
+    // The default argument options parse function
+    static int DefaultParseFun(ArgParser *parser, const std::string &opt_name, 
+                            const char * opt_value, void * user_data);
     
 private:
 
@@ -122,8 +138,10 @@ private:
 
     uint32_t flags_;      
     
+    ArgOptionMap options_;
 
-
+    
+   
 #define ARG_PARSER_HAS_STREAM_NAME 0x00000001u
 #define ARG_PARSER_HAS_PORT 0x00000002u
 #define ARG_PARSER_HAS_HOST 0x00000004u
@@ -135,6 +153,8 @@ private:
     int port_;
     std::string host_;   
     std::string debug_log_;  
+    
+    
  
 
 };
@@ -160,7 +180,7 @@ bool ArgParser::has_port(){
     return (has_bits_& ARG_PARSER_HAS_PORT) != 0;
 }
 
-std::string ArgParser::port(){
+int ArgParser::port(){
     return port_;
 }
 
@@ -182,6 +202,14 @@ bool ArgParser::has_debug_log(){
 std::string ArgParser::debug_log(){
     return debug_log_;
 }
+
+
+
+const ArgOptionMap & ArgParser::options()
+{
+    return options_;
+}
+
 
 
 

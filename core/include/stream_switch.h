@@ -5,6 +5,8 @@
 #include <stsw_defs.h>
 #include <stsw_stream_source.h>
 #include <stsw_stream_receiver.h>
-
+#include <stsw_rotate_logger.h>
+#include <stsw_arg_parser.h>
+#include <stsw_global.h>
 
 #endif

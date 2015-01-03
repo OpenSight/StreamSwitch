@@ -64,6 +64,10 @@ struct ArgParserOptionsEntry{
 };
 
 
+typedef void (*SignaleHandler)(int signal_num);
+
+
+
 enum SourceStreamState {
   SOURCE_STREAM_STATE_CONNECTING = 0,
   SOURCE_STREAM_STATE_OK = 1,
