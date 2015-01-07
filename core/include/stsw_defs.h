@@ -26,11 +26,12 @@ namespace stream_switch {
 class StreamSource;
 class StreamReceiver;
 class ProtoCommonPacket;
-
+class ArgParser;
 
 typedef void * SocketHandle;
 typedef void * ThreadHandle;
 typedef void * LockHandle;
+
 
 
 typedef int (*SourceApiHandler)(StreamSource *source, const ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
@@ -55,16 +56,15 @@ typedef int (*ArgParseFunc)(ArgParser *parser, const std::string &opt_name,
 
 
 struct ArgParserOptionsEntry{
-    std::string &opt_name;
-    char opt_key;
+    std::string opt_name;
+    int opt_key;
     int has_arg;
     std::string help_info; 
-    ArgParseFunc parse_func;
     void * user_data;
 };
 
 
-typedef void (*SignaleHandler)(int signal_num);
+typedef void (*SignalHandler)(int signal_num);
 
 
 

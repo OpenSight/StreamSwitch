@@ -35,7 +35,9 @@
 
 namespace stream_switch {
     
-typedef std::map<ArgParserOptionsEntry>  ArgOptionMap 
+typedef std::map<int, ArgParserOptionsEntry>  ArgOptionMap; 
+typedef std::vector<std::string>  ArgNonOptionVector; 
+
    
 // the comdline args parser class
 // Because most stream switch's application, (source or receiver application) 
@@ -67,34 +69,31 @@ public:
     //   host              h                   the remote host IP address
     //   debug-log         l                   log file path for debug
     //  
+    // Subclass can override this method to add its customer options.
     virtual int Init();
     
-    
+    // 
+    // clear this parser to the uninit state
     virtual void Uninit();
     
 
     //flag check methods
-    virtual bool IsInit()
-    {
-        return (flags_ & ARG_PARSER_FLAG_INIT) != 0;     
-    }
+    virtual bool IsInit();
+
     
     
-    // RegisterUserArg
-    // register other argument options for user customer application
-    // 
-    virtual int RegisterUserArg(const std::string &opt_name, 
-                                char opt_short, int has_arg, 
-                                const std::string help_info, 
-                                ArgParseFunc parse_func, void * user_data);
-                                
+    // Parse()
+    // parse the given args 
+    // The default implementation of this is using getopt_long, 
+    // so that it's not thread-safe, even on different parser instance.
+    // user can override this method to provide his implemenation
+    // params:
+    //      argc int in: argc which come from main()'s argument
+    //      argv char ** in: argv which come from main()'s argument
+    virtual int Parse(int argc, char ** argv);
     
-    // parse the given args with the specific parser
-    // This function make use of getopt_long, so it's not thread-safe, even
-    // for different parser instance.
-    static int ParseArgs(const ArgParser &parser, int argc, char ** argv);
-    
-    
+    const ArgNonOptionVector & non_options();
+  
     
     //access methods
     uint32_t has_bits();
@@ -110,25 +109,37 @@ public:
     std::string host();    
     
     bool has_debug_log();
-    std::string debug_log();
-    
-    
-    
-    
+    std::string debug_log();        
     
 protected:
     
-    // Do the actual task of parsing the args for this parser
-    // The default implementation is using getopt_long, 
-    // user can override this method to use his implemenation
-    virtual int DoParse(int argc, char ** argv);  
-        
-    const ArgOptionMap & options();
+    virtual void SetInit(bool is_init);   
 
+    // AddOption
+    // register argument options for parsing
+    virtual int AddOption(const char *opt_name, 
+                          char opt_short, int has_arg, 
+                          const char * help_info, 
+                          void * user_data); 
+                               
+    const ArgOptionMap & options();   
+    
+    virtual void AppendNonOption(std::string value);     
+   
 
-    // The default argument options parse function
-    static int DefaultParseFun(ArgParser *parser, const std::string &opt_name, 
-                            const char * opt_value, void * user_data);
+    //
+    //subclass can overrid the following method to provide customer option parse.
+    virtual bool ParseOption(const std::string &opt_name, 
+                          const char * opt_value, void * user_data);
+
+    virtual bool ParseNonOption(const char * value);
+    
+    virtual bool ParseUnknown(const char * unknown_arg);    
+    
+
+                          
+    int getNextOptionKey();
+
     
 private:
 
@@ -139,8 +150,8 @@ private:
     uint32_t flags_;      
     
     ArgOptionMap options_;
-
-    
+    ArgNonOptionVector non_options_;
+   
    
 #define ARG_PARSER_HAS_STREAM_NAME 0x00000001u
 #define ARG_PARSER_HAS_PORT 0x00000002u
@@ -155,10 +166,26 @@ private:
     std::string debug_log_;  
     
     
- 
+    
+    int next_option_key_; 
 
 };
 
+
+
+
+bool ArgParser::IsInit()
+{
+    return (flags_ & ARG_PARSER_FLAG_INIT) != 0;     
+}
+void ArgParser::SetInit(bool is_init)
+{
+    if(is_init){
+        flags_ |= ARG_PARSER_FLAG_INIT;  
+    }else{
+        flags_ &= ~(ARG_PARSER_FLAG_INIT); 
+    }
+}  
 
 
 uint32_t ArgParser::has_bits(){
@@ -205,12 +232,30 @@ std::string ArgParser::debug_log(){
 
 
 
+
+
 const ArgOptionMap & ArgParser::options()
 {
     return options_;
 }
 
+const ArgNonOptionVector & ArgParser::non_options()
+{
+    return non_options_;
+}
 
 
+int ArgParser::getNextOptionKey()
+{
+    return next_option_key_++;
+}
+
+void ArgParser::AppendNonOption(std::string value)
+{
+    non_options_.push_back(value);
+}  
+
+
+}
 
 #endif

@@ -27,7 +27,7 @@
 
 #include <stsw_global.h>
 #include <google/protobuf/stubs/common.h>
-#include <zsys.h>
+#include <czmq.h>
 
 
 
@@ -71,7 +71,7 @@ bool isGlobalInterrupt()
 }
     
 
-void SetGolbalInterrupt(bool isInterrupt);
+void SetGolbalInterrupt(bool isInterrupt)
 {
     if(isInterrupt){
         zsys_interrupted = 1;
@@ -81,9 +81,9 @@ void SetGolbalInterrupt(bool isInterrupt);
 }
 
 
-void SetIntSigHandler(SignaleHandler handler)
+void SetIntSigHandler(SignalHandler handler)
 {
-    zsys_handler_set((zsys_handler_fn)handler);
+    zsys_handler_set((zsys_handler_fn *)handler);
 }
 
 

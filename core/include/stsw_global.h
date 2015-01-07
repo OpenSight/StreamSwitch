@@ -61,7 +61,7 @@ void SetGolbalInterrupt(bool isInterrupt);
 // If user want to do something when receiving SIGINT/SIGTERM signal, 
 // he should invoke this SetIntSigHandler() to install his signal handler to
 // override the default one.
-void SetIntSigHandler(SignaleHandler handler);
+void SetIntSigHandler(SignalHandler handler);
 
 
 
