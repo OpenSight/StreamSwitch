@@ -68,7 +68,8 @@ public:
     //   port              p                   the stream API tcp port 
     //   host              h                   the remote host IP address
     //   debug-log         l                   log file path for debug
-    //  
+    //   url               u                   the url which source would connect to  
+    //
     // Subclass can override this method to add its customer options.
     virtual int Init();
     
@@ -110,6 +111,9 @@ public:
     
     bool has_debug_log();
     std::string debug_log();        
+
+    bool has_url();
+    std::string url();    
     
 protected:
     
@@ -157,6 +161,7 @@ private:
 #define ARG_PARSER_HAS_PORT 0x00000002u
 #define ARG_PARSER_HAS_HOST 0x00000004u
 #define ARG_PARSER_HAS_DEBUG_LOG 0x00000008u
+#define ARG_PARSER_HAS_URL 0x00000010u
     uint32_t has_bits_;
     
     
@@ -164,6 +169,7 @@ private:
     int port_;
     std::string host_;   
     std::string debug_log_;  
+    std::string url_;
     
     
     
@@ -231,7 +237,13 @@ std::string ArgParser::debug_log(){
 }
 
 
+bool ArgParser::has_url(){
+    return (has_bits_ & ARG_PARSER_HAS_URL) != 0;
+}
 
+std::string ArgParser::url(){
+    return url_;
+}
 
 
 const ArgOptionMap & ArgParser::options()

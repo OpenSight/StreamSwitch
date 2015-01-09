@@ -249,7 +249,7 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info,
 {
     int ret;
     
-    if(flags_ & STREAM_RECEIVER_FLAG_INIT != 0){
+    if((flags_ & STREAM_RECEIVER_FLAG_INIT) != 0){
         SET_ERR_INFO(err_info, "Receiver already init");           
         return -1;
     }
@@ -282,7 +282,7 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info,
         ret = ERROR_CODE_SYSTEM;
         SET_ERR_INFO(err_info, "zsock_new_req create api socket failed: maybe address error");   
         fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error", api_addr_.c_str());
-        goto error_2;            
+        goto error_1;            
     }
     zsock_set_linger(client_hearbeat_socket_, 0); //no linger   
     
@@ -306,8 +306,7 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info,
    
     return 0;
     
-error_2:
-
+//error_2:
 
     
     if(client_hearbeat_socket_ != NULL){
@@ -463,7 +462,7 @@ int StreamReceiver::Start(std::string *err_info)
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
-            char tmp[64];
+            //char tmp[64];
             //*err_info += strerror_r(errno, tmp, 64);
             *err_info += strerror(errno);
         }
@@ -703,7 +702,6 @@ int StreamReceiver::SubscriberHandler()
         }else{
             ReceiverSubHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
-            int ret = 0;
             if(entry.channel_name == std::string(channel_name)){
                 entry.handler(this, &msg, entry.user_data);
             }
@@ -737,6 +735,8 @@ int StreamReceiver::Heartbeat(int64_t now)
     last_heartbeat_time_ = now;    
 
     ClientHeartbeatHandler(now);
+    
+    return 0;
 
 }
 

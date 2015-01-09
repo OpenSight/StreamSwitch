@@ -82,7 +82,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
         SET_ERR_INFO(err_info, "stream_name cannot be larger than 64");   
         return ERROR_CODE_PARAM;        
     }
-    if(flags_ & STREAM_SOURCE_FLAG_INIT != 0){
+    if((flags_ & STREAM_SOURCE_FLAG_INIT) != 0){
         SET_ERR_INFO(err_info, "source already init");           
         return -1;
     }
@@ -254,7 +254,7 @@ error_2:
         publish_socket_ = NULL;
         
     }
-error_1:    
+//error_1:    
     
     pthread_mutex_destroy(&lock_);   
     
@@ -372,7 +372,7 @@ int StreamSource::Start(std::string *err_info)
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
-            char tmp[64];
+            //char tmp[64];
             //*err_info += strerror_r(errno, tmp, 64);
             *err_info += strerror(errno);
         }
@@ -437,7 +437,7 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
         return ERROR_CODE_PARAM;
     }
     // check sub stream index
-    if(media_frame.sub_stream_index >= stream_meta_.sub_streams.size()){
+    if(media_frame.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
         char tmp[64];
         sprintf(tmp, "Sub Stream(%d) Not Found", media_frame.sub_stream_index);
         SET_ERR_INFO(err_info, tmp);
@@ -727,8 +727,10 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
             sub_stream_stat->set_key_frames(it->key_frames);
             sub_stream_stat->set_expected_frames(it->expected_frames);
             sub_stream_stat->set_last_gov(it->last_gov);
+            sum_bytes += it->total_bytes;
             
         }// for(it = stream_meta_.sub_streams.begin();  
+        statistic.set_sum_bytes(sum_bytes);
                 
     }// release lock
 
@@ -905,8 +907,12 @@ int StreamSource::Heartbeat(int64_t now)
     LockGuard guard(&lock_);
     
     int64_t elapse = now - last_heartbeat_time_;
-    last_heartbeat_time_ = now;    
-    cur_bps_ = cur_bytes_ * 1000 / elapse;
+    last_heartbeat_time_ = now;   
+    if(elapse != 0){
+        cur_bps_ = cur_bytes_ * 8 * 1000 / elapse;
+        cur_bytes_ = 0;
+    }
+    
     int64_t now_sec = time(NULL);
     
     //
@@ -924,6 +930,8 @@ int StreamSource::Heartbeat(int64_t now)
     }    
    
     SendStreamInfo(); // publish the stream info at heartbeat interval
+    
+    return 0;
     
 }
     

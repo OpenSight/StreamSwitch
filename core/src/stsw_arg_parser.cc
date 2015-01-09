@@ -54,9 +54,12 @@ int ArgParser::Init()
     AddOption("stream-name", 's', 1, "stream name", NULL);
     AddOption("port", 'p', 1, "the stream API tcp port", NULL);
     AddOption("host", 'h', 1, "the remote host IP address", NULL);
-    AddOption("debug-log", 'l', 1, "log file path for debug", NULL);    
+    AddOption("debug-log", 'l', 1, "log file path for debug", NULL);   
+    AddOption("url", 'u', 1, "the url which source would connect to", NULL);   
+ 
     
     SetInit(true);    
+    return 0;
 }
     
     
@@ -209,8 +212,12 @@ bool ArgParser::ParseOption(const std::string &opt_name,
         bits |= ARG_PARSER_HAS_DEBUG_LOG;
         ret = true; 
         debug_log_ = opt_value;
-    }
-    
+
+    }else if(opt_name == "url"){
+        bits |= ARG_PARSER_HAS_URL;
+        ret = true; 
+        url_ = opt_value;
+    }    
     
     set_has_bits(bits);
     

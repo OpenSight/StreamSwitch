@@ -36,8 +36,6 @@ namespace stream_switch {
     
 int GlobalInit()
 {
-    int ret;
-    
     
     // Verify that the version of the library that we linked against is
     // compatible with the version of the headers we compiled against.    

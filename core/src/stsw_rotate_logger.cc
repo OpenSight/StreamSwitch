@@ -87,7 +87,7 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
         return ret;
     }
     
-    if(flags_ & ROTATE_LOGGER_FLAG_INIT != 0){
+    if((flags_ & ROTATE_LOGGER_FLAG_INIT) != 0){
         return ERROR_CODE_GENERAL;
     }    
     
@@ -172,7 +172,7 @@ error_0:
 void RotateLogger::Uninit()
 {
     
-    if(flags_ & ROTATE_LOGGER_FLAG_INIT == 0){
+    if((flags_ & ROTATE_LOGGER_FLAG_INIT) == 0){
         //not init yet or already uninit
         return;
     }  
@@ -331,7 +331,6 @@ void RotateLogger::ShiftFile()
     }else{
         snprintf(log_file, sizeof(log_file)-1, "%s", base_name_.c_str());        
     }
-    int ret = 0;
     remove(log_file);
     
     //
