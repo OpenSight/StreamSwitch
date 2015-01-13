@@ -162,6 +162,11 @@ protected:
     // When the receiver request a key frame, it would be 
     // invoked
     virtual void OnKeyFrame(void);
+    
+    // OnMediaStatistic
+    // When receiving a PROTO_PACKET_CODE_MEDIA_STATISTIC request, 
+    // it would be invoked to get lost frame number.
+    virtual void OnMediaStatistic(SubStreamMediaStatisticVector *statistic);    
    
 private:
     std::string stream_name_;
@@ -175,7 +180,6 @@ private:
     
 // stream source flags
 #define STREAM_SOURCE_FLAG_INIT 1
-#define STREAM_SOURCE_FLAG_META_READY 2
 #define STREAM_SOURCE_FLAG_STARTED 4
     uint32_t flags_;      
 
@@ -188,7 +192,7 @@ private:
     int stream_state_;
     ReceiversInfoType * receivers_info_;
     int64_t last_heartbeat_time_;     // in milli-sec
-                             
+    
 };
 
 }

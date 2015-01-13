@@ -363,10 +363,7 @@ bool StreamReceiver::IsInit()
 {
     return (flags_ & STREAM_RECEIVER_FLAG_INIT) != 0;
 }
-bool StreamReceiver::IsMetaReady()
-{
-     return (flags_ & STREAM_RECEIVER_FLAG_META_READY) != 0;   
-}
+
 
 bool StreamReceiver::IsStarted()
 {
@@ -404,6 +401,7 @@ int StreamReceiver::Start(std::string *err_info)
         SET_ERR_INFO(err_info, "Receiver not init");          
         return -1;
     }
+
     
     LockGuard guard(&lock_);      
 
@@ -456,6 +454,7 @@ int StreamReceiver::Start(std::string *err_info)
         set_it ++){
         zsocket_set_subscribe(subscriber_socket_, set_it->c_str());
     }    
+
     
     //start the internal thread
     ret = pthread_create(&worker_thread_id_, NULL, ThreadRoutine, this);
@@ -478,6 +477,8 @@ int StreamReceiver::Start(std::string *err_info)
     return 0;
 
 error_2:
+
+    set_ssrc(0);
     
 
     if(subscriber_socket_ != NULL){
@@ -496,6 +497,7 @@ void StreamReceiver::Stop()
 {   
     
     pthread_mutex_lock(&lock_); 
+      
     if(!(flags_ & STREAM_RECEIVER_FLAG_STARTED)){
         //not start
         pthread_mutex_unlock(&lock_); 
@@ -525,7 +527,9 @@ void StreamReceiver::Stop()
         zsock_destroy((zsock_t **)&subscriber_socket_);
         subscriber_socket_ = NULL;
         
-    }       
+    }
+
+       
     
     
     pthread_mutex_unlock(&lock_);  
@@ -580,10 +584,11 @@ int StreamReceiver::StaticMediaFrameHandler(StreamReceiver *receiver, const Prot
 }
 int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data)
 {
-    
     MediaDataFrame media_frame;
-    uint32_t check_ssrc = ssrc();
+    StreamMetadata metadata = stream_meta();
+    uint32_t check_ssrc = metadata.ssrc;
     int ret;
+    uint64_t seq;
     
     //extract media frame from message
     ProtoMediaFrameMsg frame_msg;
@@ -599,19 +604,66 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user
         fprintf(stderr, "%s\n", frame_msg.DebugString().c_str());
     }    
     
-    // check ssrc
-    if(check_ssrc != 0 && check_ssrc != frame_msg.ssrc()){
-        //ssrc mismatch, just ignore this frame
-        return 0;
-    }    
-    
+
+
     media_frame.sub_stream_index = frame_msg.stream_index();
-    media_frame.frame_seq = frame_msg.seq();
     media_frame.frame_type = (MediaFrameType)frame_msg.frame_type();
     media_frame.ssrc = frame_msg.ssrc();
     media_frame.timestamp.tv_sec = frame_msg.sec();
     media_frame.timestamp.tv_usec = frame_msg.usec();
     media_frame.data = frame_msg.data();   
+    seq = frame_msg.seq();
+
+    //
+    // update statistic_
+    {
+        LockGuard guard(&lock());  
+        
+        // check ssrc
+        if(stream_meta_.ssrc == 0 || stream_meta_.ssrc != media_frame.ssrc){
+            //ssrc mismatch, just ignore this frame
+            return 0;
+        }
+        
+        if(media_frame.sub_stream_index >= stream_meta_.sub_streams.size()){
+            //sub stream index mismatch, just ignore this frame
+            return 0;
+        }        
+    
+        int sub_stream_index = media_frame.sub_stream_index;
+    
+        if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+            media_frame.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+            //the frames contains media data   
+            statistic_[sub_stream_index].data_frames++;
+            statistic_[sub_stream_index].data_bytes += media_frame.data.size();
+            if( (statistic_[sub_stream_index].last_seq != 0) 
+                && (seq > (statistic_[sub_stream_index].last_seq + 1))){
+                statistic_[sub_stream_index].lost_frames +=  
+                    (seq - (statistic_[sub_stream_index].last_seq + 1));
+            }
+            statistic_[sub_stream_index].last_seq = seq;
+
+     
+            if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+                statistic_[sub_stream_index].key_frames ++;
+                statistic_[sub_stream_index].key_bytes += media_frame.data.size();
+                    
+                //start a new gov
+                statistic_[sub_stream_index].last_gov = 
+                    statistic_[sub_stream_index].cur_gov;
+                statistic_[sub_stream_index].cur_gov = 0;            
+            }
+            statistic_[sub_stream_index].cur_gov ++;
+            
+            
+        }else{ 
+            //not contain media data, so that not update last_seq
+
+        }//if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||          
+            
+        
+    }//release the lock    
     
     OnLiveMediaFrame(media_frame);
        
@@ -884,11 +936,17 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
 }
 
 
-int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info)
+int StreamReceiver::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
     int ret;
+    
+    if(IsStarted()){
+        ret = ERROR_CODE_GENERAL;
+        SET_ERR_INFO(err_info, "Cannot Setup MetaData After Start");
+        return ret;          
+    }
     
     if(metadata == NULL){
         ret = ERROR_CODE_PARAM;
@@ -986,16 +1044,26 @@ int StreamReceiver::RequestStreamMedaData(int timeout, StreamMetadata * metadata
     }
     
     
-    //cache in receiver
+    //configure the metadata in receiver
     {
         LockGuard guard(&lock_);  
         stream_meta_ = *metadata;
+        int sub_stream_num = stream_meta_.sub_streams.size();
+    
+        // clear the statistic
+        statistic_.clear();
+        statistic_.resize(sub_stream_num);
+        int i;
+        for(i=0;i<sub_stream_num;i++){
+            statistic_[i].sub_stream_index = i;
+            statistic_[i].media_type = (SubStreamMediaType)stream_meta_.sub_streams[i].media_type;     
+        }        
     }
     
     return 0;
 }
 
-int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
+int StreamReceiver::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
@@ -1054,12 +1122,12 @@ int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * sta
         SubStreamMediaStatistic sub_stream;  
         sub_stream.sub_stream_index = it->sub_stream_index();
         sub_stream.media_type = (SubStreamMediaType)it->media_type();        
-        sub_stream.total_bytes = it->total_bytes();
+        sub_stream.data_bytes = it->total_bytes();
         sub_stream.key_bytes = it->key_bytes();
-        sub_stream.expected_frames = it->total_bytes();
-        sub_stream.total_frames = it->total_bytes();        
-        sub_stream.key_frames = it->total_bytes();
-        sub_stream.last_gov = it->total_bytes();
+        sub_stream.expected_frames = it->expected_frames();
+        sub_stream.data_frames = it->total_frames();        
+        sub_stream.key_frames = it->key_frames();
+        sub_stream.last_gov = it->last_gov();
         statistic->sub_streams.push_back(sub_stream); 
     }
     
@@ -1067,7 +1135,7 @@ int StreamReceiver::RequestStreamStatistic(int timeout, MediaStatisticInfo * sta
     
 }  
   
-int StreamReceiver::RequestKeyFrame(int timeout, std::string *err_info)
+int StreamReceiver::KeyFrame(int timeout, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
@@ -1108,6 +1176,28 @@ uint32_t StreamReceiver::GetNextSeq()
     return seq;    
     
 }
+
+MediaStatisticInfo StreamReceiver::ReceiverStatistic()
+{
+    MediaStatisticInfo stat_info;
+    LockGuard guard(&lock_);   
+    stat_info.ssrc = stream_meta_.ssrc;
+    stat_info.timestamp = (int64_t)time(NULL);
+    stat_info.sub_streams = statistic_;
+
+    SubStreamMediaStatisticVector::iterator it;
+    for(it = statistic_.begin(); 
+        it != statistic_.end();
+        it++){
+
+        stat_info.sum_bytes += it->data_bytes;     
+    }
+    
+    return stat_info;
+
+}
+
+
 
 int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
 {
@@ -1261,7 +1351,6 @@ error_1:
     return ret;    
         
 }  
-
 
 }
 

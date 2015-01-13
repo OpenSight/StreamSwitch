@@ -194,13 +194,14 @@ struct StreamMetadata{
     SubStreamMediaType media_type;
      
     //about bytes
-    uint64_t total_bytes;  //the bytes received of this sub stream
+    uint64_t data_bytes;  //the bytes received of this sub stream
     uint64_t key_bytes; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
     
     //about frame
+    uint64_t lost_frames;    // the count of the lost data frames
     uint64_t expected_frames;  // the total frames should be received
-    uint64_t total_frames;    // the received frame number
-    uint64_t key_frames;   // the received key frame number
+    uint64_t data_frames;    // the count of the data frames handled
+    uint64_t key_frames;   // the count of the key frames handled
     uint64_t last_gov;           //last gov  
     
     uint64_t cur_gov;            //current calculating gov, internal used by StreamSource
@@ -209,9 +210,10 @@ struct StreamMetadata{
     SubStreamMediaStatistic(){
         sub_stream_index = 0;
         media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
-        total_bytes = 0;
+        lost_frames = 0;
+        data_bytes = 0;
         key_bytes = 0;
-        total_frames = 0;
+        data_frames = 0;
         key_frames = 0;
         last_gov = 0;
         cur_gov = 0;
@@ -221,6 +223,8 @@ struct StreamMetadata{
     
 };  
 typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
+
+
 
 
 struct MediaStatisticInfo{

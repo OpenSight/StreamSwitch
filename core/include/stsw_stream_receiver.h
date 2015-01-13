@@ -97,26 +97,28 @@ public:
     pthread_mutex_t& lock(){
         return lock_;
     }
-    StreamClientInfo client_info();
-    void set_client_info(const StreamClientInfo &client_info);
-    StreamMetadata stream_meta();
-    uint32_t ssrc(){
+    virtual StreamClientInfo client_info();
+    virtual void set_client_info(const StreamClientInfo &client_info);
+    virtual StreamMetadata stream_meta();
+    virtual uint32_t ssrc(){
         return ssrc_;
     }
-    void set_ssrc(uint32_t ssrc)
+    virtual void set_ssrc(uint32_t ssrc)
     {
         ssrc_ = ssrc;
     }
-    uint32_t debug_flags(){
+    virtual uint32_t debug_flags(){
         return debug_flags_;
     }
     
         
-    virtual int RequestStreamMedaData(int timeout, StreamMetadata * metadata, std::string *err_info);
-    virtual int RequestStreamStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
-    virtual int RequestKeyFrame(int timeout, std::string *err_info);
+    virtual int UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info);
+    virtual int SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
+    virtual int KeyFrame(int timeout, std::string *err_info);
     
     virtual uint32_t GetNextSeq();
+    
+    virtual MediaStatisticInfo ReceiverStatistic();        
     
 protected:
 
@@ -162,9 +164,10 @@ private:
     
     ReceiverSubHanderMap subsriber_handler_map_;
     
+    SubStreamMediaStatisticVector statistic_;  
+    
 // stream source flags
 #define STREAM_RECEIVER_FLAG_INIT 1
-#define STREAM_RECEIVER_FLAG_META_READY 2
 #define STREAM_RECEIVER_FLAG_STARTED 4
     uint32_t flags_;      
 
