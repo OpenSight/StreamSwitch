@@ -81,7 +81,7 @@ namespace stream_switch {
     
 StreamReceiver::StreamReceiver()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
-worker_thread_id_(0), ssrc_(0), next_seq_(1), debug_flags_(0), flags_(0), 
+worker_thread_id_(0), next_seq_(1), debug_flags_(0), flags_(0), 
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0)
@@ -92,7 +92,7 @@ next_send_client_heartbeat_msec_(0)
 
 StreamReceiver::~StreamReceiver()
 {
-    
+    Uninit();
 }
 
 int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port, 
@@ -434,6 +434,7 @@ int StreamReceiver::Start(std::string *err_info)
         goto error_1;            
     }    
     zsock_set_sndhwm(subscriber_socket_, STSW_SUBSCRIBE_SOCKET_HWM);  
+    zsock_set_rcvhwm(subscriber_socket_, STSW_SUBSCRIBE_SOCKET_HWM);      
     zsock_set_linger(subscriber_socket_, 0); //no linger      
     
     
@@ -457,7 +458,7 @@ int StreamReceiver::Start(std::string *err_info)
 
     
     //start the internal thread
-    ret = pthread_create(&worker_thread_id_, NULL, ThreadRoutine, this);
+    ret = pthread_create(&worker_thread_id_, NULL, StreamReceiver::StaticThreadRoutine, this);
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
@@ -478,8 +479,6 @@ int StreamReceiver::Start(std::string *err_info)
 
 error_2:
 
-    set_ssrc(0);
-    
 
     if(subscriber_socket_ != NULL){
         zsock_destroy((zsock_t **)&subscriber_socket_);
@@ -527,10 +526,7 @@ void StreamReceiver::Stop()
         zsock_destroy((zsock_t **)&subscriber_socket_);
         subscriber_socket_ = NULL;
         
-    }
-
-       
-    
+    }    
     
     pthread_mutex_unlock(&lock_);  
     
@@ -580,9 +576,9 @@ void StreamReceiver::UnregisterAllSubHandler()
 
 int StreamReceiver::StaticMediaFrameHandler(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data)
 {
-    return receiver->MediaFrameHandler(msg, user_data);
+    return receiver->MediaFrameHandler(msg);
 }
-int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data)
+int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
 {
     MediaDataFrame media_frame;
     StreamMetadata metadata = stream_meta();
@@ -670,16 +666,23 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg, void * user
     return 0;
 }
 
-void * StreamReceiver::ThreadRoutine(void * arg)
+void * StreamReceiver::StaticThreadRoutine(void *arg)
 {
     StreamReceiver * receiver = (StreamReceiver * )arg;
-    zpoller_t  * poller =zpoller_new (receiver->subscriber_socket_);
+    receiver->InternalRoutine();
+    return NULL;
+}
+
+
+void StreamReceiver::InternalRoutine()
+{
+    zpoller_t  * poller =zpoller_new (subscriber_socket_);
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_RECEIVER_HEARTBEAT_INT;
     
 #define MAX_POLLER_WAIT_TIME    100
     
-    while(receiver->flags_ & STREAM_RECEIVER_FLAG_STARTED){
+    while(flags_ & STREAM_RECEIVER_FLAG_STARTED){
         int64_t now = zclock_mono();
         
         //calculate the timeout
@@ -694,14 +697,14 @@ void * StreamReceiver::ThreadRoutine(void * arg)
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
         if(socket != NULL){
-            receiver->SubscriberHandler();
+            SubscriberHandler();
         }
              
         
         // check for heartbeat
         now = zclock_mono();
         if(now >= next_heartbeat_time){            
-            receiver->Heartbeat(now);
+            Heartbeat(now);
             
             //calculate next heartbeat time
             do{
@@ -714,8 +717,7 @@ void * StreamReceiver::ThreadRoutine(void * arg)
     if(poller != NULL){
         zpoller_destroy (&poller);
     }
-        
-    return NULL;
+
 }
     
 
@@ -1233,8 +1235,8 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
     // get api socket
     pthread_mutex_lock(&lock_); 
     api_socket = last_api_socket_;
-    api_addr = api_addr_;
     last_api_socket_ = NULL;
+    api_addr = api_addr_;        
     pthread_mutex_unlock(&lock_);  
 
     if(api_socket == NULL){
@@ -1315,12 +1317,14 @@ int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, Pro
     //successful here    
     
     //cache the api socket in receiver
-    pthread_mutex_lock(&lock_); 
-    if(IsInit() && last_api_socket_ == NULL){
-        last_api_socket_ = api_socket;
-        api_socket = NULL;
+    if(IsInit()){
+        pthread_mutex_lock(&lock_); 
+        if(last_api_socket_ == NULL){
+            last_api_socket_ = api_socket;
+            api_socket = NULL;
+        }
+        pthread_mutex_unlock(&lock_);  
     }
-    pthread_mutex_unlock(&lock_);  
 
     //destroy the socket 
     if(api_socket != NULL){

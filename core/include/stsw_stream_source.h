@@ -165,7 +165,9 @@ protected:
     
     // OnMediaStatistic
     // When receiving a PROTO_PACKET_CODE_MEDIA_STATISTIC request, 
-    // it would be invoked to get lost frame number.
+    // it would be invoked to statistic info from application
+    // The parameter statistic is initialized with the internal infomation
+    // of the source instance
     virtual void OnMediaStatistic(SubStreamMediaStatisticVector *statistic);    
    
 private:

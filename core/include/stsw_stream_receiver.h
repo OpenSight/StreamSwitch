@@ -70,7 +70,6 @@ public:
     
     //flag check methods
     virtual bool IsInit();
-    virtual bool IsMetaReady();
     virtual bool IsStarted();  
 
    
@@ -86,7 +85,7 @@ public:
     // sent out its stream info message 
     virtual void Stop();
     
-    //the register/unregister function must call before start or after stop
+    //the register/unregister function must call before start 
     virtual void RegisterSubHandler(int op_code, const char * channel_name, 
                                     ReceiverSubHandler handler, void * user_data);
     virtual void UnregisterSubHandler(int op_code);
@@ -100,13 +99,7 @@ public:
     virtual StreamClientInfo client_info();
     virtual void set_client_info(const StreamClientInfo &client_info);
     virtual StreamMetadata stream_meta();
-    virtual uint32_t ssrc(){
-        return ssrc_;
-    }
-    virtual void set_ssrc(uint32_t ssrc)
-    {
-        ssrc_ = ssrc;
-    }
+
     virtual uint32_t debug_flags(){
         return debug_flags_;
     }
@@ -122,9 +115,11 @@ public:
     
 protected:
 
+    //
+    //internal used method
 
     static int StaticMediaFrameHandler(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data);
-    virtual int MediaFrameHandler(const ProtoCommonPacket * msg, void * user_data);
+    virtual int MediaFrameHandler(const ProtoCommonPacket * msg);
 
 
     virtual int InitBase(const StreamClientInfo &client_info, uint32_t debug_flags, std::string *err_info);   
@@ -137,7 +132,8 @@ protected:
     
     virtual void ClientHeartbeatHandler(int64_t now);
     
-    static void * ThreadRoutine(void *);
+    static void * StaticThreadRoutine(void *);
+    virtual void InternalRoutine();
     
     
     // the following methods need application to override
@@ -158,7 +154,6 @@ private:
     SocketHandle subscriber_socket_;
     pthread_mutex_t lock_;
     pthread_t worker_thread_id_;
-    uint32_t ssrc_;
     uint32_t next_seq_;
     uint32_t debug_flags_;
     
