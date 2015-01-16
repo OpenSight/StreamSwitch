@@ -80,10 +80,7 @@ public:
     
     //flag check methods
     virtual bool IsInit();
-    virtual bool IsMetaReady();
     virtual bool IsStarted();
-    
-
    
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
@@ -122,11 +119,7 @@ public:
    
     virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
     virtual void UnregisterApiHandler(int op_code);
-    virtual void UnregisterAllApiHandler();    
-    
-        
-
-        
+    virtual void UnregisterAllApiHandler();  
 
 protected:
 
@@ -143,15 +136,14 @@ protected:
     virtual int RpcHandler();
     virtual int Heartbeat(int64_t now);
     
-    static void * ThreadRoutine(void *);
+    static void * StaticThreadRoutine(void *arg);
+    virtual void InternalRoutine();    
     
-    
-    virtual void SendStreamInfo(void);
-    
+    virtual void SendStreamInfo(void);    
     
     // send the msg from the publish socket on the given channel
     // 
-    void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
+    virtual void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
     
  
     // the following methods need application to override
@@ -168,7 +160,7 @@ protected:
     // it would be invoked to statistic info from application
     // The parameter statistic is initialized with the internal infomation
     // of the source instance
-    virtual void OnMediaStatistic(SubStreamMediaStatisticVector *statistic);    
+    virtual void OnMediaStatistic(MediaStatisticInfo *statistic);    
    
 private:
     std::string stream_name_;

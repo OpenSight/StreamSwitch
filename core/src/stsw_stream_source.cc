@@ -65,6 +65,7 @@ last_heartbeat_time_(0)
 
 StreamSource::~StreamSource()
 {
+    Uninit();
     SAFE_DELETE(receivers_info_);
 }
 
@@ -210,6 +211,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     zsock_set_linger(publish_socket_, STSW_PUBLISH_SOCKET_LINGER);
  
     zsock_set_sndhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
+    zsock_set_rcvhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
     
     //init handlers
     RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, NULL);
@@ -258,7 +260,6 @@ error_0:
     return ret;
 }
 
-
 void StreamSource::Uninit()
 {
     if(!IsInit()){
@@ -283,8 +284,6 @@ void StreamSource::Uninit()
     
     pthread_mutex_destroy(&lock_);
 }
-
-
 
 bool StreamSource::IsInit()
 {
@@ -318,7 +317,6 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     cur_bytes_ = 0;
     last_frame_sec_ = 0;
     last_frame_usec_ = 0;
-
 }
 
 StreamMetadata StreamSource::stream_meta()
@@ -352,7 +350,7 @@ int StreamSource::Start(std::string *err_info)
     flags_ |= STREAM_SOURCE_FLAG_STARTED;    
     
     //start the internal thread
-    int ret = pthread_create(&api_thread_id_, NULL, ThreadRoutine, this);
+    int ret = pthread_create(&api_thread_id_, NULL, StreamSource::StaticThreadRoutine, this);
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
@@ -373,16 +371,14 @@ int StreamSource::Start(std::string *err_info)
 
 
 void StreamSource::Stop()
-{   
-    
+{       
     pthread_mutex_lock(&lock_); 
     if(!(flags_ & STREAM_SOURCE_FLAG_STARTED)){
         //not start
         pthread_mutex_unlock(&lock_); 
         return ;        
     }
-    flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);
-    
+    flags_ &= ~(STREAM_SOURCE_FLAG_STARTED);    
 
     //wait for the thread terminated
     if(api_thread_id_ != 0){
@@ -398,10 +394,8 @@ void StreamSource::Stop()
         api_thread_id_ = 0;      
     }
     
-    pthread_mutex_unlock(&lock_);  
-    
+    pthread_mutex_unlock(&lock_);      
 }
-
 
 int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame, 
                                      std::string *err_info)
@@ -492,17 +486,18 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     return 0;
 }
 
-
 void StreamSource::set_stream_state(int stream_state)
 {
     if(!IsInit()){
         return;
     }
-
-    LockGuard guard(&lock_);        
-
-    int old_stream_state = stream_state_;
-    stream_state_ = stream_state;
+    int old_stream_state;
+    
+    {
+        LockGuard guard(&lock_);        
+        old_stream_state = stream_state_;      
+        stream_state_ = stream_state;
+    }
     if(old_stream_state != stream_state){
         //state change, send out a stream info msg at once
         SendStreamInfo();
@@ -510,11 +505,11 @@ void StreamSource::set_stream_state(int stream_state)
 
     
 }
+
 int StreamSource::stream_state()
 {
     return stream_state_;
 }
-
 
 void StreamSource::RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data)
 {
@@ -524,6 +519,7 @@ void StreamSource::RegisterApiHandler(int op_code, SourceApiHandler handler, voi
     api_handler_map_[op_code].user_data = user_data;
     
 }
+
 void StreamSource::UnregisterApiHandler(int op_code)
 {
     SourceApiHanderMap::iterator it;
@@ -534,18 +530,18 @@ void StreamSource::UnregisterApiHandler(int op_code)
         api_handler_map_.erase(it);
     }
 }
+
 void StreamSource::UnregisterAllApiHandler()
 {
     LockGuard guard(&lock_);       
     api_handler_map_.clear(); 
 }
 
-
 void StreamSource::OnKeyFrame(void)
 {
     //default nothing to do
     //need child class to implement this function
-}
+}           
 
 void OnMediaStatistic(SubStreamMediaStatisticVector *statistic)
 {
@@ -662,6 +658,7 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
   
     return 0;
 }
+
 int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
     if(request == NULL || reply == NULL){
@@ -680,6 +677,7 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
     }    
     return 0;
 }
+
 int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
     if(request == NULL || reply == NULL){
@@ -690,25 +688,35 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
     }    
     
-    SubStreamMediaStatisticVector local_statistic;
+    MediaStatisticInfo local_statistic;
     uint32_t ssrc;    
     {
         LockGuard guard(&lock());
-        local_statistic = statistic_;
-        ssrc = stream_meta_.ssrc;
+        local_statistic.sub_streams = statistic_;
+        local_statistic.ssrc = stream_meta_.ssrc;
     }
+    
+    local_statistic.timestamp = (int64_t)time(NULL);
+    local_statistic.sum_bytes = 0;
+    SubStreamMediaStatisticVector::iterator it;
+    for(it = local_statistic.sub_streams.begin(); 
+        it != local_statistic.sub_streams.end();
+        it++){
+        local_statistic.sum_bytes += it->data_bytes;
+    }
+    
+    //invoke the user function to overwrite local_statistic
+    OnMediaStatistic(&local_statistic);
     
     ProtoMediaStatisticRep statistic;
 
-    statistic.set_timestamp((int64_t)time(NULL));
-    statistic.set_ssrc(stream_meta_.ssrc);
-    uint64_t sum_bytes = 0;
-    int i;
+    statistic.set_timestamp(local_statistic.timestamp);
+    statistic.set_ssrc(local_statistic.ssrc);
+    statistic.set_sum_bytes(local_statistic.sum_bytes); 
     
-    SubStreamMediaStatisticVector::iterator it;
-    for(it = local_statistic.begin(), i= 0; 
-        it != local_statistic.end();
-        it++, i++){
+    for(it = local_statistic.sub_streams.begin(); 
+        it != local_statistic.sub_streams.end();
+        it++){
         ProtoSubStreamMediaStatistic * sub_stream_stat = 
             statistic.add_sub_stream_stats();                
             
@@ -719,11 +727,8 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
         sub_stream_stat->set_total_frames(it->data_frames);
         sub_stream_stat->set_key_frames(it->key_frames);
         sub_stream_stat->set_expected_frames(it->expected_frames);
-        sub_stream_stat->set_last_gov(it->last_gov);
-        sum_bytes += it->data_bytes;
-            
+        sub_stream_stat->set_last_gov(it->last_gov);            
     }// for(it = stream_meta_.sub_streams.begin();  
-    statistic.set_sum_bytes(sum_bytes);
                 
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
     reply->mutable_header()->set_info(""); 
@@ -736,6 +741,7 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
     
     return 0;
 }
+
 int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
 {
     if(request == NULL || reply == NULL){
@@ -764,8 +770,8 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
                 it != receivers_info_->receiver_list.end();
                 it++){
                 if(client_heartbeat.client_ip() == it->client_ip() &&
-                   client_heartbeat.client_port() == it->client_port()){
-                    //TODO(jamken): check client token
+                   client_heartbeat.client_port() == it->client_port() &&
+                   client_heartbeat.client_token() == it->client_token()){
                     found = true;
                     break;                                           
                 }
@@ -868,7 +874,6 @@ int StreamSource::RpcHandler()
                 (long long)zclock_time());
         fprintf(stderr, "%s\n", request.DebugString().c_str());
     }
-
     
     // send back the reply
     std::string out_data;
@@ -879,7 +884,6 @@ int StreamSource::RpcHandler()
            
     return 0;   
 }
-
 
 int StreamSource::Heartbeat(int64_t now)
 {
@@ -912,22 +916,26 @@ int StreamSource::Heartbeat(int64_t now)
         }
     }    
    
-    SendStreamInfo(); // publish the stream info at heartbeat interval
-    
-    return 0;
-    
+    SendStreamInfo(); // publish the stream info at heartbeat interval    
+    return 0;    
 }
-    
-void * StreamSource::ThreadRoutine(void * arg)
+
+void * StreamSource::StaticThreadRoutine(void *arg)
 {
     StreamSource * source = (StreamSource * )arg;
-    zpoller_t  * poller =zpoller_new (source->api_socket_);
+    source->InternalRoutine();
+    return NULL;
+}
+    
+void StreamSource::InternalRoutine()
+{
+    zpoller_t  * poller =zpoller_new (api_socket_);
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_SOURCE_HEARTBEAT_INT;
     
 #define MAX_POLLER_WAIT_TIME    100
     
-    while(source->flags_ & STREAM_SOURCE_FLAG_STARTED){
+    while(IsStarted()){
         int64_t now = zclock_mono();
         
         //calculate the timeout
@@ -942,14 +950,13 @@ void * StreamSource::ThreadRoutine(void * arg)
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
         if(socket != NULL){
-            source->RpcHandler();
+            RpcHandler();
         }
                      
         // check for heartbeat
         now = zclock_mono();
         if(now >= next_heartbeat_time){            
-            source->Heartbeat(now);
-            
+            Heartbeat(now);            
             //calculate next heartbeat time
             do{
                 next_heartbeat_time += STSW_STREAM_SOURCE_HEARTBEAT_INT;
@@ -960,19 +967,15 @@ void * StreamSource::ThreadRoutine(void * arg)
     if(poller != NULL){
         zpoller_destroy (&poller);
     }
-        
-    return NULL;
-}
-    
+
+}    
     
 void StreamSource::SendStreamInfo(void)
 {
-    
     LockGuard guard(&lock_);
     ProtoStreamInfoMsg stream_info;
     ProtoCommonPacket info_msg;
-
-
+    
     stream_info.set_state((ProtoSourceStreamState )stream_state_);
     stream_info.set_play_type((ProtoPlayType)stream_meta_.play_type);
     stream_info.set_ssrc(stream_meta_.ssrc);
@@ -993,8 +996,6 @@ void StreamSource::SendStreamInfo(void)
     info_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     info_msg.mutable_header()->set_code(PROTO_PACKET_CODE_STREAM_INFO);
     stream_info.SerializeToString(info_msg.mutable_body());   
-
-
 
     if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_STREAM_INFO message in SendStreamInfo():\n");

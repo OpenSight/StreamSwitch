@@ -248,12 +248,6 @@ struct MediaDataFrame{
     // the sub stream index in the configured metadata
     int32_t sub_stream_index;    
     
-    // the seq of this frame in sub stream, it should be 
-    // start from 1, and increased by 1 for each next frame in the sub stream.
-    // if the seq skips, the source would consider frame loss. If your source 
-    // stream cannot provide frame seq calculation, this param should be set to
-    // 0 forever. 
-    uint64_t frame_seq;           
      
     //frame type of this frame
     MediaFrameType frame_type;
