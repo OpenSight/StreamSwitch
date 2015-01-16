@@ -38,15 +38,10 @@
 
 #include <stsw_lock_guard.h>
 
-
 #define STDERR_FD   2 
 
-
 namespace stream_switch {
-
-    
-    
-
+ 
 static const char *log_level_str[] = 
 {
     "EMERG", 
@@ -59,7 +54,6 @@ static const char *log_level_str[] =
     "DEBUG",
 };    
     
-
 RotateLogger::RotateLogger()
 :file_size_(0), rotate_num_(0), stderr_redirect_(false), 
 log_level_(0), fd_(-1), redirect_fd_old_(-1), flags_(0)
@@ -67,13 +61,10 @@ log_level_(0), fd_(-1), redirect_fd_old_(-1), flags_(0)
     
 }
 
-
-
 RotateLogger::~RotateLogger()
 {
     Uninit();
 }
-
     
 int RotateLogger::Init(const std::string &prog_name, const std::string &base_name, 
                        int file_size, int rotate_num,  
@@ -111,8 +102,7 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
             ret = ERROR_CODE_SYSTEM;
             goto error_0;
         }
-    }
-    
+    }    
 
     //init lock
     pthread_mutexattr_t  attr;
@@ -132,9 +122,7 @@ int RotateLogger::Init(const std::string &prog_name, const std::string &base_nam
         pthread_mutexattr_destroy(&attr); 
         goto error_1;
     }
-    pthread_mutexattr_destroy(&attr);   
-
-    
+    pthread_mutexattr_destroy(&attr);       
     
     ret = Reopen();
     if(ret){
@@ -163,9 +151,7 @@ error_0:
     rotate_num_ = 0;
     log_level_ = LOG_LEVEL_EMERG; 
     stderr_redirect_ = false;
-    redirect_fd_old_ = -1; 
-
-    
+    redirect_fd_old_ = -1;     
     return ret;
 }
          
@@ -186,8 +172,7 @@ void RotateLogger::Uninit()
         dup2(redirect_fd_old_, STDERR_FD);
         close(redirect_fd_old_);
         redirect_fd_old_ = -1;
-    }    
-    
+    }       
 
     //clean field
     prog_name_.clear();
@@ -197,12 +182,9 @@ void RotateLogger::Uninit()
     log_level_ = LOG_LEVEL_EMERG; 
     stderr_redirect_ = false;
 
-
     flags_ &= ~(ROTATE_LOGGER_FLAG_INIT); 
     
 }  
-  
-
 
 void RotateLogger::set_log_level(int log_level)
 {
@@ -214,12 +196,12 @@ void RotateLogger::set_log_level(int log_level)
     
     log_level_ = log_level;
 }
+
 int RotateLogger::log_level()
 {
     return log_level_;
 }
-    
-    
+        
 void RotateLogger::CheckRotate()
 {
     if(!IsInit()){
@@ -280,9 +262,7 @@ void RotateLogger::Log(int level, const char * filename, int line, const char * 
     if(log_str[log_str.length() - 1] != '\n'){
         log_str.push_back('\n');
     }
-    
-
-    
+       
     //
     //print log to log file
     {
@@ -318,7 +298,6 @@ bool RotateLogger::IsTooLarge()
     
 void RotateLogger::ShiftFile()
 {
-    
     char log_file[1024];
     char log_file_old[1024];
     memset(log_file, 0, 1024);
@@ -353,7 +332,6 @@ void RotateLogger::ShiftFile()
 
 int RotateLogger::Reopen()
 {
-    
     CloseFile();
     
     int fd = open(base_name_.c_str(), O_CREAT|O_APPEND|O_WRONLY, 0777);
@@ -368,8 +346,7 @@ int RotateLogger::Reopen()
         if(stderr_redirect_){
             dup2(fd, STDERR_FD);
         }        
-    }
-    
+    }    
 
     fd_ = fd;
     
