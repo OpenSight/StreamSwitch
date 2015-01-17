@@ -1122,10 +1122,10 @@ int StreamReceiver::SourceStatistic(int timeout, MediaStatisticInfo * statistic,
         SubStreamMediaStatistic sub_stream;  
         sub_stream.sub_stream_index = it->sub_stream_index();
         sub_stream.media_type = (SubStreamMediaType)it->media_type();        
-        sub_stream.data_bytes = it->total_bytes();
+        sub_stream.data_bytes = it->data_bytes();
         sub_stream.key_bytes = it->key_bytes();
-        sub_stream.expected_frames = it->expected_frames();
-        sub_stream.data_frames = it->total_frames();        
+        sub_stream.lost_frames = it->lost_frames();
+        sub_stream.data_frames = it->data_frames();        
         sub_stream.key_frames = it->key_frames();
         sub_stream.last_gov = it->last_gov();
         statistic->sub_streams.push_back(sub_stream); 

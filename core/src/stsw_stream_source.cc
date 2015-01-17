@@ -721,11 +721,11 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
             
         sub_stream_stat->set_sub_stream_index(it->sub_stream_index);
         sub_stream_stat->set_media_type((ProtoSubStreamMediaType)it->media_type);
-        sub_stream_stat->set_total_bytes(it->data_bytes);
+        sub_stream_stat->set_data_bytes(it->data_bytes);
         sub_stream_stat->set_key_bytes(it->key_bytes);
-        sub_stream_stat->set_total_frames(it->data_frames);
+        sub_stream_stat->set_data_frames(it->data_frames);
         sub_stream_stat->set_key_frames(it->key_frames);
-        sub_stream_stat->set_expected_frames(it->expected_frames);
+        sub_stream_stat->set_lost_frames(it->lost_frames);
         sub_stream_stat->set_last_gov(it->last_gov);            
     }// for(it = stream_meta_.sub_streams.begin();  
                 

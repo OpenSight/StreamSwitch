@@ -199,7 +199,6 @@ struct StreamMetadata{
     
     //about frame
     uint64_t lost_frames;    // the count of the lost data frames
-    uint64_t expected_frames;  // the total frames should be received
     uint64_t data_frames;    // the count of the data frames handled
     uint64_t key_frames;   // the count of the key frames handled
     uint64_t last_gov;           //last gov  
@@ -217,7 +216,6 @@ struct StreamMetadata{
         key_frames = 0;
         last_gov = 0;
         cur_gov = 0;
-        expected_frames = 0;
         last_seq = 0;
     }
     
