@@ -14,13 +14,13 @@ message ProtoSubStreamMediaStatistic{
 
     
     //about bytes
-    optional uint64 total_bytes = 20;  //the bytes received of this sub stream
-    optional uint64 key_bytes = 21; //the bytes in the key frames of this sub stream. key_frame_bytes <= received_bytes
+    optional uint64 data_bytes = 20;  //the byte count for all the data frames of this sub stream
+    optional uint64 key_bytes = 21; //the byte count for all the key frames of this sub stream. key_frame_bytes <= data_bytes
     
     //about frame
-	optional uint64 expected_frames = 30; // the frame number should be received 
-    optional uint64 total_frames = 31;    // the received frame number
-    optional uint64 key_frames = 32;      // the received key frame number
+	optional uint64 lost_frames = 30; // the lost data frame count of this sub stream, 
+    optional uint64 data_frames = 31;    // the data frame count of this sub stream
+    optional uint64 key_frames = 32;      // the key frame count of this sub stream
     optional uint64 last_gov = 33;           //last gov
 } 
 

@@ -689,7 +689,6 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
     }    
     
     MediaStatisticInfo local_statistic;
-    uint32_t ssrc;    
     {
         LockGuard guard(&lock());
         local_statistic.sub_streams = statistic_;

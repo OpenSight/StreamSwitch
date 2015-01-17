@@ -581,8 +581,6 @@ int StreamReceiver::StaticMediaFrameHandler(StreamReceiver *receiver, const Prot
 int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
 {
     MediaDataFrame media_frame;
-    StreamMetadata metadata = stream_meta();
-    uint32_t check_ssrc = metadata.ssrc;
     int ret;
     uint64_t seq;
     
@@ -621,7 +619,7 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
             return 0;
         }
         
-        if(media_frame.sub_stream_index >= stream_meta_.sub_streams.size()){
+        if(media_frame.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
             //sub stream index mismatch, just ignore this frame
             return 0;
         }        
