@@ -35,9 +35,9 @@ namespace stream_switch {
 
 
 ArgParser::ArgParser()
-:flags_(0), has_bits_(0), port_(0), next_option_key_(1024)
+:next_option_key_(1024)
 {
-    
+
 }
 
 
@@ -48,43 +48,47 @@ ArgParser::~ArgParser()
 }
 
 
-int ArgParser::Init()
+void ArgParser::RegisterBasicOptions()
+{
+    RegisterOption("help", 'h', 0, "print help info", NULL, NULL);       
+    RegisterOption("version", 'v', 0, "print version", NULL, NULL);      
+}
+
+int ArgParser::InitOptions()
 {
     //register the default options
-    AddOption("stream-name", 's', 1, "stream name", NULL);
-    AddOption("port", 'p', 1, "the stream API tcp port", NULL);
-    AddOption("host", 'h', 1, "the remote host IP address", NULL);
-    AddOption("debug-log", 'l', 1, "log file path for debug", NULL);   
-    AddOption("url", 'u', 1, "the url which source would connect to", NULL);   
- 
+    RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, 
+                   "stream name", NULL, NULL);
+    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG, 
+                   "the stream API tcp port", NULL, NULL);
+    RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, 
+                   "the remote host IP address", NULL, NULL);
+    RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG, 
+                   "log file path for debug", NULL, NULL);   
+    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG, 
+                   "log file max size in bytes", NULL, NULL);       
+    RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG, 
+                   "the url which source would connect to", NULL, NULL);   
     
-    SetInit(true);    
     return 0;
 }
     
     
-void ArgParser::Uninit()
+void ArgParser::Clear()
 {
     options_.clear();
     non_options_.clear();
-    has_bits_ = 0;
-    stream_name_.clear();
-    port_ = 0;
-    host_.clear();
-    debug_log_.clear();
+    option_reg_map_.clear();     
     
     next_option_key_ = 1024;
-    
-    SetInit(false);    
+   
 }
 
- 
-
-
-int ArgParser::AddOption(const char *opt_name, 
-                          char opt_short, int has_arg, 
-                         const char *help_info, 
-                          void * user_data)
+int ArgParser::RegisterOption(const char *opt_name, 
+                              char opt_short, int flags, 
+                              const char *help_info, 
+                              ArgParseFunc user_parse_handler, 
+                              void * user_data)
 {
     if(opt_short > 127){
         return ERROR_CODE_PARAM;
@@ -93,22 +97,41 @@ int ArgParser::AddOption(const char *opt_name,
     }
     
     ArgParserOptionsEntry entry;
-    entry.has_arg = has_arg;
+    entry.flags = flags;
     entry.opt_name = opt_name;
     entry.help_info = help_info;
     entry.user_data = user_data;
+    entry.user_parse_handler = user_parse_handler;
     if(opt_short){
         entry.opt_key = opt_short;
     }else{
         entry.opt_key = getNextOptionKey();
     }
     
-    options_[entry.opt_key] = entry;
+    option_reg_map_[entry.opt_key] = entry;
     
     return 0;
                               
 }  
 
+void ArgParser::UnregisterOption(const char *opt_name)
+{
+    OptionRegMap::iterator it;
+    for(it=option_reg_map_.begin();it!=option_reg_map_.end();){
+        if(it->second.opt_name == opt_name){
+            it = option_reg_map_.erase(it);
+        }else{
+            it++;
+        }
+    }
+}
+
+
+std::string ArgParser::GetOptionsHelp()
+{
+    std::string help_info;
+    
+}   
 
 int ArgParser::Parse(int argc, char ** argv)
 {
@@ -124,15 +147,22 @@ int ArgParser::Parse(int argc, char ** argv)
  
     int i = 0;
     for(it = optionMap.begin(), i = 0; it != optionMap.end(); it++, i++){
+        if(it->second.flags & OPTION_FLAG_OTIONAL_ARG){
+            longopts[i].has_arg = 2;
+        }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
+            longopts[i].has_arg = 1;
+        }else{
+            longopts[i].has_arg = 0; 
+        }
         longopts[i].has_arg = it->second.has_arg;
         longopts[i].name = it->second.opt_name.c_str();
         longopts[i].flag = NULL;
         longopts[i].val = it->second.opt_key;
         if(it->second.opt_key < 128 && it->second.opt_key > 0){
             optstring.push_back((char)it->second.opt_key);
-            if(it->second.has_arg == 1){
+            if(longopts[i].has_arg == 1){
                 optstring.push_back(':');
-            }else if(it->second.has_arg == 2){
+            }else if(longopts[i].has_arg == 2){
                 optstring.push_back(':');
                 optstring.push_back(':');                
             }
@@ -162,7 +192,17 @@ int ArgParser::Parse(int argc, char ** argv)
                     //this option may has an argument
                     opt_value = optarg;
                 }
-                ParseOption(it->second.opt_name, opt_value, it->second.user_data);
+                if(it->second.flags & OPTION_FLAG_OTIONAL_ARG){
+                    longopts[i].has_arg = 2;
+        }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
+            longopts[i].has_arg = 1;
+        }else{
+            longopts[i].has_arg = 0; 
+        }                
+                ParseOption(it->second.opt_name, 
+                            opt_value, 
+                            it->second.user_parse_handler,
+                            it->second.user_data);
             }
         }
         
@@ -188,40 +228,22 @@ int ArgParser::Parse(int argc, char ** argv)
 
 
 bool ArgParser::ParseOption(const std::string &opt_name, 
-                         const char * opt_value, void * user_data)
+                         const char * opt_value, 
+                         ArgParseFunc user_parse_handler, 
+                         void * user_data)
 {
-    bool ret = false;
-    uint32_t bits =  has_bits();
-    
-    if(opt_name == "stream-name"){
-        bits |= ARG_PARSER_HAS_STREAM_NAME;
-        ret = true;
-        stream_name_ = opt_value;
-        
-    }else if(opt_name == "port"){
-        bits |= ARG_PARSER_HAS_PORT;
-        ret = true;
-        port_ = atoi(opt_value);
-        
-    }else if(opt_name == "host"){
-        bits |= ARG_PARSER_HAS_HOST;
-        ret = true;
-        host_ = opt_value;
-        
-    }else if(opt_name == "debug-log"){
-        bits |= ARG_PARSER_HAS_DEBUG_LOG;
-        ret = true; 
-        debug_log_ = opt_value;
 
-    }else if(opt_name == "url"){
-        bits |= ARG_PARSER_HAS_URL;
-        ret = true; 
-        url_ = opt_value;
-    }    
+    std::string value;
+    if(opt_value != NULL){
+        value = opt_value;
+    }
+    options_[opt_name] = value;
     
-    set_has_bits(bits);
-    
-    return ret;
+    if(user_parse_handler != NULL){
+        user_parse_hanler(this, opt_name, opt_value, user_data);
+    }
+        
+    return true;
 }
 
 bool ArgParser::ParseNonOption(const char * value)
@@ -236,7 +258,32 @@ bool ArgParser::ParseUnknown(const char * unknown_arg)
     return false;
 }
 
- 
+
+bool ArgParser::CheckOption(const std::string &opt_name)
+{
+    OptionMap::iterator it;
+    it = options_.find(opt_name);
+    if(it == options_.end()){
+        return false;
+    }else{
+        return true;
+    }
+}
+
+
+std::string ArgParser::OptionValue(const std::string &opt_name, 
+                                   const std::string &default_value)
+{
+    OptionMap::iterator it;
+    it = options_.find(opt_name);
+    if(it == options_.end()){
+        return default_value;
+    }else{
+        return it->second;
+    }    
+    
+    
+} 
 }
 
 

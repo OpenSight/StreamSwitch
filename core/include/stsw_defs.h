@@ -58,8 +58,11 @@ typedef int (*ArgParseFunc)(ArgParser *parser, const std::string &opt_name,
 struct ArgParserOptionsEntry{
     std::string opt_name;
     int opt_key;
-    int has_arg;
+#define OPTION_FLAG_WITH_ARG    1    /*this option require a arg*/
+#define OPTION_FLAG_OPTIONAL_ARG 2   /*this option can has a optional arg*/ 
+    int flags;
     std::string help_info; 
+    ArgParseFunc user_parse_handler;
     void * user_data;
 };
 

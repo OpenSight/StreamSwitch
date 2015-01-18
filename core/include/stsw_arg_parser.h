@@ -35,9 +35,10 @@
 
 namespace stream_switch {
     
-typedef std::map<int, ArgParserOptionsEntry>  ArgOptionMap; 
-typedef std::vector<std::string>  ArgNonOptionVector; 
+typedef std::map<int, ArgParserOptionsEntry>  OptionRegMap; 
 
+typedef std::vector<std::string>  ArgNonOptionVector; 
+typedef std::map<std::string, std::string> OptionMap;
    
 // the comdline args parser class
 // Because most stream switch's application, (source or receiver application) 
@@ -57,31 +58,40 @@ class ArgParser{
 public:
     ArgParser();
     virtual ~ArgParser();
+
+    // RegisterBaseOptions()
+    // Register the following basic options for all stream switch application
+    //    Name            Short                Meaning
+    //   help              h                   print help info
+    //   version           v                   print version 
+    virtual void RegisterBasicOptions();
     
-    
-    // Init() 
-    // Register default arguement options for stream switch application.
-    // These options would be parsed to the data member of the boject after parsing
-    // The default options includes: 
+    // RegisterSourceOptions()
+    // Register the following options for source application
     //    Name            Short                Meaning
     //   stream-name       s                   stream name
     //   port              p                   the stream API tcp port 
-    //   host              h                   the remote host IP address
-    //   debug-log         l                   log file path for debug
+    //   log-file          l                   log file path for debug
+    //   log-size          L                   log file max size in bytes
+    //   log-rotate        r                   log rotate number, 0 means no rotating
     //   url               u                   the url which source would connect to  
-    //
-    // Subclass can override this method to add its customer options.
-    virtual int Init();
-    
-    // 
-    // clear this parser to the uninit state
-    virtual void Uninit();
+    virtual void RegisterSourceOptions();    
     
 
-    //flag check methods
-    virtual bool IsInit();
-
+    // clear this parser, the parse has 
+    virtual void Clear();
     
+
+
+    virtual int RegisterOption(const char *opt_name, 
+                               char opt_short, int flags, 
+                               const char * help_info, 
+                               ArgParseFunc user_parse_handler, 
+                               void * user_data);  
+    virtual void UnregisterOption(const char *opt_name);  
+                               
+
+    virtual std::string GetOptionsHelp();   
     
     // Parse()
     // parse the given args 
@@ -93,86 +103,49 @@ public:
     //      argv char ** in: argv which come from main()'s argument
     virtual int Parse(int argc, char ** argv);
     
-    const ArgNonOptionVector & non_options();
-  
     
-    //access methods
-    uint32_t has_bits();
-    void set_has_bits(uint32_t has_bits);
-    
-    bool has_stream_name();  
-    std::string stream_name();
-    
-    bool has_port();
-    int port();
-    
-    bool has_host();
-    std::string host();    
-    
-    bool has_debug_log();
-    std::string debug_log();        
+    virtual const ArgNonOptionVector & non_options();
 
-    bool has_url();
-    std::string url();    
+    virtual const OptionMap & options();    
     
-protected:
+    //
+    //check the given option exist or not
+    virtual bool CheckOption(const std::string &opt_name);
     
-    virtual void SetInit(bool is_init);   
-
-    // AddOption
-    // register argument options for parsing
-    virtual int AddOption(const char *opt_name, 
-                          char opt_short, int has_arg, 
-                          const char * help_info, 
-                          void * user_data); 
-                               
-    const ArgOptionMap & options();   
+    //
+    // Get the option value for the specific option name
+    // If the option doese not exist, return the default value
+    virtual std::string OptionValue(const std::string &opt_name, 
+                                    const std::string &default_value)
+ 
+    
+protected:               
+ 
     
     virtual void AppendNonOption(std::string value);     
    
-
     //
     //subclass can overrid the following method to provide customer option parse.
     virtual bool ParseOption(const std::string &opt_name, 
-                          const char * opt_value, void * user_data);
+                             const char * opt_value, 
+                             ArgParseFunc user_parse_handler, 
+                             void * user_data);
 
     virtual bool ParseNonOption(const char * value);
     
-    virtual bool ParseUnknown(const char * unknown_arg);    
+    virtual bool ParseUnknown(const char * unknown_arg);        
+        
+    virtual int getNextOptionKey();
     
-
-                          
-    int getNextOptionKey();
-
     
 private:
 
-    
-// arg parser flags
-#define ARG_PARSER_FLAG_INIT 1
-
-    uint32_t flags_;      
-    
-    ArgOptionMap options_;
+    OptionRegMap  option_reg_map_; 
+   
+    OptionMap options_;
     ArgNonOptionVector non_options_;
    
    
-#define ARG_PARSER_HAS_STREAM_NAME 0x00000001u
-#define ARG_PARSER_HAS_PORT 0x00000002u
-#define ARG_PARSER_HAS_HOST 0x00000004u
-#define ARG_PARSER_HAS_DEBUG_LOG 0x00000008u
-#define ARG_PARSER_HAS_URL 0x00000010u
-    uint32_t has_bits_;
-    
-    
-    std::string stream_name_;
-    int port_;
-    std::string host_;   
-    std::string debug_log_;  
-    std::string url_;
-    
-    
-    
     int next_option_key_; 
 
 };
@@ -180,73 +153,7 @@ private:
 
 
 
-bool ArgParser::IsInit()
-{
-    return (flags_ & ARG_PARSER_FLAG_INIT) != 0;     
-}
-void ArgParser::SetInit(bool is_init)
-{
-    if(is_init){
-        flags_ |= ARG_PARSER_FLAG_INIT;  
-    }else{
-        flags_ &= ~(ARG_PARSER_FLAG_INIT); 
-    }
-}  
-
-
-uint32_t ArgParser::has_bits(){
-    return has_bits_;
-};
-void ArgParser::set_has_bits(uint32_t has_bits){
-    has_bits_ = has_bits;
-}
-
-bool ArgParser::has_stream_name(){
-    return (has_bits_ & ARG_PARSER_HAS_STREAM_NAME) != 0;
-}
-
-std::string ArgParser::stream_name(){
-    return stream_name_;
-}
-
-bool ArgParser::has_port(){
-    return (has_bits_& ARG_PARSER_HAS_PORT) != 0;
-}
-
-int ArgParser::port(){
-    return port_;
-}
-
-
-bool ArgParser::has_host(){
-    return (has_bits_ & ARG_PARSER_HAS_HOST) != 0;
-}
-
-std::string ArgParser::host(){
-    return host_;
-}
-
-
-
-bool ArgParser::has_debug_log(){
-    return (has_bits_ & ARG_PARSER_HAS_DEBUG_LOG) != 0;
-}
-
-std::string ArgParser::debug_log(){
-    return debug_log_;
-}
-
-
-bool ArgParser::has_url(){
-    return (has_bits_ & ARG_PARSER_HAS_URL) != 0;
-}
-
-std::string ArgParser::url(){
-    return url_;
-}
-
-
-const ArgOptionMap & ArgParser::options()
+const OptionMap & ArgParser::options()
 {
     return options_;
 }
