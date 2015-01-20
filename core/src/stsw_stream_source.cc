@@ -34,6 +34,7 @@
 #include <czmq.h>
 
 #include <stsw_lock_guard.h>
+#include <stsw_source_listener.h>
 
 #include <pb_packet.pb.h>
 #include <pb_client_heartbeat.pb.h>
@@ -57,7 +58,7 @@ StreamSource::StreamSource()
 api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
 flags_(0), cur_bytes_(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
-last_heartbeat_time_(0)
+last_heartbeat_time_(0), listener_(NULL)
 {
     receivers_info_ = new ReceiversInfoType();
     
@@ -70,6 +71,7 @@ StreamSource::~StreamSource()
 }
 
 int StreamSource::Init(const std::string &stream_name, int tcp_port, 
+                       SourceListener *listener, 
                        uint32_t debug_flags, std::string *err_info)
 {
     int ret;
@@ -214,10 +216,10 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     zsock_set_rcvhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
     
     //init handlers
-    RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, NULL);
-    RegisterApiHandler(PROTO_PACKET_CODE_KEY_FRAME, (SourceApiHandler)StaticKeyFrameHandler, NULL);    
-    RegisterApiHandler(PROTO_PACKET_CODE_MEDIA_STATISTIC, (SourceApiHandler)StaticStatisticHandler, NULL);
-    RegisterApiHandler(PROTO_PACKET_CODE_CLIENT_HEARTBEAT, (SourceApiHandler)StaticClientHeartbeatHandler, NULL);   
+    RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, this);
+    RegisterApiHandler(PROTO_PACKET_CODE_KEY_FRAME, (SourceApiHandler)StaticKeyFrameHandler, this);    
+    RegisterApiHandler(PROTO_PACKET_CODE_MEDIA_STATISTIC, (SourceApiHandler)StaticStatisticHandler, this);
+    RegisterApiHandler(PROTO_PACKET_CODE_CLIENT_HEARTBEAT, (SourceApiHandler)StaticClientHeartbeatHandler, this);   
 
     //init metadata
     stream_meta_.sub_streams.clear();
@@ -232,7 +234,8 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     stream_name_ = stream_name;
     tcp_port_ = tcp_port;
     debug_flags_ = debug_flags;
-
+    
+    set_listener(listener);
     
     flags_ |= STREAM_SOURCE_FLAG_INIT;        
    
@@ -537,48 +540,28 @@ void StreamSource::UnregisterAllApiHandler()
     api_handler_map_.clear(); 
 }
 
-void StreamSource::OnKeyFrame(void)
+int StreamSource::StaticMetadataHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
-    //default nothing to do
-    //need child class to implement this function
-}           
-
-void OnMediaStatistic(SubStreamMediaStatisticVector *statistic)
-{
-    //default nothing to do
-    //lost frames number is 0 by default
-    return;
-/*    
-    if(statistic == NULL){
-        return;
-    }
-    SubStreamMediaStatisticVector::iterator it;
-    for(it = statistic->begin(); 
-        it != statistic->end();
-        it++){
-        it->lost_frames = 0;
-    }
-*/    
+    StreamSource * source = (StreamSource * )user_data;
+    return source->MetadataHandler(request, reply);    
 }
-
-int StreamSource::StaticMetadataHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::StaticKeyFrameHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
-    return source->MetadataHandler(request, reply, user_data);    
+    StreamSource * source = (StreamSource * )user_data;
+    return source->KeyFrameHandler(request, reply);
 }
-int StreamSource::StaticKeyFrameHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::StaticStatisticHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
-    return source->KeyFrameHandler(request, reply, user_data);
+    StreamSource * source = (StreamSource * )user_data;
+    return source->StatisticHandler(request, reply);
 }
-int StreamSource::StaticStatisticHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::StaticClientHeartbeatHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
-    return source->StatisticHandler(request, reply, user_data);
-}
-int StreamSource::StaticClientHeartbeatHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
-{
-    return source->ClientHeartbeatHandler(request, reply, user_data);
+    StreamSource * source = (StreamSource * )user_data;
+    return source->ClientHeartbeatHandler(request, reply);
 }
     
-int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
     if(request == NULL || reply == NULL){
         //nothing to do
@@ -659,7 +642,7 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
     return 0;
 }
 
-int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
     if(request == NULL || reply == NULL){
         //nothing to do
@@ -668,7 +651,11 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_KEY_FRAME request\n");
     }     
-    OnKeyFrame();
+    SourceListener *plistener = listener();
+    if(plistener != NULL){
+        plistener->OnKeyFrame();
+    }
+
     reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
     reply->mutable_header()->set_info("");  
 
@@ -678,7 +665,7 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
     return 0;
 }
 
-int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
     if(request == NULL || reply == NULL){
         //nothing to do
@@ -705,8 +692,11 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
     }
     
     //invoke the user function to overwrite local_statistic
-    OnMediaStatistic(&local_statistic);
-    
+    SourceListener *plistener = listener();
+    if(plistener != NULL){
+        plistener->OnMediaStatistic(&local_statistic);
+    }
+        
     ProtoMediaStatisticRep statistic;
 
     statistic.set_timestamp(local_statistic.timestamp);
@@ -741,7 +731,7 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
     return 0;
 }
 
-int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data)
+int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
     if(request == NULL || reply == NULL){
         //nothing to do
@@ -856,7 +846,7 @@ int StreamSource::RpcHandler()
             SourceApiHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
             int ret = 0;
-            ret = entry.handler(this, &request, &reply, entry.user_data);            
+            ret = entry.handler(entry.user_data, &request, &reply);            
         }          
         
     }else{

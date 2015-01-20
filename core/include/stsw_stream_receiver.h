@@ -40,7 +40,8 @@
 
 namespace stream_switch {
 
-    
+class ReceiverListener; 
+   
 //opcode -> ReceiverSubHandlerEntry map
 typedef std::map<int, ReceiverSubHandlerEntry> ReceiverSubHanderMap;
 
@@ -59,10 +60,12 @@ public:
 
     virtual int InitRemote(const std::string &source_ip, int source_tcp_port, 
                            const StreamClientInfo &client_info,
+                           ReceiverListener *listener, 
                            uint32_t debug_flags,
                            std::string *err_info);    
     virtual int InitLocal(const std::string &stream_name, 
                           const StreamClientInfo &client_info,
+                          ReceiverListener *listener, 
                           uint32_t debug_flags,
                           std::string *err_info);      
   
@@ -93,9 +96,6 @@ public:
 
     
     // accessors 
-    pthread_mutex_t& lock(){
-        return lock_;
-    }
     virtual StreamClientInfo client_info();
     virtual void set_client_info(const StreamClientInfo &client_info);
     virtual StreamMetadata stream_meta();
@@ -103,13 +103,17 @@ public:
     virtual uint32_t debug_flags(){
         return debug_flags_;
     }
+    ReceiverListener * listener(){
+        return listener_;
+    }
+    void set_listener(ReceiverListener *listener){
+        listener_ = listener; 
+    }
     
         
     virtual int UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info);
     virtual int SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
     virtual int KeyFrame(int timeout, std::string *err_info);
-    
-    virtual uint32_t GetNextSeq();
     
     virtual MediaStatisticInfo ReceiverStatistic();        
     
@@ -118,11 +122,13 @@ protected:
     //
     //internal used method
 
-    static int StaticMediaFrameHandler(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data);
+    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg);
     virtual int MediaFrameHandler(const ProtoCommonPacket * msg);
 
 
-    virtual int InitBase(const StreamClientInfo &client_info, uint32_t debug_flags, std::string *err_info);   
+    virtual int InitBase(const StreamClientInfo &client_info, 
+                         ReceiverListener *listener,
+                         uint32_t debug_flags, std::string *err_info);   
 
     virtual int SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
 
@@ -135,16 +141,13 @@ protected:
     static void * StaticThreadRoutine(void *);
     virtual void InternalRoutine();
     
+    pthread_mutex_t& lock(){
+        return lock_;
+    }
     
-    // the following methods need application to override
-    // to fulfill its functions. They would be invoked
-    // by the internal api thread 
-        
-    // OnLiveMediaFrame
-    // When a live media frame is received, this method would be invoked
-    // by the internal thread
-    virtual void OnLiveMediaFrame(const MediaDataFrame &media_frame);    
+    virtual uint32_t GetNextSeq();
     
+   
     
 private:
     std::string api_addr_;
@@ -174,6 +177,8 @@ private:
     int64_t next_send_client_heartbeat_msec_;
     
     StreamClientInfo client_info_;
+    
+    ReceiverListener *listener_;
                              
 };
 

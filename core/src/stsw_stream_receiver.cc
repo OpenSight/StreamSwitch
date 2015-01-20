@@ -36,6 +36,8 @@
 
 #include <stsw_lock_guard.h>
 
+#include <stsw_receiver_listener.h>
+
 #include <pb_packet.pb.h>
 #include <pb_client_heartbeat.pb.h>
 #include <pb_media.pb.h>
@@ -84,7 +86,8 @@ StreamReceiver::StreamReceiver()
 worker_thread_id_(0), next_seq_(1), debug_flags_(0), flags_(0), 
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
-next_send_client_heartbeat_msec_(0)
+next_send_client_heartbeat_msec_(0), 
+listener_(NULL)
 {
     
 }
@@ -97,6 +100,7 @@ StreamReceiver::~StreamReceiver()
 
 int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port, 
                                const StreamClientInfo &client_info, 
+                               ReceiverListener *listener,
                                uint32_t debug_flags,
                                std::string *err_info)
 {
@@ -150,7 +154,7 @@ int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, debug_flags, err_info);
+    ret = InitBase(client_info, listener, debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -167,7 +171,8 @@ error_out:
 }
 int StreamReceiver::InitLocal(const std::string &stream_name, 
                               const StreamClientInfo &client_info, 
-                              uint32_t debug_flags,
+                              ReceiverListener *listener,
+                              uint32_t debug_flags,                              
                               std::string *err_info)
 {
     int ret;
@@ -226,7 +231,7 @@ int StreamReceiver::InitLocal(const std::string &stream_name,
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, debug_flags, err_info);
+    ret = InitBase(client_info, listener, debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -244,6 +249,7 @@ error_out:
 
 
 int StreamReceiver::InitBase(const StreamClientInfo &client_info, 
+                             ReceiverListener *listener,
                              uint32_t debug_flags, 
                              std::string *err_info)
 {
@@ -300,6 +306,7 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info,
     
     debug_flags_ = debug_flags;
     
+    set_listener(listener);   
     
     
     flags_ |= STREAM_RECEIVER_FLAG_INIT;        
@@ -574,8 +581,9 @@ void StreamReceiver::UnregisterAllSubHandler()
     subsriber_handler_map_.clear();    
 }      
 
-int StreamReceiver::StaticMediaFrameHandler(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data)
+int StreamReceiver::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg)
 {
+    StreamReceiver *receiver = (StreamReceiver *)user_data;
     return receiver->MediaFrameHandler(msg);
 }
 int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
@@ -658,8 +666,12 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
             
         
     }//release the lock    
+
+    ReceiverListener *plistener = listener();
+    if(plistener != NULL){
+        plistener->OnLiveMediaFrame(media_frame);
+    }    
     
-    OnLiveMediaFrame(media_frame);
        
     return 0;
 }
@@ -755,7 +767,7 @@ int StreamReceiver::SubscriberHandler()
             ReceiverSubHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
             if(entry.channel_name == std::string(channel_name)){
-                entry.handler(this, &msg, entry.user_data);
+                entry.handler(entry.user_data, &msg);
             }
        
         }//if(it == subsriber_handler_map_.end()){

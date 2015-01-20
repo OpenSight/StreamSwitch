@@ -34,6 +34,8 @@
 #include<pthread.h>
 #include<sys/time.h>
 
+
+
 #define STSW_STREAM_SOURCE_HEARTBEAT_INT  1000  // the heartbeat interval for 
                                                 // stream source, in ms
 
@@ -44,6 +46,7 @@ class ProtoClientHeartbeatReq;
 typedef std::map<int, SourceApiHandlerEntry> SourceApiHanderMap;
 struct ReceiversInfoType;
 
+class SourceListener;
 
 
 // the Source class
@@ -68,11 +71,14 @@ public:
     //     tcp_port int in: the tcp port of this source, api socket would listen
     //         on this port, and publish socket would listen on tcp_port + 1. If
     //         this param is 0, means this source never listen on tcp
+    //     listener SourceListener * in: the listener of this source
+    //     debug_flags uint32_t in: the debug flags of this source
     //     errInfo string out: error tips if failed
     //
     // return:
     //     0 if successful, or -1 if error;
     virtual int Init(const std::string &stream_name, int tcp_port, 
+                     SourceListener *listener, 
                      uint32_t debug_flags, std::string *err_info);
     
     // un-init the source, note that it's not thread-safe
@@ -109,12 +115,17 @@ public:
     int stream_state();
     void set_stream_meta(const StreamMetadata & stream_meta);
     StreamMetadata stream_meta();
-    pthread_mutex_t& lock(){
-        return lock_;
-    }
+
     uint32_t debug_flags(){
         return debug_flags_;
-    }    
+    }   
+
+    SourceListener * listener(){
+        return listener_;
+    }
+    void set_listener(SourceListener *listener){
+        listener_ = listener; 
+    }
 
    
     virtual void RegisterApiHandler(int op_code, SourceApiHandler handler, void * user_data);
@@ -123,15 +134,15 @@ public:
 
 protected:
 
-    static int StaticMetadataHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int StaticKeyFrameHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int StaticStatisticHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    static int StaticClientHeartbeatHandler(StreamSource * source, ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    static int StaticMetadataHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    static int StaticKeyFrameHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    static int StaticStatisticHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    static int StaticClientHeartbeatHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
     
-    virtual int MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    virtual int KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    virtual int StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
-    virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+    virtual int MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    virtual int KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    virtual int StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
 
     virtual int RpcHandler();
     virtual int Heartbeat(int64_t now);
@@ -145,23 +156,11 @@ protected:
     // 
     virtual void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
     
- 
-    // the following methods need application to override
-    // to fulfill its functions. They would be invoked
-    // by the internal api thread 
-        
-    // OnKeyFrame
-    // When the receiver request a key frame, it would be 
-    // invoked
-    virtual void OnKeyFrame(void);
     
-    // OnMediaStatistic
-    // When receiving a PROTO_PACKET_CODE_MEDIA_STATISTIC request, 
-    // it would be invoked to statistic info from application
-    // The parameter statistic is initialized with the internal infomation
-    // of the source instance
-    virtual void OnMediaStatistic(MediaStatisticInfo *statistic);    
-   
+    pthread_mutex_t& lock(){
+        return lock_;
+    }
+    
 private:
     std::string stream_name_;
     int tcp_port_;
@@ -187,6 +186,7 @@ private:
     ReceiversInfoType * receivers_info_;
     int64_t last_heartbeat_time_;     // in milli-sec
     
+    SourceListener *listener_;
 };
 
 }

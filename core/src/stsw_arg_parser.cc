@@ -54,7 +54,7 @@ void ArgParser::RegisterBasicOptions()
     RegisterOption("version", 'v', 0, "print version", NULL, NULL);      
 }
 
-int ArgParser::InitOptions()
+void ArgParser::RegisterSourceOptions()
 {
     //register the default options
     RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, 
@@ -70,7 +70,6 @@ int ArgParser::InitOptions()
     RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG, 
                    "the url which source would connect to", NULL, NULL);   
     
-    return 0;
 }
     
     
@@ -119,7 +118,7 @@ void ArgParser::UnregisterOption(const char *opt_name)
     OptionRegMap::iterator it;
     for(it=option_reg_map_.begin();it!=option_reg_map_.end();){
         if(it->second.opt_name == opt_name){
-            it = option_reg_map_.erase(it);
+            option_reg_map_.erase(it++);
         }else{
             it++;
         }
@@ -137,24 +136,23 @@ int ArgParser::Parse(int argc, char ** argv)
 {
     std::string optstring; 
 
-    const ArgOptionMap & optionMap = options();
+    const OptionRegMap & optionMap = option_reg_map_;
     struct option * longopts = (struct option *)calloc((optionMap.size() + 1), sizeof(struct option));
     char ** local_argv = (char **)calloc(argc, sizeof(char *));
     memcpy(local_argv, argv, sizeof(char *) * argc);
 
     
-    ArgOptionMap::const_iterator it;
+    OptionRegMap::const_iterator it;
  
     int i = 0;
     for(it = optionMap.begin(), i = 0; it != optionMap.end(); it++, i++){
-        if(it->second.flags & OPTION_FLAG_OTIONAL_ARG){
+        if(it->second.flags & OPTION_FLAG_OPTIONAL_ARG){
             longopts[i].has_arg = 2;
         }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
             longopts[i].has_arg = 1;
         }else{
             longopts[i].has_arg = 0; 
         }
-        longopts[i].has_arg = it->second.has_arg;
         longopts[i].name = it->second.opt_name.c_str();
         longopts[i].flag = NULL;
         longopts[i].val = it->second.opt_key;
@@ -188,17 +186,11 @@ int ArgParser::Parse(int argc, char ** argv)
             if(it != optionMap.end()){
                 char *opt_value = NULL;
                 //find a option
-                if(it->second.has_arg != 0){
-                    //this option may has an argument
+                if(it->second.flags & OPTION_FLAG_OPTIONAL_ARG){
                     opt_value = optarg;
-                }
-                if(it->second.flags & OPTION_FLAG_OTIONAL_ARG){
-                    longopts[i].has_arg = 2;
-        }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
-            longopts[i].has_arg = 1;
-        }else{
-            longopts[i].has_arg = 0; 
-        }                
+                }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
+                    opt_value = optarg;
+                }               
                 ParseOption(it->second.opt_name, 
                             opt_value, 
                             it->second.user_parse_handler,
@@ -240,7 +232,7 @@ bool ArgParser::ParseOption(const std::string &opt_name,
     options_[opt_name] = value;
     
     if(user_parse_handler != NULL){
-        user_parse_hanler(this, opt_name, opt_value, user_data);
+        user_parse_handler(this, opt_name, opt_value, user_data);
     }
         
     return true;
@@ -280,10 +272,10 @@ std::string ArgParser::OptionValue(const std::string &opt_name,
         return default_value;
     }else{
         return it->second;
-    }    
-    
-    
+    }      
 } 
+
+
 }
 
 

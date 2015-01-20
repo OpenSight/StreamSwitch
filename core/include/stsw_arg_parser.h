@@ -116,7 +116,7 @@ public:
     // Get the option value for the specific option name
     // If the option doese not exist, return the default value
     virtual std::string OptionValue(const std::string &opt_name, 
-                                    const std::string &default_value)
+                                    const std::string &default_value);
  
     
 protected:               

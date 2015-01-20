@@ -34,7 +34,7 @@ typedef void * LockHandle;
 
 
 
-typedef int (*SourceApiHandler)(StreamSource *source, const ProtoCommonPacket * request, ProtoCommonPacket * reply, void * user_data);
+typedef int (*SourceApiHandler)(void * user_data, const ProtoCommonPacket * request, ProtoCommonPacket * reply);
 
 struct SourceApiHandlerEntry{
     SourceApiHandler handler;
@@ -42,7 +42,7 @@ struct SourceApiHandlerEntry{
 };
 
 
-typedef int (*ReceiverSubHandler)(StreamReceiver *receiver, const ProtoCommonPacket * msg, void * user_data);
+typedef int (*ReceiverSubHandler)( void * user_data, const ProtoCommonPacket * msg);
 
 struct ReceiverSubHandlerEntry{
     ReceiverSubHandler handler;
