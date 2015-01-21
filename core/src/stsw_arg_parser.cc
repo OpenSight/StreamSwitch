@@ -50,24 +50,24 @@ ArgParser::~ArgParser()
 
 void ArgParser::RegisterBasicOptions()
 {
-    RegisterOption("help", 'h', 0, "print help info", NULL, NULL);       
-    RegisterOption("version", 'v', 0, "print version", NULL, NULL);      
+    RegisterOption("help", 'h', 0, NULL, "print help info", NULL, NULL);       
+    RegisterOption("version", 'v', 0, NULL, "print version", NULL, NULL);      
 }
 
 void ArgParser::RegisterSourceOptions()
 {
     //register the default options
-    RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, 
+    RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, "STREAM",
                    "stream name", NULL, NULL);
-    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG, 
+    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG, "PORT", 
                    "the stream API tcp port", NULL, NULL);
-    RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, 
-                   "the remote host IP address", NULL, NULL);
-    RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG, 
+    RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
                    "log file path for debug", NULL, NULL);   
-    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG, 
-                   "log file max size in bytes", NULL, NULL);       
-    RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG, 
+    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG,  "SIZE",
+                   "log file max size in bytes", NULL, NULL);   
+    RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG,  "NUM",
+                   "log rotate number, 0 means no rotating", NULL, NULL);       
+    RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG,  "URL", 
                    "the url which source would connect to", NULL, NULL);   
     
 }
@@ -85,8 +85,9 @@ void ArgParser::Clear()
 
 int ArgParser::RegisterOption(const char *opt_name, 
                               char opt_short, int flags, 
+                              const char *value_name, 
                               const char *help_info, 
-                              ArgParseFunc user_parse_handler, 
+                              OptionHandler user_parse_handler, 
                               void * user_data)
 {
     if(opt_short > 127){
@@ -94,13 +95,23 @@ int ArgParser::RegisterOption(const char *opt_name,
     }else if(opt_short == '?'){
         return ERROR_CODE_PARAM;        
     }
+    if(opt_name == NULL){
+        return ERROR_CODE_PARAM; 
+    }
+    
     
     ArgParserOptionsEntry entry;
     entry.flags = flags;
     entry.opt_name = opt_name;
-    entry.help_info = help_info;
+    if(help_info != NULL){
+        entry.help_info = help_info;        
+    }
+    if(value_name != NULL){
+        entry.value_name = value_name;        
+    }
     entry.user_data = user_data;
     entry.user_parse_handler = user_parse_handler;
+
     if(opt_short){
         entry.opt_key = opt_short;
     }else{
@@ -129,6 +140,67 @@ void ArgParser::UnregisterOption(const char *opt_name)
 std::string ArgParser::GetOptionsHelp()
 {
     std::string help_info;
+    
+    //
+    //help format 
+    //for each option, the format is follow: 
+    //  -short_opt, --long_opt[=value]    info
+    //                                     more info
+    const OptionRegMap & optionMap = option_reg_map_;
+    OptionRegMap::const_iterator it;
+    for(it = optionMap.begin(); it != optionMap.end(); it++){
+        std::string option_help;
+        // short option
+        if(it->second.opt_key < 128 && it->second.opt_key > 0){
+            option_help.append("  -");
+            option_help.push_back(it->second.opt_key);
+            option_help.push_back(',');            
+            
+        }else{
+            option_help.append("    ");
+        }
+        //long option
+        option_help.append(" --");
+        option_help.append(it->second.opt_name);
+      
+        if(it->second.flags & OPTION_FLAG_OPTIONAL_ARG){
+            option_help.append("[=");
+            option_help.append(it->second.value_name);
+            option_help.append("]");
+        }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
+            option_help.append("=");
+            option_help.append(it->second.value_name);
+        }
+        
+        const std::string &info = it->second.help_info;
+        if(option_help.size() < 30){
+            option_help.resize(30, ' ');
+            
+        }else{
+            //new line
+            option_help.push_back('\n'); 
+            option_help.append(std::string(' ', 30));           
+        }
+        
+        // option info
+        int col = 30;
+        int i = 0;
+        while(i < (int)info.size()){
+            if(col >= 79){
+                option_help.push_back('\n'); 
+                option_help.append(std::string(' ', 30));  
+                col = 30;                     
+            }
+            option_help.push_back(info[i++]);
+            col++;
+        }
+        option_help.push_back('\n'); 
+        
+        help_info += option_help;
+        
+    }   
+    
+    return help_info;
     
 }   
 
@@ -221,7 +293,7 @@ int ArgParser::Parse(int argc, char ** argv)
 
 bool ArgParser::ParseOption(const std::string &opt_name, 
                          const char * opt_value, 
-                         ArgParseFunc user_parse_handler, 
+                         OptionHandler user_parse_handler, 
                          void * user_data)
 {
 

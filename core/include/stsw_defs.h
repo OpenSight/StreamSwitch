@@ -51,7 +51,7 @@ struct ReceiverSubHandlerEntry{
 };
 
 
-typedef int (*ArgParseFunc)(ArgParser *parser, const std::string &opt_name, 
+typedef int (*OptionHandler)(ArgParser *parser, const std::string &opt_name, 
                             const char * opt_value, void * user_data);
 
 
@@ -61,8 +61,9 @@ struct ArgParserOptionsEntry{
 #define OPTION_FLAG_WITH_ARG    1    /*this option require a arg*/
 #define OPTION_FLAG_OPTIONAL_ARG 2   /*this option can has a optional arg*/ 
     int flags;
+    std::string value_name;
     std::string help_info; 
-    ArgParseFunc user_parse_handler;
+    OptionHandler user_parse_handler;
     void * user_data;
 };
 

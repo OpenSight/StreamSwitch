@@ -85,8 +85,9 @@ public:
 
     virtual int RegisterOption(const char *opt_name, 
                                char opt_short, int flags, 
+                               const char *value_name, 
                                const char * help_info, 
-                               ArgParseFunc user_parse_handler, 
+                               OptionHandler user_parse_handler, 
                                void * user_data);  
     virtual void UnregisterOption(const char *opt_name);  
                                
@@ -128,7 +129,7 @@ protected:
     //subclass can overrid the following method to provide customer option parse.
     virtual bool ParseOption(const std::string &opt_name, 
                              const char * opt_value, 
-                             ArgParseFunc user_parse_handler, 
+                             OptionHandler user_parse_handler, 
                              void * user_data);
 
     virtual bool ParseNonOption(const char * value);
