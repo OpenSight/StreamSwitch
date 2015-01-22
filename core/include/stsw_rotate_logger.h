@@ -108,7 +108,9 @@ inline bool RotateLogger::IsInit()
 
 #define ROTATE_LOG(logger, level, fmt, ...)  \
 do {         \
-    logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
+    if(logger){                  \
+        logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
+    }                            \
 }while(0)
 
 #endif
