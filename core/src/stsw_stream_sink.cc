@@ -25,7 +25,7 @@
  * date: 2014-12-5
 **/ 
 
-#include <stsw_stream_receiver.h>
+#include <stsw_stream_sink.h>
 #include <stdint.h>
 #include <list>
 #include <set>
@@ -36,7 +36,7 @@
 
 #include <stsw_lock_guard.h>
 
-#include <stsw_receiver_listener.h>
+#include <stsw_sink_listener.h>
 
 #include <pb_packet.pb.h>
 #include <pb_client_heartbeat.pb.h>
