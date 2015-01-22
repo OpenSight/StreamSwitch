@@ -19,7 +19,7 @@
 **/
 /**
  * stsw_stream_receiver.cc
- *      StreamReceiver class implementation file, define all methods of StreamReceiver.
+ *      StreamSink class implementation file, define all methods of StreamSink.
  * 
  * author: jamken
  * date: 2014-12-5
@@ -81,7 +81,7 @@ namespace stream_switch {
 }        
     
     
-StreamReceiver::StreamReceiver()
+StreamSink::StreamSink()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
 worker_thread_id_(0), next_seq_(1), debug_flags_(0), flags_(0), 
 last_heartbeat_time_(0), 
@@ -93,14 +93,14 @@ listener_(NULL)
 }
 
 
-StreamReceiver::~StreamReceiver()
+StreamSink::~StreamSink()
 {
     Uninit();
 }
 
-int StreamReceiver::InitRemote(const std::string &source_ip, int source_tcp_port, 
+int StreamSink::InitRemote(const std::string &source_ip, int source_tcp_port, 
                                const StreamClientInfo &client_info, 
-                               ReceiverListener *listener,
+                               SinkListener *listener,
                                uint32_t debug_flags,
                                std::string *err_info)
 {
@@ -169,9 +169,9 @@ error_out:
     
     
 }
-int StreamReceiver::InitLocal(const std::string &stream_name, 
+int StreamSink::InitLocal(const std::string &stream_name, 
                               const StreamClientInfo &client_info, 
-                              ReceiverListener *listener,
+                              SinkListener *listener,
                               uint32_t debug_flags,                              
                               std::string *err_info)
 {
@@ -248,8 +248,8 @@ error_out:
 }
 
 
-int StreamReceiver::InitBase(const StreamClientInfo &client_info, 
-                             ReceiverListener *listener,
+int StreamSink::InitBase(const StreamClientInfo &client_info, 
+                             SinkListener *listener,
                              uint32_t debug_flags, 
                              std::string *err_info)
 {
@@ -297,7 +297,7 @@ int StreamReceiver::InitBase(const StreamClientInfo &client_info,
     //init handlers
     RegisterSubHandler(PROTO_PACKET_CODE_MEDIA, 
                        STSW_PUBLISH_MEDIA_CHANNEL, 
-                       (ReceiverSubHandler)StaticMediaFrameHandler, NULL);
+                       (SinkSubHandler)StaticMediaFrameHandler, NULL);
  
 
 
@@ -335,7 +335,7 @@ error_0:
 
 
 
-void StreamReceiver::Uninit()
+void StreamSink::Uninit()
 {
     if(!IsInit()){
         return; // no work
@@ -366,30 +366,30 @@ void StreamReceiver::Uninit()
 }
 
 
-bool StreamReceiver::IsInit()
+bool StreamSink::IsInit()
 {
     return (flags_ & STREAM_RECEIVER_FLAG_INIT) != 0;
 }
 
 
-bool StreamReceiver::IsStarted()
+bool StreamSink::IsStarted()
 {
      return (flags_ & STREAM_RECEIVER_FLAG_STARTED) != 0;   
 }
 
-StreamMetadata StreamReceiver::stream_meta()
+StreamMetadata StreamSink::stream_meta()
 {
     LockGuard guard(&lock_);  
     return stream_meta_;
 }
 
-StreamClientInfo StreamReceiver::client_info()
+StreamClientInfo StreamSink::client_info()
 {
     LockGuard guard(&lock_);  
     return client_info_;    
 }
 
-void StreamReceiver::set_client_info(const StreamClientInfo &client_info)
+void StreamSink::set_client_info(const StreamClientInfo &client_info)
 {
     LockGuard guard(&lock_); 
     client_info_ = client_info;
@@ -397,7 +397,7 @@ void StreamReceiver::set_client_info(const StreamClientInfo &client_info)
 
 
 
-int StreamReceiver::Start(std::string *err_info)
+int StreamSink::Start(std::string *err_info)
 {
     int ret;
     std::set<std::string> subsribe_keys;
@@ -465,7 +465,7 @@ int StreamReceiver::Start(std::string *err_info)
 
     
     //start the internal thread
-    ret = pthread_create(&worker_thread_id_, NULL, StreamReceiver::StaticThreadRoutine, this);
+    ret = pthread_create(&worker_thread_id_, NULL, StreamSink::StaticThreadRoutine, this);
     if(ret){
         if(err_info){
             *err_info = "pthread_create failed:";
@@ -499,7 +499,7 @@ error_1:
 }
 
 
-void StreamReceiver::Stop()
+void StreamSink::Stop()
 {   
     
     pthread_mutex_lock(&lock_); 
@@ -539,8 +539,8 @@ void StreamReceiver::Stop()
     
 }
 
-void StreamReceiver::RegisterSubHandler(int op_code, const char * channel_name, 
-                                    ReceiverSubHandler handler, void * user_data)
+void StreamSink::RegisterSubHandler(int op_code, const char * channel_name, 
+                                    SinkSubHandler handler, void * user_data)
 {
 
     LockGuard guard(&lock_);   
@@ -555,7 +555,7 @@ void StreamReceiver::RegisterSubHandler(int op_code, const char * channel_name,
 
 
 }
-void StreamReceiver::UnregisterSubHandler(int op_code)
+void StreamSink::UnregisterSubHandler(int op_code)
 {
  
     ReceiverSubHanderMap::iterator it;
@@ -570,7 +570,7 @@ void StreamReceiver::UnregisterSubHandler(int op_code)
         subsriber_handler_map_.erase(it);
     }    
 }
-void StreamReceiver::UnregisterAllSubHandler()
+void StreamSink::UnregisterAllSubHandler()
 {
     
     LockGuard guard(&lock_);   
@@ -581,12 +581,12 @@ void StreamReceiver::UnregisterAllSubHandler()
     subsriber_handler_map_.clear();    
 }      
 
-int StreamReceiver::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg)
+int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg)
 {
-    StreamReceiver *receiver = (StreamReceiver *)user_data;
+    StreamSink *receiver = (StreamSink *)user_data;
     return receiver->MediaFrameHandler(msg);
 }
-int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
+int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
 {
     MediaDataFrame media_frame;
     int ret;
@@ -667,7 +667,7 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
         
     }//release the lock    
 
-    ReceiverListener *plistener = listener();
+    SinkListener *plistener = listener();
     if(plistener != NULL){
         plistener->OnLiveMediaFrame(media_frame);
     }    
@@ -676,15 +676,15 @@ int StreamReceiver::MediaFrameHandler(const ProtoCommonPacket * msg)
     return 0;
 }
 
-void * StreamReceiver::StaticThreadRoutine(void *arg)
+void * StreamSink::StaticThreadRoutine(void *arg)
 {
-    StreamReceiver * receiver = (StreamReceiver * )arg;
+    StreamSink * receiver = (StreamSink * )arg;
     receiver->InternalRoutine();
     return NULL;
 }
 
 
-void StreamReceiver::InternalRoutine()
+void StreamSink::InternalRoutine()
 {
     zpoller_t  * poller =zpoller_new (subscriber_socket_);
     int64_t next_heartbeat_time = zclock_mono() + 
@@ -732,7 +732,7 @@ void StreamReceiver::InternalRoutine()
     
 
 
-int StreamReceiver::SubscriberHandler()
+int StreamSink::SubscriberHandler()
 {
     zframe_t * in_frame = NULL;
     char *channel_name = NULL;
@@ -764,7 +764,7 @@ int StreamReceiver::SubscriberHandler()
             pthread_mutex_unlock(&lock_); 
             
         }else{
-            ReceiverSubHandlerEntry entry = it->second;
+            SinkSubHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
             if(entry.channel_name == std::string(channel_name)){
                 entry.handler(entry.user_data, &msg);
@@ -790,7 +790,7 @@ out:
 
 
 
-int StreamReceiver::Heartbeat(int64_t now)
+int StreamSink::Heartbeat(int64_t now)
 {
     if(now == 0){
         now = zclock_mono();
@@ -806,7 +806,7 @@ int StreamReceiver::Heartbeat(int64_t now)
 
 
 
-void StreamReceiver::ClientHeartbeatHandler(int64_t now)
+void StreamSink::ClientHeartbeatHandler(int64_t now)
 {
     
     LockGuard guard(&lock_);      
@@ -948,7 +948,7 @@ void StreamReceiver::ClientHeartbeatHandler(int64_t now)
 }
 
 
-int StreamReceiver::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info)
+int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
@@ -1075,7 +1075,7 @@ int StreamReceiver::UpdateStreamMetaData(int timeout, StreamMetadata * metadata,
     return 0;
 }
 
-int StreamReceiver::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
+int StreamSink::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
@@ -1147,7 +1147,7 @@ int StreamReceiver::SourceStatistic(int timeout, MediaStatisticInfo * statistic,
     
 }  
   
-int StreamReceiver::KeyFrame(int timeout, std::string *err_info)
+int StreamSink::KeyFrame(int timeout, std::string *err_info)
 {
     ProtoCommonPacket request;
     ProtoCommonPacket reply;
@@ -1179,7 +1179,7 @@ int StreamReceiver::KeyFrame(int timeout, std::string *err_info)
     return 0;        
 }
 
-uint32_t StreamReceiver::GetNextSeq()
+uint32_t StreamSink::GetNextSeq()
 {
     uint32_t seq;
     LockGuard guard(&lock_);   
@@ -1189,7 +1189,7 @@ uint32_t StreamReceiver::GetNextSeq()
     
 }
 
-MediaStatisticInfo StreamReceiver::ReceiverStatistic()
+MediaStatisticInfo StreamSink::ReceiverStatistic()
 {
     MediaStatisticInfo stat_info;
     LockGuard guard(&lock_);   
@@ -1211,7 +1211,7 @@ MediaStatisticInfo StreamReceiver::ReceiverStatistic()
 
 
 
-int StreamReceiver::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
+int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
 {
     int ret;    
     

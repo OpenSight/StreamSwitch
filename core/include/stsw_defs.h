@@ -24,7 +24,7 @@
 namespace stream_switch {
     
 class StreamSource;
-class StreamReceiver;
+class StreamSink;
 class ProtoCommonPacket;
 class ArgParser;
 
@@ -42,10 +42,10 @@ struct SourceApiHandlerEntry{
 };
 
 
-typedef int (*ReceiverSubHandler)( void * user_data, const ProtoCommonPacket * msg);
+typedef int (*SinkSubHandler)( void * user_data, const ProtoCommonPacket * msg);
 
-struct ReceiverSubHandlerEntry{
-    ReceiverSubHandler handler;
+struct SinkSubHandlerEntry{
+    SinkSubHandler handler;
     std::string channel_name;
     void * user_data;
 };

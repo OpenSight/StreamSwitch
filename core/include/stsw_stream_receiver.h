@@ -18,16 +18,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_stream_receiver.h
- *      StreamReceiver class header file, declare all interfaces of StreamReceiver.
+ * stsw_stream_sink.h
+ *      StreamSink class header file, declare all interfaces of StreamSink.
  * 
  * author: jamken
  * date: 2014-12-5
 **/ 
 
 
-#ifndef STSW_STREAM_RECEIVER_H
-#define STSW_STREAM_RECEIVER_H
+#ifndef STSW_STREAM_SINK_H
+#define STSW_STREAM_SINK_H
 #include<map>
 #include<stsw_defs.h>
 #include<stdint.h>
@@ -40,32 +40,32 @@
 
 namespace stream_switch {
 
-class ReceiverListener; 
+class SinkListener; 
    
-//opcode -> ReceiverSubHandlerEntry map
-typedef std::map<int, ReceiverSubHandlerEntry> ReceiverSubHanderMap;
+//opcode -> SinkSubHandlerEntry map
+typedef std::map<int, SinkSubHandlerEntry> ReceiverSubHanderMap;
 
-// the Receiver class
-//     A Receiver class is used for a stream receiver application to receive the media 
+// the stream sink class
+//     A stream sink class is used for a stream receiver application to receive the media 
 // frames from one stream source
 // Thread safety: 
 //     most of methods(excepts for init/uninit) are thread safe, which means
 // multi threads can invoke its methods on the same instance of this class 
 // simultaneously without additional lock mechanism
     
-class StreamReceiver{
+class StreamSink{
 public:
-    StreamReceiver();
-    virtual ~StreamReceiver();
+    StreamSink();
+    virtual ~StreamSink();
 
     virtual int InitRemote(const std::string &source_ip, int source_tcp_port, 
                            const StreamClientInfo &client_info,
-                           ReceiverListener *listener, 
+                           SinkListener *listener, 
                            uint32_t debug_flags,
                            std::string *err_info);    
     virtual int InitLocal(const std::string &stream_name, 
                           const StreamClientInfo &client_info,
-                          ReceiverListener *listener, 
+                          SinkListener *listener, 
                           uint32_t debug_flags,
                           std::string *err_info);      
   
@@ -90,7 +90,7 @@ public:
     
     //the register/unregister function must call before start 
     virtual void RegisterSubHandler(int op_code, const char * channel_name, 
-                                    ReceiverSubHandler handler, void * user_data);
+                                    SinkSubHandler handler, void * user_data);
     virtual void UnregisterSubHandler(int op_code);
     virtual void UnregisterAllSubHandler();      
 
@@ -103,10 +103,10 @@ public:
     virtual uint32_t debug_flags(){
         return debug_flags_;
     }
-    ReceiverListener * listener(){
+    SinkListener * listener(){
         return listener_;
     }
-    void set_listener(ReceiverListener *listener){
+    void set_listener(SinkListener *listener){
         listener_ = listener; 
     }
     
@@ -127,7 +127,7 @@ protected:
 
 
     virtual int InitBase(const StreamClientInfo &client_info, 
-                         ReceiverListener *listener,
+                         SinkListener *listener,
                          uint32_t debug_flags, std::string *err_info);   
 
     virtual int SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
@@ -178,7 +178,7 @@ private:
     
     StreamClientInfo client_info_;
     
-    ReceiverListener *listener_;
+    SinkListener *listener_;
                              
 };
 

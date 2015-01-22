@@ -46,7 +46,7 @@ namespace stream_switch {
 // invokes the specific method of its listener in its 
 // internal thread context. 
     
-class ReceiverListener{
+class SinkListener{
 public:    
     // OnLiveMediaFrame
     // When a live media frame is received, this method would be invoked
