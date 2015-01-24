@@ -52,7 +52,7 @@ public:
     RotateLogger();
     virtual ~RotateLogger();
     
-    virtual int Init(const std::string &prog_name, const std::string &base_name, 
+    virtual int Init(std::string prog_name, std::string base_name, 
                      int file_size, int file_num,  
                      int log_level, 
                      bool stderr_redirect);

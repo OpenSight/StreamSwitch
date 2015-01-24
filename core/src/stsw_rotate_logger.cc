@@ -66,7 +66,7 @@ RotateLogger::~RotateLogger()
     Uninit();
 }
     
-int RotateLogger::Init(const std::string &prog_name, const std::string &base_name, 
+int RotateLogger::Init(std::string prog_name, std::string base_name, 
                        int file_size, int rotate_num,  
                        int log_level, 
                        bool stderr_redirect)

@@ -58,8 +58,10 @@ typedef int (*OptionHandler)(ArgParser *parser, const std::string &opt_name,
 struct ArgParserOptionsEntry{
     std::string opt_name;
     int opt_key;
-#define OPTION_FLAG_WITH_ARG    1    /*this option require a arg*/
-#define OPTION_FLAG_OPTIONAL_ARG 2   /*this option can has a optional arg*/ 
+#define OPTION_FLAG_WITH_ARG      1    /* this option require a arg*/
+#define OPTION_FLAG_OPTIONAL_ARG  2    /* this option can has a optional arg*/ 
+#define OPTION_FLAG_REQUIRED      4    /* this option is required */ 
+#define OPTION_FLAG_LONG          8    /* this option value is long type */
     int flags;
     std::string value_name;
     std::string help_info; 
@@ -320,6 +322,7 @@ enum ErrorCode{
     ERROR_CODE_SYSTEM = -6,    //the low level system API report error    
     ERROR_CODE_BUSY = -7,      //system is busy now, retry later  
     ERROR_CODE_PARSE = -8,     //protocol parse error
+    ERROR_CODE_OPTIONS = -9,   //option parse error
     
 };
 

@@ -33,7 +33,14 @@
 
 namespace stream_switch {
 
-
+static bool is_long(const char *str)
+{
+    char* p;
+    strtol(str, &p, 0);
+    return *p == 0;    
+}
+    
+    
 ArgParser::ArgParser()
 :next_option_key_(1024)
 {
@@ -57,17 +64,22 @@ void ArgParser::RegisterBasicOptions()
 void ArgParser::RegisterSourceOptions()
 {
     //register the default options
-    RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, "STREAM",
+    RegisterOption("stream-name", 's', 
+                   OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG, "STREAM",
                    "stream name", NULL, NULL);
-    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG, "PORT", 
+    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "PORT", 
                    "the stream API tcp port", NULL, NULL);
     RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
                    "log file path for debug", NULL, NULL);   
-    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG,  "SIZE",
+    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  
+                   "SIZE",
                    "log file max size in bytes", NULL, NULL);   
-    RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG,  "NUM",
+    RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
                    "log rotate number, 0 means no rotating", NULL, NULL);       
-    RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG,  "URL", 
+    RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
+                   "URL", 
                    "the url which source would connect to", NULL, NULL);   
     
 }
@@ -77,10 +89,6 @@ void ArgParser::Clear()
 {
     options_.clear();
     non_options_.clear();
-    option_reg_map_.clear();     
-    
-    next_option_key_ = 1024;
-   
 }
 
 int ArgParser::RegisterOption(const char *opt_name, 
@@ -136,6 +144,11 @@ void ArgParser::UnregisterOption(const char *opt_name)
     }
 }
 
+void ArgParser::UnregisterAllOption()
+{
+    option_reg_map_.clear();
+    next_option_key_ = 1024;    
+}
 
 std::string ArgParser::GetOptionsHelp()
 {
@@ -204,12 +217,12 @@ std::string ArgParser::GetOptionsHelp()
     
 }   
 
-int ArgParser::Parse(int argc, char ** argv)
+int ArgParser::Parse(int argc, char ** argv, std::string *err_info)
 {
     std::string optstring; 
-
-    const OptionRegMap & optionMap = option_reg_map_;
-    struct option * longopts = (struct option *)calloc((optionMap.size() + 1), sizeof(struct option));
+    int ret = 0;
+    const OptionRegMap & option_reg_map = option_reg_map_;
+    struct option * longopts = (struct option *)calloc((option_reg_map.size() + 1), sizeof(struct option));
     char ** local_argv = (char **)calloc(argc, sizeof(char *));
     memcpy(local_argv, argv, sizeof(char *) * argc);
 
@@ -217,7 +230,7 @@ int ArgParser::Parse(int argc, char ** argv)
     OptionRegMap::const_iterator it;
  
     int i = 0;
-    for(it = optionMap.begin(), i = 0; it != optionMap.end(); it++, i++){
+    for(it = option_reg_map.begin(), i = 0; it != option_reg_map.end(); it++, i++){
         if(it->second.flags & OPTION_FLAG_OPTIONAL_ARG){
             longopts[i].has_arg = 2;
         }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
@@ -246,23 +259,34 @@ int ArgParser::Parse(int argc, char ** argv)
     opterr = 0;
     optind = 1;    
     
-    //parse options
-    
+    //parse options    
     while ((opt = getopt_long(argc, local_argv, optstring.c_str(), longopts, NULL)) != -1) {
         if(opt == '?'){
             //not regonize this option,
             ParseUnknown(local_argv[optind - 1]);
         }else{
 
-            it = optionMap.find(opt);
-            if(it != optionMap.end()){
+            it = option_reg_map.find(opt);
+            if(it != option_reg_map.end()){
                 char *opt_value = NULL;
                 //find a option
                 if(it->second.flags & OPTION_FLAG_OPTIONAL_ARG){
                     opt_value = optarg;
                 }else if (it->second.flags & OPTION_FLAG_WITH_ARG){
                     opt_value = optarg;
-                }               
+                }
+                if((it->second.flags & OPTION_FLAG_LONG) 
+                    && (opt_value != NULL)){
+                    if(!is_long(opt_value)){
+                        if(err_info){                                        
+                            *err_info = "Option ";
+                            *err_info += it->second.opt_name;
+                            *err_info += " Value must be a Long Number";
+                        }
+                        ret = ERROR_CODE_OPTIONS;
+                        goto error_out;                        
+                    }
+                }
                 ParseOption(it->second.opt_name, 
                             opt_value, 
                             it->second.user_parse_handler,
@@ -276,16 +300,37 @@ int ArgParser::Parse(int argc, char ** argv)
     for(;optind < argc; optind ++){
         ParseNonOption(local_argv[optind]);
     }
-    
-    
+ 
+
+
     opterr = org_opterr;
     optind = org_optind;
     
+    // check required option
+    for(it = option_reg_map.begin(); it != option_reg_map.end(); it++){
+        if(it->second.flags & OPTION_FLAG_REQUIRED){
+            if(!CheckOption(it->second.opt_name)){
+                if(err_info){                                        
+                    *err_info = "Option ";
+                    *err_info += it->second.opt_name;
+                    *err_info += " must be specified";
+                }
+                ret = ERROR_CODE_OPTIONS;
+                goto error_out;
+            }
+        }
+
+    }
+
+
+error_out:   
     
     free(longopts);   
     free(local_argv);
     
-    return 0;
+    return ret;
+    
+    
   
 }
 
@@ -323,7 +368,7 @@ bool ArgParser::ParseUnknown(const char * unknown_arg)
 }
 
 
-bool ArgParser::CheckOption(const std::string &opt_name)
+bool ArgParser::CheckOption(std::string opt_name)
 {
     OptionMap::iterator it;
     it = options_.find(opt_name);
@@ -335,8 +380,8 @@ bool ArgParser::CheckOption(const std::string &opt_name)
 }
 
 
-std::string ArgParser::OptionValue(const std::string &opt_name, 
-                                   const std::string &default_value)
+std::string ArgParser::OptionValue(std::string opt_name, 
+                                   std::string default_value)
 {
     OptionMap::iterator it;
     it = options_.find(opt_name);

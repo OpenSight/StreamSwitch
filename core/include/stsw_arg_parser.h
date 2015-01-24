@@ -78,7 +78,7 @@ public:
     virtual void RegisterSourceOptions();    
     
 
-    // clear this parser, the parse has 
+    // clear this parser
     virtual void Clear();
     
 
@@ -90,6 +90,7 @@ public:
                                OptionHandler user_parse_handler, 
                                void * user_data);  
     virtual void UnregisterOption(const char *opt_name);  
+    virtual void UnregisterAllOption();
                                
 
     virtual std::string GetOptionsHelp();   
@@ -102,7 +103,7 @@ public:
     // params:
     //      argc int in: argc which come from main()'s argument
     //      argv char ** in: argv which come from main()'s argument
-    virtual int Parse(int argc, char ** argv);
+    virtual int Parse(int argc, char ** argv, std::string *err_info);
     
     
     virtual const ArgNonOptionVector & non_options();
@@ -111,14 +112,14 @@ public:
     
     //
     //check the given option exist or not
-    virtual bool CheckOption(const std::string &opt_name);
+    virtual bool CheckOption(std::string opt_name);
+
     
     //
     // Get the option value for the specific option name
     // If the option doese not exist, return the default value
-    virtual std::string OptionValue(const std::string &opt_name, 
-                                    const std::string &default_value);
- 
+    virtual std::string OptionValue(std::string opt_name, 
+                                    std::string default_value);
     
 protected:               
  
