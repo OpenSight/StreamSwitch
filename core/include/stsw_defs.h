@@ -62,7 +62,7 @@ struct ArgParserOptionsEntry{
 #define OPTION_FLAG_OPTIONAL_ARG  2    /* this option can has a optional arg*/ 
 #define OPTION_FLAG_REQUIRED      4    /* this option is required */ 
 #define OPTION_FLAG_LONG          8    /* this option value is long type */
-    int flags;
+    uint32_t flags;
     std::string value_name;
     std::string help_info; 
     OptionHandler user_parse_handler;

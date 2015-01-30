@@ -49,18 +49,18 @@ stream_switch::RotateLogger * global_logger;
 
 
 ///////////////////////////////////////////////////////////////
-//class
+//type class
 
 class TextStreamSink:public stream_switch::SinkListener{
   
 public:
     TextStreamSink();
     virtual ~TextStreamSink();
-    int InitRemote(char * text_file,                 
-                   const std::string &source_ip, int source_tcp_port);    
-    int InitLocal(char * text_file,  const std::string &stream_name);
+    int InitRemote(std::string text_file,                 
+                   std::string source_ip, int source_tcp_port);    
+    int InitLocal(std::string text_file, std::string stream_name);
     void Uninit();
-    int Start();
+    int Start(int timeout);
     void Stop();
     int64_t last_frame_sec()
     {
@@ -73,26 +73,120 @@ private:
     std::string text_file_name_;    
     FILE * text_file_;
     int64_t last_frame_sec_;   
-    
+    stream_switch::StreamClientInfo client_info;
+  
+        
 };
 
 
 ///////////////////////////////////////////////////////////////
 //functions
     
-
-int str2int(const std::string &string_temp)
-{   
-    int int_temp = 0;
-	std::stringstream stream(string_temp);
-	stream>>int_temp;
-    return int_temp;
+static std::string int2str(int int_value)
+{
+    std::stringstream stream;
+    stream<<int_value;
+    return stream.str();
 }
+
+static int str2int(std::string str_value)
+{
+    return strtol(str_value.c_str(), NULL, 0);
+}
+
+
+TextStreamSink::TextStreamSink()
+:text_file_(NULL), last_frame_sec_(0)
+{
+    client_info.client_protocol = "text_dump";
+    client_info.client_text = "text_sink which dumps media frames to a text file";
+    //use ramdon number as token
+    srand(time(NULL));
+    client_info.client_token = int2str(rand() % 0xffffff);    
+}
+
+TextStreamSink::~TextStreamSink()
+{
+    
+}
+
+int TextStreamSink::InitRemote(std::string text_file,                 
+                   std::string source_ip, int source_tcp_port)
+{
+    int ret;
+    std::string err_info;
+    
+    //open file
+    text_file_ = fopen(text_file.c_str(), "w");
+    if(text_file_ == NULL){
+        perror("Open Text File Failed");
+        return -1;
+    }
+    text_file_name_ = text_file;
+    
+    
+    //init sink
+    ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, this, 
+                            DEBUG_FLAG_DUMP_API, &err_info);
+    if(ret){
+        fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
+        fclose(text_file_);
+        text_file_ = NULL;
+        return -1;
+    }
+    
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "TextStreamSink Init successful (file:%s, source: %s:%d)", 
+              text_file.c_str(), source_ip.c_str(), source_tcp_port);
+
+    return 0;    
+    
+} 
+int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name)
+{
+    int ret;
+    std::string err_info;
+    
+    //open file
+    text_file_ = fopen(text_file.c_str(), "w");
+    if(text_file_ == NULL){
+        perror("Open Text File Failed");
+        return -1;
+    }
+    text_file_name_ = text_file;
+    
+    
+    //init sink
+    ret = sink_.InitLocal(stream_name, client_info, this, DEBUG_FLAG_DUMP_API, &err_info);
+    if(ret){
+        fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
+        fclose(text_file_);
+        text_file_ = NULL;
+        return -1;
+    }
+    
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "TextStreamSink Init successful (file:%s, source:%s)", 
+              text_file.c_str(), stream_name.c_str());    
+
+    return 0;        
+}
+
+void TextStreamSink::Uninit()
+{
+    sink_.Uninit();
+    fclose(text_file_);
+    text_file_name_.clear();
+}
+
+
 
 
 void ParseArgv(int argc, char *argv[], 
                stream_switch::ArgParser *parser)
 {
+    int ret;
+    std::string err_info;
     parser->RegisterBasicOptions();
 
     //register the default options
@@ -104,28 +198,36 @@ void ParseArgv(int argc, char *argv[],
                    "remote host IP address, if the user want to connect this "
                    "sink to a remote stream, this option should be used to "
                    "set the remote host address of this stream", NULL, NULL);                   
-    parser->RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG, "PORT", 
+    parser->RegisterOption("port", 'p', 
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "PORT", 
                    "remote tcp port, remote host IP address, if the user want "
                    "to connect this sink to a remote stream, this option "
                    "should be used to set the remote tcp port of this stream", 
                    NULL, NULL);
     parser->RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
                    "log file path for debug", NULL, NULL);   
-    parser->RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG,  "SIZE",
+    parser->RegisterOption("log-size", 'L', 
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  "SIZE",
                    "log file max size in bytes", NULL, NULL);   
-    parser->RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG,  "NUM",
+    parser->RegisterOption("log-rotate", 'r', 
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  "NUM",
                    "log rotate number, 0 means no rotating", NULL, NULL);       
-    parser->RegisterOption("sink-file", 'f', OPTION_FLAG_WITH_ARG,  "FILE", 
+    parser->RegisterOption("sink-file", 'f', 
+                    OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,  "FILE", 
                    "the text file path to which this sink dumps the frames. "
                    "This option must be set for text sink", 
                    NULL, NULL); 
 
   
-    parser->Parse(argc, argv);//parse the cmd args
-
+    ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
+    if(ret){
+        fprintf(stderr, "Option Parsing Error:%s\n", err_info.c_str());
+        exit(-1);
+    }    
+    
     //check options correct
     
-    if(parser->CheckOption(std::string("help"))){
+    if(parser->CheckOption("help")){
         std::string option_help;
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
@@ -138,45 +240,29 @@ void ParseArgv(int argc, char *argv[],
         "User can send SIGINT/SIGTERM signal to end this sink\n"
         "\n", "text_sink", option_help.c_str());
         exit(0);
-    }else if(parser->CheckOption(std::string("version"))){
+    }else if(parser->CheckOption("version")){
         
         fprintf(stderr, "v0.1.0\n");
         exit(0);
     }
-    
-    if(!parser->CheckOption(std::string("sink-file"))){
-        fprintf(stderr, "sink-file must be set for text sink\n");
-        exit(0);        
-    }
 
-
-    if(!parser->CheckOption(std::string("stream-name")) && 
-       !parser->CheckOption(std::string("host"))){
+    if(!parser->CheckOption("stream-name") && 
+       !parser->CheckOption("host")){
         fprintf(stderr, "stream-name or host must be set for text sink\n");
-        exit(0);        
+        exit(-1);        
     }    
-    if(parser->CheckOption(std::string("host"))){
-        if(!parser->CheckOption(std::string("port"))){
+    if(parser->CheckOption("host")){
+        if(!parser->CheckOption("port")){
             fprintf(stderr, "port must be set for a remote source for text sink\n");
-            exit(0);
+            exit(-1);
         }
-        int port = str2int(parser->OptionValue(std::string("port"), std::string("0")));
-        if(port == 0){
-            fprintf(stderr, "port is invalid for a remote source\n");
-            exit(0);            
-        }        
     }
     
-     if(parser->CheckOption(std::string("log-file"))){
-        if(!parser->CheckOption(std::string("log-size"))){
+     if(parser->CheckOption("log-file")){
+        if(!parser->CheckOption("log-size")){
             fprintf(stderr, "log-size must be set if log-file is enabled for text sink\n");
-            exit(0);
+            exit(-1);
         }
-        int port = str2int(parser->OptionValue(std::string("log-size"), std::string("0")));
-        if(port == 0){
-            fprintf(stderr, "log-size is invalid for a remote source\n");
-            exit(0);            
-        }        
     }   
 
 }
@@ -186,17 +272,66 @@ void ParseArgv(int argc, char *argv[],
 //main entry    
 int main(int argc, char *argv[])
 {
-    stream_switch::GlobalInit();
+    int ret;
+    using namespace stream_switch;    
+    
+    GlobalInit();
     
     //parse the cmd line
-    stream_switch::ArgParser parser;
+    ArgParser parser;
     ParseArgv(argc, argv, &parser); // parse the cmd line
     
+    
+    if(parser.CheckOption(std::string("log-file"))){
+        //init the global logger
+        global_logger = new RotateLogger();
+        std::string log_file = 
+            parser.OptionValue("log-file", "");
+        int log_size = 
+            strtol(parser.OptionValue("log-size", "0").c_str(), NULL, 0);
+        int rotate_num = 
+            strtol(parser.OptionValue("log-rotate", "0").c_str(), NULL, 0);      
+        int log_level = LOG_LEVEL_DEBUG;
+        
+        ret = global_logger->Init("file_live_source", 
+            log_file, log_size, rotate_num, log_level, false);
+        if(ret){
+            delete global_logger;
+            global_logger = NULL;
+            fprintf(stderr, "Init Logger faile\n");
+            exit(-1);
+        }        
+    }    
+    
+    
     TextStreamSink text_sink;
+    
+    if(parser.CheckOption("stream-name")){
+        ret = text_sink.InitLocal(
+            parser.OptionValue("sink-file", ""),
+            parser.OptionValue("stream-name", "default"));
+        
+        
+    }else if(parser.CheckOption("host")){
+        ret = text_sink.InitRemote(
+            parser.OptionValue("sink-file", ""),
+            parser.OptionValue("host", ""),
+            str2int(parser.OptionValue("port", "0")));
+        
+    }
+    if(ret){        
+        exit(-1);
+    }
+    
+    
+    
+    
+    
 
+    
+    text_sink.Uninit();
 
-
-    stream_switch::GlobalUninit();
+    GlobalUninit();
 }
 
 

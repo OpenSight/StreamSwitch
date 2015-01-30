@@ -178,9 +178,7 @@ int main(int argc, char *argv[])
     
     //
     //init source
-    source = new FileLiveSource();
-    
-    
+    source = new FileLiveSource(); 
     
     
 
