@@ -90,7 +90,9 @@ SRCDIRS   = src src/pb
 # The executable file name.
 CORE_LIBRARY = libstreamswitch.a
 
+EXAMPLES = $(TEXT_SINK_PROGRAM) 
 
+TEXT_SINK_PROGRAM = sample/text_sink
 
 # If not specified, current directory name or `a.out' will be used.
 PROGRAM   = streamswitch_core_library
@@ -166,12 +168,16 @@ LINK.c      = $(CC)  $(MY_CFLAGS) $(CFLAGS)   $(CPPFLAGS) $(LDFLAGS)
 LINK.cxx    = $(CXX) $(MY_CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 
-.PHONY: all objs tags ctags clean distclean help show
+.PHONY: all core examples objs tags ctags clean distclean help show
 
 # Delete the default suffixes
 .SUFFIXES:
 
-all: $(CORE_LIBRARY)
+all: core examples
+
+core: $(CORE_LIBRARY)
+
+examples: $(EXAMPLES) 
 
 # Rules for creating dependency files (.d).
 #------------------------------------------
@@ -249,6 +255,11 @@ ctags: $(HEADERS) $(SOURCES)
 $(CORE_LIBRARY):$(OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
+    
+$(TEXT_SINK_PROGRAM): $(CORE_LIBRARY) $(TEXT_SINK_PROGRAM).o
+    $(LINK.cxx) -o $@ $(TEXT_SINK_PROGRAM).o $(CORE_LIBRARY)
+    
+    
 deps: $(DEPS)
 
 ifndef NODEP
