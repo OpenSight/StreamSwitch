@@ -581,12 +581,14 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
         metadata.set_bps(stream_meta_.bps);
 
         SubStreamMetadataVector::iterator it;
-        for(it = stream_meta_.sub_streams.begin(); 
+        int32_t index;
+        for(it = stream_meta_.sub_streams.begin(), 
+            index = 0; 
             it != stream_meta_.sub_streams.end();
-            it++){
+            it++, index++){
             ProtoSubStreamInfo * sub_stream = 
                 metadata.add_sub_streams();
-            sub_stream->set_index(it->sub_stream_index);
+            sub_stream->set_index(index);
             sub_stream->set_media_type((ProtoSubStreamMediaType)it->media_type);
             sub_stream->set_codec_name(it->codec_name);
             sub_stream->set_direction((ProtoSubStreamDirectionType)it->direction);

@@ -46,8 +46,8 @@ class FileLiveSource:public stream_switch::SourceListener{
 public:
     FileLiveSource();
     virtual ~FileLiveSource();
-    int Init(char * text_file, 
-             const std::string &stream_name,                       
+    int Init(std::string src_file, 
+             std::string stream_name,                       
              int source_tcp_port);    
 
     void Uninit();
@@ -59,7 +59,7 @@ public:
     virtual void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic);    
        
 private: 
-    stream_switch::StreamSink sink_;
+    stream_switch::StreamSource source_;
     
     std::string src_file_name_;    
     FILE * src_file_;
@@ -139,6 +139,115 @@ void ParseArgv(int argc, char *argv[],
    
 
 }
+
+
+FileLiveSource::FileLiveSource()
+:src_file_(NULL), gov(0)
+{
+    
+}
+FileLiveSource::~FileLiveSource()
+{
+    
+}
+
+int FileLiveSource::Init(std::string src_file, 
+                         std::string stream_name,                       
+                         int source_tcp_port)
+{
+    using namespace stream_switch;         
+    int ret;
+    std::string err_info;
+    StreamMetadata metadata;
+    SubStreamMetadata sub_metadata;
+    
+    //open file
+    src_file_ = fopen(src_file.c_str(), "r");
+    if(src_file_ == NULL){
+        perror("Open Text File Failed");
+        return -1;
+    }
+    src_file_name_ = src_file;
+    
+    
+    //init source
+    ret = source_.Init(stream_name, source_tcp_port, this, DEBUG_FLAG_DUMP_API, &err_info);
+    if(ret){
+        fprintf(stderr, "Init stream source error: %s\n", err_info.c_str());
+        fclose(src_file_);
+        src_file_ = NULL;
+        src_file_name_.clear();
+        return -1;
+    }
+    
+    //setup metadata
+    metadata.bps = 0;
+    metadata.play_type = Stream_PLAY_TYPE_LIVE;
+    metadata.source_proto = "File";
+    srand(time(NULL));
+    metadata.ssrc = (uint32_t)(rand() % 0xffffffff); 
+    sub_metadata.codec_name = "Private";
+    sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
+    sub_metadata.sub_stream_index = 0;
+    sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
+    sub_metadata.media_param.video.height = 1080;
+    sub_metadata.media_param.video.width = 1920;
+    sub_metadata.media_param.video.fps = 25;
+    sub_metadata.media_param.video.gov = 25;
+    metadata.sub_streams.push_back(sub_metadata);
+    source_.set_stream_meta(metadata);    
+    
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "FileLiveSource Init successful (file:%s, stream:%s)", 
+              src_file.c_str(), stream_name.c_str());    
+
+
+    return 0;
+}
+
+void FileLiveSource::Uninit()
+{
+    source_.Uninit();
+    fclose(src_file_);
+    src_file_ = NULL;
+    src_file_name_.clear();    
+}
+
+
+int FileLiveSource::Start()
+{
+    int ret = 0;
+    std::string err_info;
+    
+    ret = source_.Start(&err_info);
+    if(ret){
+        fprintf(stderr, "Start stream source error: %s\n", err_info.c_str());        
+    }
+    
+    return ret;
+}
+void FileLiveSource::Stop()
+{
+    source_.Stop();
+}
+
+
+
+void FileLiveSource::SendNextFrame()
+{
+    
+}
+
+
+void FileLiveSource::OnKeyFrame(void)
+{
+    //no key frame
+}
+void FileLiveSource::OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic)
+{
+    //use the default statistic info
+}
+
 
     
 ///////////////////////////////////////////////////////////////

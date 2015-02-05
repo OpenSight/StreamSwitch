@@ -162,6 +162,7 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name)
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
         fclose(text_file_);
         text_file_ = NULL;
+        text_file_name_.clear();
         return -1;
     }
     
@@ -176,6 +177,7 @@ void TextStreamSink::Uninit()
 {
     sink_.Uninit();
     fclose(text_file_);
+    text_file_ = NULL;
     text_file_name_.clear();
 }
 
