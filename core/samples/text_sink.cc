@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
+#include <unistd.h>
 
 #include <stream_switch.h>
 
@@ -62,9 +63,9 @@ public:
     void Uninit();
     int Start(int timeout);
     void Stop();
-    int64_t last_frame_sec()
+    int64_t last_frame_rec_sec()
     {
-        return last_frame_sec_;
+        return last_frame_rec_sec_;
     }
     virtual void OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame);    
        
@@ -72,7 +73,7 @@ private:
     stream_switch::StreamSink sink_;
     std::string text_file_name_;    
     FILE * text_file_;
-    int64_t last_frame_sec_;   
+    int64_t last_frame_rec_sec_;   
     stream_switch::StreamClientInfo client_info;
   
         
@@ -96,7 +97,7 @@ static int str2int(std::string str_value)
 
 
 TextStreamSink::TextStreamSink()
-:text_file_(NULL), last_frame_sec_(0)
+:text_file_(NULL), last_frame_rec_sec_(0)
 {
     client_info.client_protocol = "text_dump";
     client_info.client_text = "text_sink which dumps media frames to a text file";
@@ -132,6 +133,8 @@ int TextStreamSink::InitRemote(std::string text_file,
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
         fclose(text_file_);
         text_file_ = NULL;
+        ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                  "TextStreamSink Init failed: %s", err_info.c_str());           
         return -1;
     }
     
@@ -162,9 +165,13 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name)
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
         fclose(text_file_);
         text_file_ = NULL;
+        ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                  "TextStreamSink Init failed: %s\n", err_info.c_str());           
         text_file_name_.clear();
         return -1;
     }
+    
+    last_frame_rec_sec_ = 0;
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "TextStreamSink Init successful (file:%s, source:%s)", 
@@ -181,6 +188,68 @@ void TextStreamSink::Uninit()
     text_file_name_.clear();
 }
 
+
+int TextStreamSink::Start(int timeout)
+{
+    int ret;
+    std::string err_info;
+    
+    ret = sink_.UpdateStreamMetaData(timeout, NULL, &err_info);
+    if(ret){
+        fprintf(stderr, "TextStreamSink update metaData failed: %s\n", err_info.c_str());
+        ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                  "TextStreamSink update metaData failed: %s\n", err_info.c_str());   
+        return -1;
+    }
+    
+    last_frame_rec_sec_ = time(NULL);   
+    
+    ret = sink_.Start(&err_info);
+    if(ret){
+        fprintf(stderr, "TextStreamSink start failed: %s\n", err_info.c_str());
+        ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                  "TextStreamSink start failed: %s\n", err_info.c_str());   
+        return -1;
+    }
+
+
+
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "TextStreamSink Started");    
+    
+}
+
+void TextStreamSink::Stop()
+{
+    sink_.Stop();
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "TextStreamSink Stopped");     
+}
+
+
+void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame)
+{
+    if(text_file_){
+        fprintf(text_file_, 
+                "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x\n", 
+                (int)media_frame.sub_stream_index, 
+                media_frame.frame_type, 
+                (long long)media_frame.timestamp.tv_sec, 
+                (int)(media_frame.timestamp.tv_usec/1000), 
+                (unsigned)media_frame.ssrc);
+        int col = 0;
+        int i = 0;
+        for(i=0;i < media_frame.data.size(); i++){
+            if(i % 32 == 0){
+                fprintf(text_file_, "\n");                
+            }
+            fprintf(text_file_, "%02hhx ", media_frame.data[i]);
+        }
+        fprintf(text_file_, "\n");
+        
+        last_frame_rec_sec_ = time(NULL);           
+    }
+}
 
 
 
@@ -325,15 +394,40 @@ int main(int argc, char *argv[])
         exit(-1);
     }
     
+    ret = text_sink.Start(5);//5 seconds to wait
+    if(ret){        
+        exit(-1);
+    }    
     
+    while(1){
+        time_t now = time(NULL);
+#define NO_DATA_INTERVAL     10        
+        if(now - text_sink.last_frame_rec_sec() >= NO_DATA_INTERVAL){
+            fprintf(stderr, "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);
+            ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                      "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);  
+            ret = -1;
+            break;
+        }
+        
+        if(isGlobalInterrupt()){
+            fprintf(stderr, "Receive Terminate Signal, exit\n");
+            ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+                      "Receive Terminate Signal, exit\n");  
+            ret = 0;    
+            break;
+        }
+        usleep(100);       
+        
+    }    
     
-    
-    
-
+    text_sink.Stop();
     
     text_sink.Uninit();
 
     GlobalUninit();
+    
+    return ret;
 }
 
 
