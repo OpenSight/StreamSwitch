@@ -57,8 +57,10 @@ ArgParser::~ArgParser()
 
 void ArgParser::RegisterBasicOptions()
 {
-    RegisterOption("help", 'h', 0, NULL, "print help info", NULL, NULL);       
-    RegisterOption("version", 'v', 0, NULL, "print version", NULL, NULL);      
+    RegisterOption("help", 'h', OPTION_FLAG_PREFER, NULL,
+                   "print help info", NULL, NULL);       
+    RegisterOption("version", 'v', OPTION_FLAG_PREFER, NULL, 
+                   "print version", NULL, NULL);      
 }
 
 void ArgParser::RegisterSourceOptions()
@@ -192,16 +194,18 @@ std::string ArgParser::GetOptionsHelp()
         }else{
             //new line
             option_help.push_back('\n'); 
-            option_help.append(std::string(' ', 30));           
+            option_help.append(std::string(30, ' '));           
         }
         
         // option info
         int col = 30;
         int i = 0;
         while(i < (int)info.size()){
-            if(col >= 79){
+            if(col >= 70 && info[i] == ' '){
+                option_help.push_back(info[i++]);
+                col++;
                 option_help.push_back('\n'); 
-                option_help.append(std::string(' ', 30));  
+                option_help.append(std::string(30, ' '));  
                 col = 30;                     
             }
             option_help.push_back(info[i++]);
@@ -225,6 +229,7 @@ int ArgParser::Parse(int argc, char ** argv, std::string *err_info)
     struct option * longopts = (struct option *)calloc((option_reg_map.size() + 1), sizeof(struct option));
     char ** local_argv = (char **)calloc(argc, sizeof(char *));
     memcpy(local_argv, argv, sizeof(char *) * argc);
+    bool need_check_required = true;
 
     
     OptionRegMap::const_iterator it;
@@ -287,6 +292,9 @@ int ArgParser::Parse(int argc, char ** argv, std::string *err_info)
                         goto error_out;                        
                     }
                 }
+                if(it->second.flags & OPTION_FLAG_PREFER){
+                    need_check_required = false;
+                }               
                 ParseOption(it->second.opt_name, 
                             opt_value, 
                             it->second.user_parse_handler,
@@ -307,19 +315,21 @@ int ArgParser::Parse(int argc, char ** argv, std::string *err_info)
     optind = org_optind;
     
     // check required option
-    for(it = option_reg_map.begin(); it != option_reg_map.end(); it++){
-        if(it->second.flags & OPTION_FLAG_REQUIRED){
-            if(!CheckOption(it->second.opt_name)){
-                if(err_info){                                        
-                    *err_info = "Option ";
-                    *err_info += it->second.opt_name;
-                    *err_info += " must be specified";
+    if(need_check_required){
+        for(it = option_reg_map.begin(); it != option_reg_map.end(); it++){
+            if(it->second.flags & OPTION_FLAG_REQUIRED){
+                if(!CheckOption(it->second.opt_name)){
+                    if(err_info){                                        
+                        *err_info = "Option ";
+                        *err_info += it->second.opt_name;
+                        *err_info += " must be specified";
+                    }
+                    ret = ERROR_CODE_OPTIONS;
+                    goto error_out;
                 }
-                ret = ERROR_CODE_OPTIONS;
-                goto error_out;
             }
-        }
 
+        }    
     }
 
 

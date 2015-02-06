@@ -215,7 +215,9 @@ int TextStreamSink::Start(int timeout)
 
 
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
-              "TextStreamSink Started");    
+              "TextStreamSink Started");  
+
+    return 0;
     
 }
 
@@ -237,9 +239,8 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media
                 (long long)media_frame.timestamp.tv_sec, 
                 (int)(media_frame.timestamp.tv_usec/1000), 
                 (unsigned)media_frame.ssrc);
-        int col = 0;
         int i = 0;
-        for(i=0;i < media_frame.data.size(); i++){
+        for(i=0;i < (int)media_frame.data.size(); i++){
             if(i % 32 == 0){
                 fprintf(text_file_, "\n");                
             }
@@ -289,7 +290,7 @@ void ParseArgv(int argc, char *argv[],
                    "This option must be set for text sink", 
                    NULL, NULL); 
 
-  
+    
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
         fprintf(stderr, "Option Parsing Error:%s\n", err_info.c_str());
@@ -303,9 +304,9 @@ void ParseArgv(int argc, char *argv[],
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
         "A TEXT stream sink which dumps the receive media frames to a file in text format\n"
-        "Usange: %s [options]\n",
+        "Usange: %s [options]\n"
         "\n"
-        "Option list:\n",
+        "Option list:\n"
         "%s"
         "\n"
         "User can send SIGINT/SIGTERM signal to end this sink\n"
@@ -329,12 +330,18 @@ void ParseArgv(int argc, char *argv[],
         }
     }
     
-     if(parser->CheckOption("log-file")){
+    if(parser->CheckOption("log-file")){
         if(!parser->CheckOption("log-size")){
             fprintf(stderr, "log-size must be set if log-file is enabled for text sink\n");
             exit(-1);
         }
-    }   
+    }
+    if(!parser->CheckOption("sink-file")){
+        fprintf(stderr, "sink-file must be given\n");
+        exit(-1);        
+    }
+
+    
 
 }
 

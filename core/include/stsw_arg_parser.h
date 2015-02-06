@@ -106,9 +106,9 @@ public:
     virtual int Parse(int argc, char ** argv, std::string *err_info);
     
     
-    virtual const ArgNonOptionVector & non_options();
+    virtual inline const ArgNonOptionVector & non_options();
 
-    virtual const OptionMap & options();    
+    virtual inline const OptionMap & options();    
     
     //
     //check the given option exist or not
@@ -124,7 +124,7 @@ public:
 protected:               
  
     
-    virtual void AppendNonOption(std::string value);     
+    virtual inline void AppendNonOption(std::string value);     
    
     //
     //subclass can overrid the following method to provide customer option parse.
@@ -137,7 +137,7 @@ protected:
     
     virtual bool ParseUnknown(const char * unknown_arg);        
         
-    virtual int getNextOptionKey();
+    virtual inline int getNextOptionKey();
     
     
 private:

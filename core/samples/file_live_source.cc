@@ -115,9 +115,9 @@ void ParseArgv(int argc, char *argv[],
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
         "A live stream source which reads the media frames from a specified file in cycl\n"
-        "Usange: %s [options]\n",
+        "Usange: %s [options]\n"
         "\n"
-        "Option list:\n",
+        "Option list:\n"
         "%s"
         "\n"
         "User can send SIGINT/SIGTERM signal to terminate this source\n"

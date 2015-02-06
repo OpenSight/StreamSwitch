@@ -70,7 +70,7 @@ CZMQ_LDFLAGS = $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --libs libc
 PROTOBUF_LDFLAGS = $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --libs protobuf)
 
 # The pre-processor and compiler options.
-MY_CFLAGS = -I./include -I./src/pb $(CZMQ_CFLAGS) $(PROTOBUF_CFLAGS) 
+MY_CFLAGS = -ggdb -I./include -I./src/pb $(CZMQ_CFLAGS) $(PROTOBUF_CFLAGS) 
 
 # The linker options.
 MY_LIBS   = 
@@ -92,7 +92,7 @@ CORE_LIBRARY = libstreamswitch.a
 
 EXAMPLES = $(TEXT_SINK_PROGRAM) 
 
-TEXT_SINK_PROGRAM = sample/text_sink
+TEXT_SINK_PROGRAM = samples/text_sink
 
 # If not specified, current directory name or `a.out' will be used.
 PROGRAM   = streamswitch_core_library
@@ -168,16 +168,16 @@ LINK.c      = $(CC)  $(MY_CFLAGS) $(CFLAGS)   $(CPPFLAGS) $(LDFLAGS)
 LINK.cxx    = $(CXX) $(MY_CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 
-.PHONY: all core examples objs tags ctags clean distclean help show
+.PHONY: all core_library samples objs tags ctags clean distclean help show
 
 # Delete the default suffixes
 .SUFFIXES:
 
-all: core examples
+all: core_library samples
 
-core: $(CORE_LIBRARY)
+core_library: $(CORE_LIBRARY)
 
-examples: $(EXAMPLES) 
+samples: $(EXAMPLES) 
 
 # Rules for creating dependency files (.d).
 #------------------------------------------
@@ -257,7 +257,7 @@ $(CORE_LIBRARY):$(OBJS)
 
     
 $(TEXT_SINK_PROGRAM): $(CORE_LIBRARY) $(TEXT_SINK_PROGRAM).o
-    $(LINK.cxx) -o $@ $(TEXT_SINK_PROGRAM).o $(CORE_LIBRARY)
+	$(LINK.cxx) -o $@ $(TEXT_SINK_PROGRAM).o $(CORE_LIBRARY)
     
     
 deps: $(DEPS)
