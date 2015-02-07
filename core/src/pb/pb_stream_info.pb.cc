@@ -35,7 +35,7 @@ void protobuf_AssignDesc_pb_5fstream_5finfo_2eproto() {
       "pb_stream_info.proto");
   GOOGLE_CHECK(file != NULL);
   ProtoStreamInfoMsg_descriptor_ = file->message_type(0);
-  static const int ProtoStreamInfoMsg_offsets_[9] = {
+  static const int ProtoStreamInfoMsg_offsets_[10] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, state_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, play_type_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, source_proto_),
@@ -44,7 +44,8 @@ void protobuf_AssignDesc_pb_5fstream_5finfo_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, last_frame_sec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, last_frame_usec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, send_time_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, clients_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, stream_name_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProtoStreamInfoMsg, client_num_),
   };
   ProtoStreamInfoMsg_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -87,27 +88,25 @@ void protobuf_AddDesc_pb_5fstream_5finfo_2eproto() {
   already_here = true;
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  ::stream_switch::protobuf_AddDesc_pb_5fclient_5fheartbeat_2eproto();
   ::stream_switch::protobuf_AddDesc_pb_5fmetadata_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\024pb_stream_info.proto\022\rstream_switch\032\031p"
-    "b_client_heartbeat.proto\032\021pb_metadata.pr"
-    "oto\"\255\002\n\022ProtoStreamInfoMsg\0224\n\005state\030\001 \001("
-    "\0162%.stream_switch.ProtoSourceStreamState"
-    "\022/\n\tplay_type\030\002 \001(\0162\034.stream_switch.Prot"
-    "oPlayType\022\024\n\014source_proto\030\003 \001(\t\022\014\n\004ssrc\030"
-    "\004 \001(\r\022\017\n\007cur_bps\030\005 \001(\r\022\026\n\016last_frame_sec"
-    "\030\006 \001(\003\022\027\n\017last_frame_usec\030\007 \001(\005\022\021\n\tsend_"
-    "time\030\010 \001(\003\0227\n\007clients\030@ \003(\0132&.stream_swi"
-    "tch.ProtoClientHeartbeatReq*\261\002\n\026ProtoSou"
-    "rceStreamState\022(\n$PROTO_SOURCE_STREAM_ST"
-    "ATE_CONNECTING\020\000\022 \n\034PROTO_SOURCE_STREAM_"
-    "STATE_OK\020\001\022*\n\035PROTO_SOURCE_STREAM_STATE_"
-    "ERR\020\377\377\377\377\377\377\377\377\377\001\0227\n*PROTO_SOURCE_STREAM_ST"
-    "ATE_ERR_CONNECT_FAIL\020\376\377\377\377\377\377\377\377\377\001\0225\n(PROTO"
-    "_SOURCE_STREAM_STATE_ERR_MEIDA_STOP\020\375\377\377\377"
-    "\377\377\377\377\377\001\022/\n\"PROTO_SOURCE_STREAM_STATE_ERR_"
-    "TIME\020\374\377\377\377\377\377\377\377\377\001", 695);
+    "\n\024pb_stream_info.proto\022\rstream_switch\032\021p"
+    "b_metadata.proto\"\235\002\n\022ProtoStreamInfoMsg\022"
+    "4\n\005state\030\001 \001(\0162%.stream_switch.ProtoSour"
+    "ceStreamState\022/\n\tplay_type\030\002 \001(\0162\034.strea"
+    "m_switch.ProtoPlayType\022\024\n\014source_proto\030\003"
+    " \001(\t\022\014\n\004ssrc\030\004 \001(\r\022\017\n\007cur_bps\030\005 \001(\r\022\026\n\016l"
+    "ast_frame_sec\030\006 \001(\003\022\027\n\017last_frame_usec\030\007"
+    " \001(\005\022\021\n\tsend_time\030\010 \001(\003\022\023\n\013stream_name\030\t"
+    " \001(\t\022\022\n\nclient_num\030\n \001(\005*\261\002\n\026ProtoSource"
+    "StreamState\022(\n$PROTO_SOURCE_STREAM_STATE"
+    "_CONNECTING\020\000\022 \n\034PROTO_SOURCE_STREAM_STA"
+    "TE_OK\020\001\022*\n\035PROTO_SOURCE_STREAM_STATE_ERR"
+    "\020\377\377\377\377\377\377\377\377\377\001\0227\n*PROTO_SOURCE_STREAM_STATE"
+    "_ERR_CONNECT_FAIL\020\376\377\377\377\377\377\377\377\377\001\0225\n(PROTO_SO"
+    "URCE_STREAM_STATE_ERR_MEIDA_STOP\020\375\377\377\377\377\377\377"
+    "\377\377\001\022/\n\"PROTO_SOURCE_STREAM_STATE_ERR_TIM"
+    "E\020\374\377\377\377\377\377\377\377\377\001", 652);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_stream_info.proto", &protobuf_RegisterTypes);
   ProtoStreamInfoMsg::default_instance_ = new ProtoStreamInfoMsg();
@@ -151,7 +150,8 @@ const int ProtoStreamInfoMsg::kCurBpsFieldNumber;
 const int ProtoStreamInfoMsg::kLastFrameSecFieldNumber;
 const int ProtoStreamInfoMsg::kLastFrameUsecFieldNumber;
 const int ProtoStreamInfoMsg::kSendTimeFieldNumber;
-const int ProtoStreamInfoMsg::kClientsFieldNumber;
+const int ProtoStreamInfoMsg::kStreamNameFieldNumber;
+const int ProtoStreamInfoMsg::kClientNumFieldNumber;
 #endif  // !_MSC_VER
 
 ProtoStreamInfoMsg::ProtoStreamInfoMsg()
@@ -181,6 +181,8 @@ void ProtoStreamInfoMsg::SharedCtor() {
   last_frame_sec_ = GOOGLE_LONGLONG(0);
   last_frame_usec_ = 0;
   send_time_ = GOOGLE_LONGLONG(0);
+  stream_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  client_num_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -192,6 +194,9 @@ ProtoStreamInfoMsg::~ProtoStreamInfoMsg() {
 void ProtoStreamInfoMsg::SharedDtor() {
   if (source_proto_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
     delete source_proto_;
+  }
+  if (stream_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete stream_name_;
   }
   if (this != default_instance_) {
   }
@@ -231,19 +236,25 @@ void ProtoStreamInfoMsg::Clear() {
 
   if (_has_bits_[0 / 32] & 255) {
     ZR_(state_, play_type_);
-    ZR_(ssrc_, send_time_);
+    ZR_(ssrc_, last_frame_usec_);
     if (has_source_proto()) {
       if (source_proto_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         source_proto_->clear();
       }
     }
-    last_frame_usec_ = 0;
+  }
+  if (_has_bits_[8 / 32] & 768) {
+    if (has_stream_name()) {
+      if (stream_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        stream_name_->clear();
+      }
+    }
+    client_num_ = 0;
   }
 
 #undef OFFSET_OF_FIELD_
 #undef ZR_
 
-  clients_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -254,7 +265,7 @@ bool ProtoStreamInfoMsg::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:stream_switch.ProtoStreamInfoMsg)
   for (;;) {
-    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(16383);
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
@@ -385,20 +396,38 @@ bool ProtoStreamInfoMsg::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(514)) goto parse_clients;
+        if (input->ExpectTag(74)) goto parse_stream_name;
         break;
       }
 
-      // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-      case 64: {
-        if (tag == 514) {
-         parse_clients:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
-                input, add_clients()));
+      // optional string stream_name = 9;
+      case 9: {
+        if (tag == 74) {
+         parse_stream_name:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_stream_name()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            this->stream_name().data(), this->stream_name().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "stream_name");
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(514)) goto parse_clients;
+        if (input->ExpectTag(80)) goto parse_client_num;
+        break;
+      }
+
+      // optional int32 client_num = 10;
+      case 10: {
+        if (tag == 80) {
+         parse_client_num:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, &client_num_)));
+          set_has_client_num();
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -475,10 +504,19 @@ void ProtoStreamInfoMsg::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt64(8, this->send_time(), output);
   }
 
-  // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-  for (int i = 0; i < this->clients_size(); i++) {
-    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      64, this->clients(i), output);
+  // optional string stream_name = 9;
+  if (has_stream_name()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->stream_name().data(), this->stream_name().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "stream_name");
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      9, this->stream_name(), output);
+  }
+
+  // optional int32 client_num = 10;
+  if (has_client_num()) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(10, this->client_num(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -539,11 +577,20 @@ void ProtoStreamInfoMsg::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteInt64ToArray(8, this->send_time(), target);
   }
 
-  // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-  for (int i = 0; i < this->clients_size(); i++) {
-    target = ::google::protobuf::internal::WireFormatLite::
-      WriteMessageNoVirtualToArray(
-        64, this->clients(i), target);
+  // optional string stream_name = 9;
+  if (has_stream_name()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->stream_name().data(), this->stream_name().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "stream_name");
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        9, this->stream_name(), target);
+  }
+
+  // optional int32 client_num = 10;
+  if (has_client_num()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(10, this->client_num(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -613,14 +660,22 @@ int ProtoStreamInfoMsg::ByteSize() const {
     }
 
   }
-  // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-  total_size += 2 * this->clients_size();
-  for (int i = 0; i < this->clients_size(); i++) {
-    total_size +=
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        this->clients(i));
-  }
+  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
+    // optional string stream_name = 9;
+    if (has_stream_name()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->stream_name());
+    }
 
+    // optional int32 client_num = 10;
+    if (has_client_num()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::Int32Size(
+          this->client_num());
+    }
+
+  }
   if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -646,7 +701,6 @@ void ProtoStreamInfoMsg::MergeFrom(const ::google::protobuf::Message& from) {
 
 void ProtoStreamInfoMsg::MergeFrom(const ProtoStreamInfoMsg& from) {
   GOOGLE_CHECK_NE(&from, this);
-  clients_.MergeFrom(from.clients_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_state()) {
       set_state(from.state());
@@ -671,6 +725,14 @@ void ProtoStreamInfoMsg::MergeFrom(const ProtoStreamInfoMsg& from) {
     }
     if (from.has_send_time()) {
       set_send_time(from.send_time());
+    }
+  }
+  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
+    if (from.has_stream_name()) {
+      set_stream_name(from.stream_name());
+    }
+    if (from.has_client_num()) {
+      set_client_num(from.client_num());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -703,7 +765,8 @@ void ProtoStreamInfoMsg::Swap(ProtoStreamInfoMsg* other) {
     std::swap(last_frame_sec_, other->last_frame_sec_);
     std::swap(last_frame_usec_, other->last_frame_usec_);
     std::swap(send_time_, other->send_time_);
-    clients_.Swap(&other->clients_);
+    std::swap(stream_name_, other->stream_name_);
+    std::swap(client_num_, other->client_num_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

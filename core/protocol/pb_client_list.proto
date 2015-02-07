@@ -1,0 +1,17 @@
+package stream_switch;
+
+import "pb_client_heartbeat.proto";
+
+
+message ProtoClientListReq{
+	optional uint32 start_index = 1;   //the index of the first client in the client_list of response
+	optional uint32 client_num = 2;    //how many client returned in the client list of response.
+	                                   //0 means return all clients    
+}
+
+
+message ProtoClientListRep{
+	optional uint32 total_num = 1;   //total client number, may differ from the size of the client_list field
+	optional uint32 start_index = 2; //the index of the first client in the client_list field
+    repeated ProtoClientHeartbeatReq client_list = 64;
+}

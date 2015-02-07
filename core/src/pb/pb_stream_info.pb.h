@@ -25,7 +25,6 @@
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
-#include "pb_client_heartbeat.pb.h"
 #include "pb_metadata.pb.h"
 // @@protoc_insertion_point(includes)
 
@@ -177,17 +176,24 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline ::google::protobuf::int64 send_time() const;
   inline void set_send_time(::google::protobuf::int64 value);
 
-  // repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-  inline int clients_size() const;
-  inline void clear_clients();
-  static const int kClientsFieldNumber = 64;
-  inline const ::stream_switch::ProtoClientHeartbeatReq& clients(int index) const;
-  inline ::stream_switch::ProtoClientHeartbeatReq* mutable_clients(int index);
-  inline ::stream_switch::ProtoClientHeartbeatReq* add_clients();
-  inline const ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq >&
-      clients() const;
-  inline ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq >*
-      mutable_clients();
+  // optional string stream_name = 9;
+  inline bool has_stream_name() const;
+  inline void clear_stream_name();
+  static const int kStreamNameFieldNumber = 9;
+  inline const ::std::string& stream_name() const;
+  inline void set_stream_name(const ::std::string& value);
+  inline void set_stream_name(const char* value);
+  inline void set_stream_name(const char* value, size_t size);
+  inline ::std::string* mutable_stream_name();
+  inline ::std::string* release_stream_name();
+  inline void set_allocated_stream_name(::std::string* stream_name);
+
+  // optional int32 client_num = 10;
+  inline bool has_client_num() const;
+  inline void clear_client_num();
+  static const int kClientNumFieldNumber = 10;
+  inline ::google::protobuf::int32 client_num() const;
+  inline void set_client_num(::google::protobuf::int32 value);
 
   // @@protoc_insertion_point(class_scope:stream_switch.ProtoStreamInfoMsg)
  private:
@@ -207,6 +213,10 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   inline void clear_has_last_frame_usec();
   inline void set_has_send_time();
   inline void clear_has_send_time();
+  inline void set_has_stream_name();
+  inline void clear_has_stream_name();
+  inline void set_has_client_num();
+  inline void clear_has_client_num();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -219,8 +229,9 @@ class ProtoStreamInfoMsg : public ::google::protobuf::Message {
   ::google::protobuf::uint32 cur_bps_;
   ::google::protobuf::int64 last_frame_sec_;
   ::google::protobuf::int64 send_time_;
-  ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq > clients_;
   ::google::protobuf::int32 last_frame_usec_;
+  ::google::protobuf::int32 client_num_;
+  ::std::string* stream_name_;
   friend void  protobuf_AddDesc_pb_5fstream_5finfo_2eproto();
   friend void protobuf_AssignDesc_pb_5fstream_5finfo_2eproto();
   friend void protobuf_ShutdownFile_pb_5fstream_5finfo_2eproto();
@@ -481,34 +492,104 @@ inline void ProtoStreamInfoMsg::set_send_time(::google::protobuf::int64 value) {
   // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.send_time)
 }
 
-// repeated .stream_switch.ProtoClientHeartbeatReq clients = 64;
-inline int ProtoStreamInfoMsg::clients_size() const {
-  return clients_.size();
+// optional string stream_name = 9;
+inline bool ProtoStreamInfoMsg::has_stream_name() const {
+  return (_has_bits_[0] & 0x00000100u) != 0;
 }
-inline void ProtoStreamInfoMsg::clear_clients() {
-  clients_.Clear();
+inline void ProtoStreamInfoMsg::set_has_stream_name() {
+  _has_bits_[0] |= 0x00000100u;
 }
-inline const ::stream_switch::ProtoClientHeartbeatReq& ProtoStreamInfoMsg::clients(int index) const {
-  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.clients)
-  return clients_.Get(index);
+inline void ProtoStreamInfoMsg::clear_has_stream_name() {
+  _has_bits_[0] &= ~0x00000100u;
 }
-inline ::stream_switch::ProtoClientHeartbeatReq* ProtoStreamInfoMsg::mutable_clients(int index) {
-  // @@protoc_insertion_point(field_mutable:stream_switch.ProtoStreamInfoMsg.clients)
-  return clients_.Mutable(index);
+inline void ProtoStreamInfoMsg::clear_stream_name() {
+  if (stream_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    stream_name_->clear();
+  }
+  clear_has_stream_name();
 }
-inline ::stream_switch::ProtoClientHeartbeatReq* ProtoStreamInfoMsg::add_clients() {
-  // @@protoc_insertion_point(field_add:stream_switch.ProtoStreamInfoMsg.clients)
-  return clients_.Add();
+inline const ::std::string& ProtoStreamInfoMsg::stream_name() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.stream_name)
+  return *stream_name_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq >&
-ProtoStreamInfoMsg::clients() const {
-  // @@protoc_insertion_point(field_list:stream_switch.ProtoStreamInfoMsg.clients)
-  return clients_;
+inline void ProtoStreamInfoMsg::set_stream_name(const ::std::string& value) {
+  set_has_stream_name();
+  if (stream_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    stream_name_ = new ::std::string;
+  }
+  stream_name_->assign(value);
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.stream_name)
 }
-inline ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq >*
-ProtoStreamInfoMsg::mutable_clients() {
-  // @@protoc_insertion_point(field_mutable_list:stream_switch.ProtoStreamInfoMsg.clients)
-  return &clients_;
+inline void ProtoStreamInfoMsg::set_stream_name(const char* value) {
+  set_has_stream_name();
+  if (stream_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    stream_name_ = new ::std::string;
+  }
+  stream_name_->assign(value);
+  // @@protoc_insertion_point(field_set_char:stream_switch.ProtoStreamInfoMsg.stream_name)
+}
+inline void ProtoStreamInfoMsg::set_stream_name(const char* value, size_t size) {
+  set_has_stream_name();
+  if (stream_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    stream_name_ = new ::std::string;
+  }
+  stream_name_->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:stream_switch.ProtoStreamInfoMsg.stream_name)
+}
+inline ::std::string* ProtoStreamInfoMsg::mutable_stream_name() {
+  set_has_stream_name();
+  if (stream_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    stream_name_ = new ::std::string;
+  }
+  // @@protoc_insertion_point(field_mutable:stream_switch.ProtoStreamInfoMsg.stream_name)
+  return stream_name_;
+}
+inline ::std::string* ProtoStreamInfoMsg::release_stream_name() {
+  clear_has_stream_name();
+  if (stream_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    return NULL;
+  } else {
+    ::std::string* temp = stream_name_;
+    stream_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    return temp;
+  }
+}
+inline void ProtoStreamInfoMsg::set_allocated_stream_name(::std::string* stream_name) {
+  if (stream_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete stream_name_;
+  }
+  if (stream_name) {
+    set_has_stream_name();
+    stream_name_ = stream_name;
+  } else {
+    clear_has_stream_name();
+    stream_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  // @@protoc_insertion_point(field_set_allocated:stream_switch.ProtoStreamInfoMsg.stream_name)
+}
+
+// optional int32 client_num = 10;
+inline bool ProtoStreamInfoMsg::has_client_num() const {
+  return (_has_bits_[0] & 0x00000200u) != 0;
+}
+inline void ProtoStreamInfoMsg::set_has_client_num() {
+  _has_bits_[0] |= 0x00000200u;
+}
+inline void ProtoStreamInfoMsg::clear_has_client_num() {
+  _has_bits_[0] &= ~0x00000200u;
+}
+inline void ProtoStreamInfoMsg::clear_client_num() {
+  client_num_ = 0;
+  clear_has_client_num();
+}
+inline ::google::protobuf::int32 ProtoStreamInfoMsg::client_num() const {
+  // @@protoc_insertion_point(field_get:stream_switch.ProtoStreamInfoMsg.client_num)
+  return client_num_;
+}
+inline void ProtoStreamInfoMsg::set_client_num(::google::protobuf::int32 value) {
+  set_has_client_num();
+  client_num_ = value;
+  // @@protoc_insertion_point(field_set:stream_switch.ProtoStreamInfoMsg.client_num)
 }
 
 

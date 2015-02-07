@@ -1,6 +1,6 @@
 package stream_switch;
 
-import "pb_client_heartbeat.proto";
+
 import "pb_metadata.proto";
 
 enum ProtoSourceStreamState {
@@ -26,10 +26,10 @@ message ProtoStreamInfoMsg{
     optional int64 last_frame_sec = 6;
     optional int32 last_frame_usec = 7;
 	optional int64 send_time = 8;    //the time (from epoch) in sec of broadcasting this msg
+	
+	optional string stream_name = 9;  //the stream name 
+	optional int32 client_num = 10;  //the client number
     //tag below 64 is reserved to future extension
-    
-    repeated ProtoClientHeartbeatReq clients = 64;
-
 }   
 
 
