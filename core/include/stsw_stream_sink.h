@@ -114,6 +114,9 @@ public:
     virtual int UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info);
     virtual int SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info);    
     virtual int KeyFrame(int timeout, std::string *err_info);
+    virtual int ClientList(int timeout, uint32_t start_index, uint32_t request_num, 
+                           uint32_t *  total_num, StreamClientList * client_list, 
+                           std::string *err_info);
     
     virtual MediaStatisticInfo ReceiverStatistic();        
     

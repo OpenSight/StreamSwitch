@@ -127,14 +127,15 @@ void protobuf_AddDesc_pb_5fpacket_2eproto() {
     "tatus\022\033\n\026PROTO_PACKET_STATUS_OK\020\310\001\022$\n\037PR"
     "OTO_PACKET_STATUS_BAD_REQUEST\020\220\003\022\"\n\035PROT"
     "O_PACKET_STATUS_NOT_FOUND\020\224\003\022%\n PROTO_PA"
-    "CKET_STATUS_INTERNAL_ERR\020\364\003*\200\002\n\017ProtoPac"
+    "CKET_STATUS_INTERNAL_ERR\020\364\003*\243\002\n\017ProtoPac"
     "ketCode\022\035\n\031PROTO_PACKET_CODE_INVALID\020\000\022\036"
     "\n\032PROTO_PACKET_CODE_METADATA\020\001\022\033\n\027PROTO_"
     "PACKET_CODE_MEDIA\020\002\022!\n\035PROTO_PACKET_CODE"
     "_STREAM_INFO\020\003\022\037\n\033PROTO_PACKET_CODE_KEY_"
     "FRAME\020\004\022&\n\"PROTO_PACKET_CODE_CLIENT_HEAR"
     "TBEAT\020\005\022%\n!PROTO_PACKET_CODE_MEDIA_STATI"
-    "STIC\020\006", 886);
+    "STIC\020\006\022!\n\035PROTO_PACKET_CODE_CLIENT_LIST\020"
+    "\007", 921);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_packet.proto", &protobuf_RegisterTypes);
   ProtoCommonHeader::default_instance_ = new ProtoCommonHeader();
@@ -194,6 +195,7 @@ bool ProtoPacketCode_IsValid(int value) {
     case 4:
     case 5:
     case 6:
+    case 7:
       return true;
     default:
       return false;

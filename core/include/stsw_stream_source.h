@@ -138,12 +138,14 @@ protected:
     static int StaticKeyFrameHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
     static int StaticStatisticHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
     static int StaticClientHeartbeatHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    static int StaticClientListHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
     
     virtual int MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
     virtual int KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
     virtual int StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
     virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
-
+    virtual int ClientListHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    
     virtual int RpcHandler();
     virtual int Heartbeat(int64_t now);
     

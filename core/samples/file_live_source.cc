@@ -48,7 +48,8 @@ public:
     virtual ~FileLiveSource();
     int Init(std::string src_file, 
              std::string stream_name,                       
-             int source_tcp_port);    
+             int source_tcp_port, 
+             int frame_size);    
 
     void Uninit();
     int Start();
@@ -63,7 +64,8 @@ private:
     
     std::string src_file_name_;    
     FILE * src_file_;
-    int gov;
+    int frame_size_;
+    uint32_t ssrc_; 
     
 };
     
@@ -142,7 +144,7 @@ void ParseArgv(int argc, char *argv[],
 
 
 FileLiveSource::FileLiveSource()
-:src_file_(NULL), gov(0)
+:src_file_(NULL), frame_size_(0), ssrc_(0)
 {
     
 }
@@ -153,13 +155,19 @@ FileLiveSource::~FileLiveSource()
 
 int FileLiveSource::Init(std::string src_file, 
                          std::string stream_name,                       
-                         int source_tcp_port)
+                         int source_tcp_port, 
+                         int frame_size)
 {
     using namespace stream_switch;         
     int ret;
     std::string err_info;
     StreamMetadata metadata;
     SubStreamMetadata sub_metadata;
+    
+    if(frame_size <= 0){
+        fprintf(stderr, "frame_size cannot be zero");
+        return -1;
+    }
     
     //open file
     src_file_ = fopen(src_file.c_str(), "r");
@@ -183,9 +191,10 @@ int FileLiveSource::Init(std::string src_file,
     //setup metadata
     metadata.bps = 0;
     metadata.play_type = Stream_PLAY_TYPE_LIVE;
-    metadata.source_proto = "File";
+    metadata.source_proto = "FileSystem";
     srand(time(NULL));
-    metadata.ssrc = (uint32_t)(rand() % 0xffffffff); 
+    ssrc_ = (uint32_t)(rand() % 0xffffffff); 
+    metadata.ssrc = ssrc_;
     sub_metadata.codec_name = "Private";
     sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
     sub_metadata.sub_stream_index = 0;
@@ -196,6 +205,8 @@ int FileLiveSource::Init(std::string src_file,
     sub_metadata.media_param.video.gov = 25;
     metadata.sub_streams.push_back(sub_metadata);
     source_.set_stream_meta(metadata);    
+    
+    frame_size_ = frame_size;
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "FileLiveSource Init successful (file:%s, stream:%s)", 
@@ -219,6 +230,8 @@ int FileLiveSource::Start()
     int ret = 0;
     std::string err_info;
     
+    source_.set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);
+    
     ret = source_.Start(&err_info);
     if(ret){
         fprintf(stderr, "Start stream source error: %s\n", err_info.c_str());        
@@ -235,6 +248,21 @@ void FileLiveSource::Stop()
 
 void FileLiveSource::SendNextFrame()
 {
+    stream_switch::MediaDataFrame frame(frame_size_);    
+    int ret;
+    
+    
+    
+    ret = fread(frame.data.data(), 1, frame.data.size(), src_file_);
+    if(ret == 0){
+        fseek(src_file_, 0, SEEK_SET);
+        return;
+    }else if (ret < frame.size()){
+        fseek(src_file_, 0, SEEK_SET);
+        frame.data.resize(ret);
+    }
+    
+    
     
 }
 

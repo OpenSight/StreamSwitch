@@ -85,11 +85,12 @@ enum ProtoPacketCode {
   PROTO_PACKET_CODE_STREAM_INFO = 3,
   PROTO_PACKET_CODE_KEY_FRAME = 4,
   PROTO_PACKET_CODE_CLIENT_HEARTBEAT = 5,
-  PROTO_PACKET_CODE_MEDIA_STATISTIC = 6
+  PROTO_PACKET_CODE_MEDIA_STATISTIC = 6,
+  PROTO_PACKET_CODE_CLIENT_LIST = 7
 };
 bool ProtoPacketCode_IsValid(int value);
 const ProtoPacketCode ProtoPacketCode_MIN = PROTO_PACKET_CODE_INVALID;
-const ProtoPacketCode ProtoPacketCode_MAX = PROTO_PACKET_CODE_MEDIA_STATISTIC;
+const ProtoPacketCode ProtoPacketCode_MAX = PROTO_PACKET_CODE_CLIENT_LIST;
 const int ProtoPacketCode_ARRAYSIZE = ProtoPacketCode_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* ProtoPacketCode_descriptor();

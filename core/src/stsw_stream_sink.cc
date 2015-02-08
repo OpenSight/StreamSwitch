@@ -44,7 +44,7 @@
 #include <pb_stream_info.pb.h>
 #include <pb_metadata.pb.h>
 #include <pb_media_statistic.pb.h>
-
+#include <pb_client_list.pb.h>
 
 
 namespace stream_switch {
@@ -1178,6 +1178,84 @@ int StreamSink::KeyFrame(int timeout, std::string *err_info)
     return 0;        
 }
 
+
+
+int StreamSink::ClientList(int timeout, uint32_t start_index, uint32_t request_num, 
+                           uint32_t *  total_num, StreamClientList * client_list, 
+                           std::string *err_info)
+{
+    ProtoCommonPacket request;
+    ProtoCommonPacket reply;
+    ProtoClientListReq client_list_req_body;
+    int ret;
+    
+    
+    client_list_req_body.set_client_num(request_num);
+    client_list_req_body.set_start_index(start_index);
+   
+    request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
+    request.mutable_header()->set_seq(GetNextSeq());
+    request.mutable_header()->set_code(PROTO_PACKET_CODE_CLIENT_LIST);    
+    client_list_req_body.SerializeToString(request.mutable_body());    
+
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_LIST request\n");
+        fprintf(stderr, "%s\n", client_list_req_body.DebugString().c_str());
+    }
+
+    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    if(ret){
+        //error
+        return ret;
+    }    
+    
+    ret = ReplyStatus2ErrorCode(reply, err_info);
+    if(ret){
+        return ret;
+    }  
+    
+    //extract statistic from reply
+    ProtoClientListRep client_list_rep;
+    if(! client_list_rep.ParseFromString(reply.body())){
+        //body parse error
+        ret = ERROR_CODE_PARSE;
+        SET_ERR_INFO(err_info, "reply body parse to client_list error");
+        return ret;                
+    }
+    
+    if(debug_flags() & DEBUG_FLAG_DUMP_API){
+        fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_LIST reply\n");
+        fprintf(stderr, "%s\n", client_list_rep.DebugString().c_str());
+    }       
+    
+    if(total_num){
+        *total_num = client_list_rep.total_num();
+    }
+    
+    if(client_list){
+        ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoClientHeartbeatReq >::const_iterator it;    
+        for(it = client_list_rep.client_list().begin();
+            it != client_list_rep.client_list().end();
+            it ++){
+            StreamClientInfo client_info;  
+            client_info.client_ip = it->client_ip();
+            client_info.client_ip_version = (StreamClientIPVersion)it->client_ip_version();
+            client_info.client_port = it->client_port();
+            client_info.client_protocol = it->client_protocol();
+            client_info.client_text = it->client_text();
+            client_info.client_token = it->client_token();
+            client_info.last_active_time = it->last_active_time();
+            
+            client_list->push_back(client_info);
+        }        
+    }
+
+    
+    return 0;
+    
+} 
+
+
 uint32_t StreamSink::GetNextSeq()
 {
     uint32_t seq;
@@ -1187,6 +1265,9 @@ uint32_t StreamSink::GetNextSeq()
     return seq;    
     
 }
+
+
+
 
 MediaStatisticInfo StreamSink::ReceiverStatistic()
 {

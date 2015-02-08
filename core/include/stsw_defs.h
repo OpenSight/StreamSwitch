@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <list>
 #include <sys/time.h>
 
 #define STSW_SOCKET_NAME_STREAM_PREFIX  "stsw_stream"
@@ -269,6 +270,23 @@ struct MediaDataFrame{
     
     //the media data
     std::string data;
+
+    MediaDataFrame()
+    :sub_stream_index(0), frame_type(MEDIA_FRAME_TYPE_DATA_FRAME),
+     ssrc(0)
+    {
+        timestamp.tv_sec = 0;
+        timestamp.tv_usec = 0;
+    }  
+
+    MediaDataFrame(size_t data_size)
+    :sub_stream_index(0), frame_type(MEDIA_FRAME_TYPE_DATA_FRAME),
+     ssrc(0), data(data_size, 0)
+    {
+        timestamp.tv_sec = 0;
+        timestamp.tv_usec = 0;
+    }      
+    
 };
 
 
@@ -296,6 +314,8 @@ struct StreamClientInfo{
     }
     
 };
+
+typedef std::list<StreamClientInfo> StreamClientList;
 
 
 #define DEBUG_FLAG_DUMP_API          1     //dump the api request/reply, except client hearbeat

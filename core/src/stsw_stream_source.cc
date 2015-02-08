@@ -42,6 +42,7 @@
 #include <pb_stream_info.pb.h>
 #include <pb_metadata.pb.h>
 #include <pb_media_statistic.pb.h>
+#include <pb_client_list.pb.h>
 
 namespace stream_switch {
 
@@ -220,6 +221,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     RegisterApiHandler(PROTO_PACKET_CODE_KEY_FRAME, (SourceApiHandler)StaticKeyFrameHandler, this);    
     RegisterApiHandler(PROTO_PACKET_CODE_MEDIA_STATISTIC, (SourceApiHandler)StaticStatisticHandler, this);
     RegisterApiHandler(PROTO_PACKET_CODE_CLIENT_HEARTBEAT, (SourceApiHandler)StaticClientHeartbeatHandler, this);   
+    RegisterApiHandler(PROTO_PACKET_CODE_CLIENT_LIST, (SourceApiHandler)StaticClientListHandler, this);       
 
     //init metadata
     stream_meta_.sub_streams.clear();
@@ -560,6 +562,13 @@ int StreamSource::StaticClientHeartbeatHandler(void * user_data, ProtoCommonPack
     StreamSource * source = (StreamSource * )user_data;
     return source->ClientHeartbeatHandler(request, reply);
 }
+
+int StreamSource::StaticClientListHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+{
+    StreamSource * source = (StreamSource * )user_data;
+    return source->ClientListHandler(request, reply);
+}
+
     
 int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
@@ -798,6 +807,64 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
 }
 
 
+int StreamSource::ClientListHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+{
+    if(request == NULL || reply == NULL){
+        //nothing to do
+        return 0;
+    }
+    ProtoClientListReq client_list_req;
+    ProtoClientListRep client_list_rep;
+    if(client_list_req.ParseFromString(request->body())){
+        
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_LIST request:\n");
+            fprintf(stderr, "%s\n", client_list_req.DebugString().c_str());
+        }        
+        
+        {
+            LockGuard guard(&lock());
+            
+            client_list_rep.set_total_num(receivers_info_->receiver_list.size());
+            client_list_rep.set_start_index(client_list_req.start_index());
+            
+            if(client_list_req.start_index() < receivers_info_->receiver_list.size()){
+                ClientHeartbeatList::iterator it = 
+                    receivers_info_->receiver_list.begin();
+                std::advance(it, client_list_req.start_index());                
+                uint32_t client_num = client_list_req.client_num();
+ 
+
+                while(it != receivers_info_->receiver_list.end() 
+                      && client_num > 0){                    
+                    ProtoClientHeartbeatReq * client_info = 
+                        client_list_rep.add_client_list();   
+                    *client_info = *it;
+                    
+                    it++;  
+                    client_num--;
+                }
+            }
+
+        }
+        
+        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+        reply->mutable_header()->set_info("");  
+        client_list_rep.SerializeToString(reply->mutable_body());     
+
+        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+            fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_LIST reply:\n");
+            fprintf(stderr, "%s\n", client_list_rep.DebugString().c_str());
+        } 
+                    
+    }else{
+        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
+    }
+    
+    return 0;
+}
+
 int StreamSource::RpcHandler()
 {
     zframe_t * in_frame = NULL;
@@ -847,8 +914,7 @@ int StreamSource::RpcHandler()
         }else{
             SourceApiHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
-            int ret = 0;
-            ret = entry.handler(entry.user_data, &request, &reply);            
+            entry.handler(entry.user_data, &request, &reply);            
         }          
         
     }else{
@@ -974,16 +1040,9 @@ void StreamSource::SendStreamInfo(void)
     stream_info.set_cur_bps(cur_bps_);
     stream_info.set_last_frame_sec(last_frame_sec_);
     stream_info.set_last_frame_usec(last_frame_usec_);
+    stream_info.set_stream_name(stream_name_);
+    stream_info.set_client_num((int32_t)receivers_info_->receiver_list.size());
     
-    ClientHeartbeatList::iterator it;
-    for(it = receivers_info_->receiver_list.begin(); 
-        it != receivers_info_->receiver_list.end();
-        it ++){
-        ProtoClientHeartbeatReq * new_client = 
-            stream_info.add_clients();
-        *new_client = *it;            
-    }
-
     info_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
     info_msg.mutable_header()->set_code(PROTO_PACKET_CODE_STREAM_INFO);
     stream_info.SerializeToString(info_msg.mutable_body());   
