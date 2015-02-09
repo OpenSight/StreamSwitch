@@ -66,6 +66,7 @@ private:
     FILE * src_file_;
     int frame_size_;
     uint32_t ssrc_; 
+    char * frame_buf_;
     
 };
     
@@ -207,6 +208,7 @@ int FileLiveSource::Init(std::string src_file,
     source_.set_stream_meta(metadata);    
     
     frame_size_ = frame_size;
+    frame_buf_ = new char[frame_size_];
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "FileLiveSource Init successful (file:%s, stream:%s)", 
@@ -218,6 +220,8 @@ int FileLiveSource::Init(std::string src_file,
 
 void FileLiveSource::Uninit()
 {
+    delete [] frame_buf_;
+    frame_size_ = 0;
     source_.Uninit();
     fclose(src_file_);
     src_file_ = NULL;
@@ -248,21 +252,29 @@ void FileLiveSource::Stop()
 
 void FileLiveSource::SendNextFrame()
 {
-    stream_switch::MediaDataFrame frame(frame_size_);    
+    stream_switch::MediaDataFrame frame;    
     int ret;
+    struct timeval timestamp; 
+    std::string err_info;
     
     
     
-    ret = fread(frame.data.data(), 1, frame.data.size(), src_file_);
+    ret = fread(frame_buf_, 1, frame_size_, src_file_);
     if(ret == 0){
         fseek(src_file_, 0, SEEK_SET);
         return;
-    }else if (ret < frame.size()){
+    }else if (ret < frame_size_){
         fseek(src_file_, 0, SEEK_SET);
-        frame.data.resize(ret);
     }
+
+    frame.frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
+    frame.sub_stream_index = 0;
+    frame.ssrc = ssrc_;
+
+    gettimeofday(&(frame.timestamp), NULL);
+    frame.data.assign(frame_buf_, ret);
     
-    
+    ret = source_.SendLiveMediaFrame(frame, &err_info);
     
 }
 

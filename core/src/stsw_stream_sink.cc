@@ -686,7 +686,7 @@ void * StreamSink::StaticThreadRoutine(void *arg)
 
 void StreamSink::InternalRoutine()
 {
-    zpoller_t  * poller =zpoller_new (subscriber_socket_);
+    zpoller_t  * poller =zpoller_new (subscriber_socket_, NULL);
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_RECEIVER_HEARTBEAT_INT;
     
@@ -817,7 +817,7 @@ void StreamSink::ClientHeartbeatHandler(int64_t now)
         //the socket is at sending state
         
         //check if a reply is ready
-        zpoller_t  * poller =zpoller_new (client_hearbeat_socket_); 
+        zpoller_t  * poller =zpoller_new (client_hearbeat_socket_, NULL); 
         void * socket =  zpoller_wait(poller, 0);  
         zpoller_destroy(&poller);
         if(socket != NULL){
@@ -960,12 +960,7 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         return ret;          
     }
     
-    if(metadata == NULL){
-        ret = ERROR_CODE_PARAM;
-        SET_ERR_INFO(err_info, "metadata cannot be NULL");
-        return ret;          
-    }
-    
+
     request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
     request.mutable_header()->set_seq(GetNextSeq());
     request.mutable_header()->set_code(PROTO_PACKET_CODE_METADATA);    
@@ -1000,67 +995,71 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         fprintf(stderr, "%s\n", metadata_rep.DebugString().c_str());
     }      
     
-    metadata->play_type = (StreamPlayType) metadata_rep.play_type();
-    metadata->source_proto = metadata_rep.source_proto();
-    metadata->ssrc = metadata_rep.ssrc();
-    metadata->bps = metadata_rep.bps();  
-    metadata->sub_streams.reserve(metadata_rep.sub_streams_size());
 
-    ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamInfo >::const_iterator it;    
-    for(it = metadata_rep.sub_streams().begin();
-        it != metadata_rep.sub_streams().end();
-        it ++){
-        
-        SubStreamMetadata sub_stream;
-        sub_stream.media_type = (SubStreamMediaType)it->media_type();
-        sub_stream.codec_name = it->codec_name();      
-        sub_stream.direction = (SubStreamDirectionType)it->direction();    
-        sub_stream.extra_data = it->extra_data();  
-
-        switch(sub_stream.media_type){
-            case SUB_STREAM_MEIDA_TYPE_VIDEO:
-            {
-                sub_stream.media_param.video.height = it->height();
-                sub_stream.media_param.video.width = it->width();
-                sub_stream.media_param.video.fps = it->fps();                
-                sub_stream.media_param.video.gov = it->gov();
-                
-                break;
-            }
-            case SUB_STREAM_MEIDA_TYPE_AUDIO:
-            {
-                sub_stream.media_param.audio.samples_per_second = it->samples_per_second();
-                sub_stream.media_param.audio.channels = it->channels();
-                sub_stream.media_param.audio.bits_per_sample = it->bits_per_sample();                
-                sub_stream.media_param.audio.sampele_per_frame = it->sampele_per_frame();                
-                
-                break;
-            }
-            case SUB_STREAM_MEIDA_TYPE_TEXT:
-            {
-                sub_stream.media_param.text.x = it->x();
-                sub_stream.media_param.text.y = it->y();
-                sub_stream.media_param.text.fone_size = it->fone_size();                
-                sub_stream.media_param.text.font_type = it->font_type();                   
-                
-                break;
-            }
-            default:
-            {
-                break;
-                
-            }
-        }
-        metadata->sub_streams.push_back(sub_stream); 
-    }
     
     
     //configure the metadata in receiver
     {
         LockGuard guard(&lock_);  
-        stream_meta_ = *metadata;
-        int sub_stream_num = stream_meta_.sub_streams.size();
-    
+        int sub_stream_num = metadata_rep.sub_streams_size();
+        
+        
+        //update the metadata in the sink
+        
+        stream_meta_.play_type = (StreamPlayType) metadata_rep.play_type();
+        stream_meta_.source_proto = metadata_rep.source_proto();
+        stream_meta_.ssrc = metadata_rep.ssrc();
+        stream_meta_.bps = metadata_rep.bps();  
+        stream_meta_.sub_streams.reserve(sub_stream_num);
+
+        ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamInfo >::const_iterator it;    
+        for(it = metadata_rep.sub_streams().begin();
+            it != metadata_rep.sub_streams().end();
+            it ++){
+            
+            SubStreamMetadata sub_stream;
+            sub_stream.media_type = (SubStreamMediaType)it->media_type();
+            sub_stream.codec_name = it->codec_name();      
+            sub_stream.direction = (SubStreamDirectionType)it->direction();    
+            sub_stream.extra_data = it->extra_data();  
+
+            switch(sub_stream.media_type){
+                case SUB_STREAM_MEIDA_TYPE_VIDEO:
+                {
+                    sub_stream.media_param.video.height = it->height();
+                    sub_stream.media_param.video.width = it->width();
+                    sub_stream.media_param.video.fps = it->fps();                
+                    sub_stream.media_param.video.gov = it->gov();
+                    
+                    break;
+                }
+                case SUB_STREAM_MEIDA_TYPE_AUDIO:
+                {
+                    sub_stream.media_param.audio.samples_per_second = it->samples_per_second();
+                    sub_stream.media_param.audio.channels = it->channels();
+                    sub_stream.media_param.audio.bits_per_sample = it->bits_per_sample();                
+                    sub_stream.media_param.audio.sampele_per_frame = it->sampele_per_frame();                
+                    
+                    break;
+                }
+                case SUB_STREAM_MEIDA_TYPE_TEXT:
+                {
+                    sub_stream.media_param.text.x = it->x();
+                    sub_stream.media_param.text.y = it->y();
+                    sub_stream.media_param.text.fone_size = it->fone_size();                
+                    sub_stream.media_param.text.font_type = it->font_type();                   
+                    
+                    break;
+                }
+                default:
+                {
+                    break;
+                    
+                }
+            }
+            stream_meta_.sub_streams.push_back(sub_stream); 
+        }
+        
         // clear the statistic
         statistic_.clear();
         statistic_.resize(sub_stream_num);
@@ -1068,7 +1067,12 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         for(i=0;i<sub_stream_num;i++){
             statistic_[i].sub_stream_index = i;
             statistic_[i].media_type = (SubStreamMediaType)stream_meta_.sub_streams[i].media_type;     
-        }        
+        }  
+        
+        if(metadata != NULL){
+            *metadata = stream_meta_;
+        }
+      
     }
     
     return 0;
@@ -1361,7 +1365,7 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
     //
     // wait for the reply
     //
-    poller =zpoller_new (api_socket); 
+    poller =zpoller_new (api_socket, NULL); 
     reader_socket = zpoller_wait(poller, timeout);  
     zpoller_destroy(&poller);
     if(reader_socket == NULL){   

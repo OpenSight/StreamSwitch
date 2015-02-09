@@ -235,13 +235,14 @@ void RotateLogger::Log(int level, const char * filename, int line, const char * 
     time_t curtime = time (NULL);
     char *time_str;
     time_str = ctime_r(&curtime, time_str_buf);    
+    time_str_buf[strlen(time_str_buf) - 1] = 0; //remove the end NEWLINE char
     
     //
     // make up the log record string
     char * tmp_buf = new char[MAX_LOG_RECORD_SIZE];
     tmp_buf[MAX_LOG_RECORD_SIZE - 1] = 0;
     ret = snprintf(tmp_buf, MAX_LOG_RECORD_SIZE - 1, 
-             "[%s][%s][%s][%s:%d]:",
+             "[%s][%s][%s][%s:%d]: ",
              time_str, 
              prog_name_.c_str(), 
              log_level_str[level], 

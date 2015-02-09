@@ -277,16 +277,7 @@ struct MediaDataFrame{
     {
         timestamp.tv_sec = 0;
         timestamp.tv_usec = 0;
-    }  
-
-    MediaDataFrame(size_t data_size)
-    :sub_stream_index(0), frame_type(MEDIA_FRAME_TYPE_DATA_FRAME),
-     ssrc(0), data(data_size, 0)
-    {
-        timestamp.tv_sec = 0;
-        timestamp.tv_usec = 0;
-    }      
-    
+    } 
 };
 
 

@@ -40,6 +40,7 @@
 
 
 
+class Start;
 stream_switch::RotateLogger * global_logger;
 
 
@@ -193,8 +194,11 @@ int TextStreamSink::Start(int timeout)
 {
     int ret;
     std::string err_info;
+    stream_switch::StreamMetadata metadata;
     
-    ret = sink_.UpdateStreamMetaData(timeout, NULL, &err_info);
+    
+    //Get the metadata of the stream from the source
+    ret = sink_.UpdateStreamMetaData(timeout, &metadata, &err_info);
     if(ret){
         fprintf(stderr, "TextStreamSink update metaData failed: %s\n", err_info.c_str());
         ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
@@ -202,8 +206,14 @@ int TextStreamSink::Start(int timeout)
         return -1;
     }
     
+    //
+    //do something with the new metadata
+    //
+    
     last_frame_rec_sec_ = time(NULL);   
     
+    
+    // start to receive the media frames
     ret = sink_.Start(&err_info);
     if(ret){
         fprintf(stderr, "TextStreamSink start failed: %s\n", err_info.c_str());
@@ -213,7 +223,7 @@ int TextStreamSink::Start(int timeout)
     }
 
 
-
+    fprintf(stdout, "TextStreamSink Started\n");
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "TextStreamSink Started");  
 
@@ -352,13 +362,15 @@ int main(int argc, char *argv[])
 {
     int ret;
     using namespace stream_switch;    
-    
+ 
+    TextStreamSink text_sink;
+    ArgParser parser;
+   
     GlobalInit();
     
     //parse the cmd line
-    ArgParser parser;
-    ParseArgv(argc, argv, &parser); // parse the cmd line
-    
+
+    ParseArgv(argc, argv, &parser); // parse the cmd line    
     
     if(parser.CheckOption(std::string("log-file"))){
         //init the global logger
@@ -377,12 +389,15 @@ int main(int argc, char *argv[])
             delete global_logger;
             global_logger = NULL;
             fprintf(stderr, "Init Logger faile\n");
-            exit(-1);
+            ret = -1;
+            goto exit_2;
         }        
     }    
     
+
+     
     
-    TextStreamSink text_sink;
+
     
     if(parser.CheckOption("stream-name")){
         ret = text_sink.InitLocal(
@@ -397,14 +412,22 @@ int main(int argc, char *argv[])
             str2int(parser.OptionValue("port", "0")));
         
     }
-    if(ret){        
-        exit(-1);
+    if(ret){    
+        ret = -1;
+        goto exit_3;
+
     }
+
     
-    ret = text_sink.Start(5);//5 seconds to wait
+    
+    ret = text_sink.Start(5000);//5 seconds to wait
     if(ret){        
-        exit(-1);
+        ret = -1;
+        goto exit_4;
     }    
+
+
+#if 1   
     
     while(1){
         time_t now = time(NULL);
@@ -427,12 +450,27 @@ int main(int argc, char *argv[])
         usleep(100);       
         
     }    
+
+#endif
+    
     
     text_sink.Stop();
-    
+
+
+exit_4:    
     text_sink.Uninit();
 
+exit_3: 
+    
+    if(global_logger != NULL){
+        global_logger->Uninit();
+        delete global_logger;
+        global_logger = NULL;
+    }
+
+exit_2:
     GlobalUninit();
+
     
     return ret;
 }

@@ -986,7 +986,7 @@ void * StreamSource::StaticThreadRoutine(void *arg)
     
 void StreamSource::InternalRoutine()
 {
-    zpoller_t  * poller =zpoller_new (api_socket_);
+    zpoller_t  * poller =zpoller_new (api_socket_, NULL);
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_SOURCE_HEARTBEAT_INT;
     
