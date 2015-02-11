@@ -90,9 +90,11 @@ SRCDIRS   = src src/pb
 # The executable file name.
 CORE_LIBRARY = libstreamswitch.a
 
-EXAMPLES = $(TEXT_SINK_PROGRAM) 
+EXAMPLES = $(TEXT_SINK_PROGRAM) $(FILE_LIVE_SOURCE_PROGRAM) $(API_TEST_SINK_PROGRAM)
 
 TEXT_SINK_PROGRAM = samples/text_sink
+FILE_LIVE_SOURCE_PROGRAM = samples/file_live_source
+API_TEST_SINK_PROGRAM = samples/api_test_sink
 
 # If not specified, current directory name or `a.out' will be used.
 PROGRAM   = streamswitch_core_library
@@ -256,9 +258,14 @@ $(CORE_LIBRARY):$(OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
     
-$(TEXT_SINK_PROGRAM): $(CORE_LIBRARY) $(TEXT_SINK_PROGRAM).o
-	$(LINK.cxx) -o $@ $(TEXT_SINK_PROGRAM).o $(CORE_LIBRARY)
+$(TEXT_SINK_PROGRAM): $(TEXT_SINK_PROGRAM).o $(CORE_LIBRARY) 
+	$(LINK.cxx) -o $@ $^
     
+$(FILE_LIVE_SOURCE_PROGRAM): $(FILE_LIVE_SOURCE_PROGRAM).o $(CORE_LIBRARY) 
+	$(LINK.cxx) -o $@ $^
+
+$(API_TEST_SINK_PROGRAM): $(API_TEST_SINK_PROGRAM).o $(CORE_LIBRARY) 
+	$(LINK.cxx) -o $@ $^
     
 deps: $(DEPS)
 

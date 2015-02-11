@@ -22,6 +22,8 @@
 
 #define STSW_CLIENT_LEASE  15  //client heartbeat lease, in sec
 
+#define STSW_MAX_CLIENT_NUM  32767  //the max client num for one source
+
 namespace stream_switch {
     
 class StreamSource;

@@ -40,7 +40,6 @@
 
 
 
-class Start;
 stream_switch::RotateLogger * global_logger;
 
 
@@ -220,6 +219,13 @@ int TextStreamSink::Start(int timeout)
         ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
                   "TextStreamSink start failed: %s\n", err_info.c_str());   
         return -1;
+    }
+    
+    ret = sink_.KeyFrame(timeout, &err_info);
+    if(ret){
+        fprintf(stderr, "Request key frame failed: %s\n", err_info.c_str());
+        ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_WARNING, 
+                  "Request key frame failed: %s\n", err_info.c_str());           
     }
 
 
@@ -447,10 +453,10 @@ int main(int argc, char *argv[])
             ret = 0;    
             break;
         }
-        usleep(100);       
+        usleep(100000);  //100 ms     
         
     }    
-
+    
 #endif
     
     

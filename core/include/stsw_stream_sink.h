@@ -118,7 +118,7 @@ public:
                            uint32_t *  total_num, StreamClientList * client_list, 
                            std::string *err_info);
     
-    virtual MediaStatisticInfo ReceiverStatistic();        
+    virtual void ReceiverStatistic(MediaStatisticInfo * statistic);        
     
 protected:
 

@@ -1273,24 +1273,25 @@ uint32_t StreamSink::GetNextSeq()
 
 
 
-MediaStatisticInfo StreamSink::ReceiverStatistic()
+void StreamSink::ReceiverStatistic(MediaStatisticInfo * statistic)
 {
-    MediaStatisticInfo stat_info;
+    if(statistic == NULL){
+        return;
+    }
+
     LockGuard guard(&lock_);   
-    stat_info.ssrc = stream_meta_.ssrc;
-    stat_info.timestamp = (int64_t)time(NULL);
-    stat_info.sub_streams = statistic_;
+    statistic->ssrc = stream_meta_.ssrc;
+    statistic->timestamp = (int64_t)time(NULL);
+    statistic->sub_streams = statistic_;
 
     SubStreamMediaStatisticVector::iterator it;
     for(it = statistic_.begin(); 
         it != statistic_.end();
         it++){
 
-        stat_info.sum_bytes += it->data_bytes;     
+        statistic->sum_bytes += it->data_bytes;     
     }
     
-    return stat_info;
-
 }
 
 

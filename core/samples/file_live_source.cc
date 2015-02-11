@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
+#include <unistd.h>
 
 #include <stream_switch.h>
 
@@ -78,8 +79,6 @@ private:
 
 
 stream_switch::RotateLogger * global_logger = NULL;
-FileLiveSource * source = NULL;
-
 
 
 ///////////////////////////////////////////////////////////////
@@ -103,6 +102,12 @@ void ParseArgv(int argc, char *argv[],
     parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
                    "FILE_PATH", 
                    "Absolute path of the file which this source read from", NULL, NULL);  
+    parser->RegisterOption("frame-size", 'F',  OPTION_FLAG_WITH_ARG,
+                   "SIZE", 
+                   "Frame size to send out", NULL, NULL);                     
+    parser->RegisterOption("fps", 'f',  OPTION_FLAG_WITH_ARG,
+                   "NUM", 
+                   "Frames per secode to send", NULL, NULL);         
 
   
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
@@ -133,7 +138,7 @@ void ParseArgv(int argc, char *argv[],
     }
     
   
-     if(parser->CheckOption("log-file")){
+    if(parser->CheckOption("log-file")){
         if(!parser->CheckOption("log-size")){
             fprintf(stderr, "log-size must be set if log-file is enabled\n");
             exit(-1);
@@ -254,7 +259,6 @@ void FileLiveSource::SendNextFrame()
 {
     stream_switch::MediaDataFrame frame;    
     int ret;
-    struct timeval timestamp; 
     std::string err_info;
     
     
@@ -294,8 +298,14 @@ void FileLiveSource::OnMediaStatistic(stream_switch::MediaStatisticInfo *statist
 //main entry    
 int main(int argc, char *argv[])
 {
-    int ret;
+    int ret = 0;
     using namespace stream_switch;
+    FileLiveSource source;
+    struct timeval next_send_tv;
+    int fps, frame_dur;
+    
+    
+    
     GlobalInit();
     
     //parse the cmd line
@@ -321,30 +331,94 @@ int main(int argc, char *argv[])
             delete global_logger;
             global_logger = NULL;
             fprintf(stderr, "Init Logger faile\n");
-            exit(-1);
+            ret = -1;
+            goto exit_1;
         }        
     }
     
     //
     //init source
-    source = new FileLiveSource(); 
+   
     
-    
-
-    //uninit source
-    if(source){
-        source->Uninit();
-        delete source;
-        source = NULL;
+    ret = source.Init(
+        parser.OptionValue("url", ""), 
+        parser.OptionValue("stream-name", ""), 
+        (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
+        (int)strtol(parser.OptionValue("frame-size", "0").c_str(), NULL, 0));
+    if(ret){
+        ret = -1;
+        goto exit_2;       
     }
     
+    fps = (int)strtol(parser.OptionValue("fps", "25").c_str(), NULL, 0);
+    frame_dur = 1000000 / fps;
+    
+    
+    ret = source.Start();
+    if(ret){
+        ret = -1;
+        goto exit_3;
+    }
+    gettimeofday(&next_send_tv, NULL);
+    
+    while(1){
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        long long waittime;
+        
+        if(isGlobalInterrupt()){
+            fprintf(stderr, "Receive Terminate Signal, exit\n");
+            ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+                      "Receive Terminate Signal, exit\n");  
+            ret = 0;    
+            break;
+        }        
+        
+        
+        
+        //check need to send next frame;
+        if( (tv.tv_sec > next_send_tv.tv_sec)
+            || (tv.tv_sec == next_send_tv.tv_sec 
+                && tv.tv_usec >= next_send_tv.tv_usec)){
+            //calculate next send time
+            next_send_tv.tv_usec += frame_dur;
+            if(next_send_tv.tv_usec > 1000000){
+                next_send_tv.tv_sec += next_send_tv.tv_usec / 1000000;
+                next_send_tv.tv_usec =  next_send_tv.tv_usec % 1000000;
+            }
+            source.SendNextFrame();
+        }
+        
+        waittime = (next_send_tv.tv_sec - tv.tv_sec) * 1000000 
+                   + (next_send_tv.tv_usec - tv.tv_usec);
+        if(waittime < 0) {
+            waittime = 0;
+        }else if (waittime > 100000){
+            waittime = 100000; //at most 100 ms
+        }
+        
+        usleep(waittime);                
+    }
+    
+ 
+    source.Stop();    
+    
+exit_3:
+    //uninit source
+    source.Uninit();
+    
+exit_2:    
     //uninit logger
     if(global_logger){
         global_logger->Uninit();
         delete global_logger;
         global_logger = NULL;
     }
+exit_1:    
+    
     GlobalUninit();
+    
+    return ret;
 }
 
 
