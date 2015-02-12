@@ -37,7 +37,7 @@ message ProtoCommonHeader{
     optional ProtoPacketType type = 2 [default = PROTO_PACKET_TYPE_REQUEST];
     optional int32 code = 3 [default = 0];  // operation code, it is used to identify the body type in the packet
     optional uint32 seq = 4  [default = 0];   // match request/reply, no meaning for message type
-    optional ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK]; // only valid in reply packet, means the operation result	
+    optional int32 status = 5 [default = 200]; // only valid in reply packet, means the operation result, compatible with HTTP	
     optional string info = 6; // only valid in reply packet, describes the result in text
 }
 

@@ -744,10 +744,13 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
 
 int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
 {
+    
     if(request == NULL || reply == NULL){
         //nothing to do
         return 0;
     }
+    
+    
     ProtoClientHeartbeatReq client_heartbeat;
     if(client_heartbeat.ParseFromString(request->body())){
         int64_t now = time(NULL);
@@ -779,24 +782,38 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
             if(found){
                 //client already exit, just update it's active time.
                 *it = client_heartbeat;
+              
+                
             }else{
-                //client no exist
-                receivers_info_->receiver_list.push_back(client_heartbeat);
+                //client no exist, check the max number and add
+                if(receivers_info_->receiver_list.size() < STSW_MAX_CLIENT_NUM){
+                    receivers_info_->receiver_list.push_back(client_heartbeat); 
+                }else{
+                    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+                    reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error"); 
+                    return 0;
+                    
+                }
             }
             
         }
+        
+        
+        //suceessful
+        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+        reply->mutable_header()->set_info("");  
+        
         ProtoClientHeartbeatRep reply_info;
         reply_info.set_timestamp(now);
         reply_info.set_lease(STSW_CLIENT_LEASE);
-        
-        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-        reply->mutable_header()->set_info("");  
-        reply_info.SerializeToString(reply->mutable_body());     
-
+        reply_info.SerializeToString(reply->mutable_body());  
+ 
         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
             fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
             fprintf(stderr, "%s\n", reply_info.DebugString().c_str());
         } 
+  
+
                     
     }else{
         reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
@@ -887,9 +904,9 @@ int StreamSource::RpcHandler()
     if(request.ParseFromString(in_data)){
              
         if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
-            (reply.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
+            (request.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
             ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
-            (reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
+            (request.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
             
             fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
                     (long long)zclock_time());

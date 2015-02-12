@@ -50,7 +50,9 @@ public:
     int Init(std::string src_file, 
              std::string stream_name,                       
              int source_tcp_port, 
-             int frame_size);    
+             int frame_size, 
+             int fps, 
+             int debug_flags);    
 
     void Uninit();
     int Start();
@@ -109,6 +111,11 @@ void ParseArgv(int argc, char *argv[],
                    "NUM", 
                    "Frames per secode to send", NULL, NULL);         
 
+    parser->RegisterOption("debug-flags", 'd', 
+                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
+                    "debug flag for stream_switch core library. "
+                    "Default is 0, means no debug dump" , 
+                    NULL, NULL);  
   
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
@@ -162,7 +169,9 @@ FileLiveSource::~FileLiveSource()
 int FileLiveSource::Init(std::string src_file, 
                          std::string stream_name,                       
                          int source_tcp_port, 
-                         int frame_size)
+                         int frame_size, 
+                         int fps,
+                         int debug_flags)
 {
     using namespace stream_switch;         
     int ret;
@@ -185,7 +194,7 @@ int FileLiveSource::Init(std::string src_file,
     
     
     //init source
-    ret = source_.Init(stream_name, source_tcp_port, this, DEBUG_FLAG_DUMP_API, &err_info);
+    ret = source_.Init(stream_name, source_tcp_port, this, debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream source error: %s\n", err_info.c_str());
         fclose(src_file_);
@@ -207,8 +216,8 @@ int FileLiveSource::Init(std::string src_file,
     sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
     sub_metadata.media_param.video.height = 1080;
     sub_metadata.media_param.video.width = 1920;
-    sub_metadata.media_param.video.fps = 25;
-    sub_metadata.media_param.video.gov = 25;
+    sub_metadata.media_param.video.fps = fps;
+    sub_metadata.media_param.video.gov = fps;
     metadata.sub_streams.push_back(sub_metadata);
     source_.set_stream_meta(metadata);    
     
@@ -245,6 +254,11 @@ int FileLiveSource::Start()
     if(ret){
         fprintf(stderr, "Start stream source error: %s\n", err_info.c_str());        
     }
+    
+    fprintf(stdout, "FileLiveSource Started\n");
+    ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
+              "FileLiveSource Started");      
+    
     
     return ret;
 }
@@ -338,21 +352,24 @@ int main(int argc, char *argv[])
     
     //
     //init source
-   
+    
+    fps = (int)strtol(parser.OptionValue("fps", "25").c_str(), NULL, 0);
+    frame_dur = 1000000 / fps;
+       
     
     ret = source.Init(
         parser.OptionValue("url", ""), 
         parser.OptionValue("stream-name", ""), 
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
-        (int)strtol(parser.OptionValue("frame-size", "0").c_str(), NULL, 0));
+        (int)strtol(parser.OptionValue("frame-size", "1024").c_str(), NULL, 0), 
+        fps, 
+        (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
     if(ret){
         ret = -1;
         goto exit_2;       
     }
     
-    fps = (int)strtol(parser.OptionValue("fps", "25").c_str(), NULL, 0);
-    frame_dur = 1000000 / fps;
-    
+
     
     ret = source.Start();
     if(ret){

@@ -82,6 +82,11 @@ void ParseArgv(int argc, char *argv[],
     parser->RegisterBasicOptions();
 
     //register the default options
+    parser->RegisterOption("debug-flags", 'd', 
+                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
+                    "debug flag for stream_switch core library. "
+                    "Default is 0, means no debug dump" , 
+                    NULL, NULL);      
     parser->RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, "STREAM",
                    "local stream name, if the user want to connect this sink "
                    "to local stream, this option should be used to set the "
@@ -176,7 +181,9 @@ int main(int argc, char *argv[])
     if(parser.CheckOption("stream-name")){
         
         ret = test_sink.InitLocal(parser.OptionValue("stream-name", "default"), 
-            client_info, &listener, DEBUG_FLAG_DUMP_API, &err_info);
+            client_info, &listener, 
+            strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0), 
+            &err_info);
 
         
         
@@ -184,7 +191,9 @@ int main(int argc, char *argv[])
         
         ret = test_sink.InitRemote(parser.OptionValue("host", ""), 
             (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0),
-            client_info, &listener, DEBUG_FLAG_DUMP_API, &err_info);
+            client_info, &listener, 
+            strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0),  
+            &err_info);
   
     }
     if(ret){
@@ -239,6 +248,16 @@ int main(int argc, char *argv[])
     
     
     test_sink.ReceiverStatistic(&statistic);    
+    
+    ret = test_sink.ClientList(5000, 0, STSW_MAX_CLIENT_NUM, 
+                               &client_num, &client_list, &err_info);
+    if(ret){
+        fprintf(stderr, "Call ClientList() Failed (%d):%s\n", ret, err_info.c_str());
+        ret = -1;
+        goto exit_4;
+
+    }    
+       
 
 exit_4:
     

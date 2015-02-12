@@ -34,7 +34,7 @@
 #include<pthread.h>
 #include<sys/time.h>
 
-#define STSW_STREAM_RECEIVER_HEARTBEAT_INT  1000  // the heartbeat interval for 
+#define STSW_STREAM_RECEIVER_HEARTBEAT_INT  500  // the heartbeat interval for 
                                                  // stream receiver, in ms
 
 

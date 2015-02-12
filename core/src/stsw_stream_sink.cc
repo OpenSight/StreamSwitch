@@ -297,7 +297,7 @@ int StreamSink::InitBase(const StreamClientInfo &client_info,
     //init handlers
     RegisterSubHandler(PROTO_PACKET_CODE_MEDIA, 
                        STSW_PUBLISH_MEDIA_CHANNEL, 
-                       (SinkSubHandler)StaticMediaFrameHandler, NULL);
+                       (SinkSubHandler)StaticMediaFrameHandler, this);
  
 
 
@@ -460,9 +460,11 @@ int StreamSink::Start(std::string *err_info)
     for(set_it = subsribe_keys.begin();
         set_it != subsribe_keys.end();
         set_it ++){
-        zsocket_set_subscribe(subscriber_socket_, set_it->c_str());
+        zsock_set_subscribe(subscriber_socket_, set_it->c_str());
     }    
 
+    last_send_client_heartbeat_msec_ = 0;
+    next_send_client_heartbeat_msec_ = 0;
     
     //start the internal thread
     ret = pthread_create(&worker_thread_id_, NULL, StreamSink::StaticThreadRoutine, this);
@@ -858,7 +860,7 @@ void StreamSink::ClientHeartbeatHandler(int64_t now)
                         int lease = client_heartbeat_reply.lease();
                         // send next heartbeat request at 1/3 lease
                         next_send_client_heartbeat_msec_ = 
-                            next_send_client_heartbeat_msec_ + lease * 1000 / 3;                        
+                            last_send_client_heartbeat_msec_ + lease * 1000 / 3;                        
                         
                     }else{
                         //not a valid client heartbeat reply

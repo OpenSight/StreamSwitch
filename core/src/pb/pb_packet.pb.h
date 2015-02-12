@@ -186,12 +186,12 @@ class ProtoCommonHeader : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 seq() const;
   inline void set_seq(::google::protobuf::uint32 value);
 
-  // optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+  // optional int32 status = 5 [default = 200];
   inline bool has_status() const;
   inline void clear_status();
   static const int kStatusFieldNumber = 5;
-  inline ::stream_switch::ProtoPacketStatus status() const;
-  inline void set_status(::stream_switch::ProtoPacketStatus value);
+  inline ::google::protobuf::int32 status() const;
+  inline void set_status(::google::protobuf::int32 value);
 
   // optional string info = 6;
   inline bool has_info() const;
@@ -229,7 +229,7 @@ class ProtoCommonHeader : public ::google::protobuf::Message {
   ::google::protobuf::int32 code_;
   ::google::protobuf::uint32 seq_;
   ::std::string* info_;
-  int status_;
+  ::google::protobuf::int32 status_;
   friend void  protobuf_AddDesc_pb_5fpacket_2eproto();
   friend void protobuf_AssignDesc_pb_5fpacket_2eproto();
   friend void protobuf_ShutdownFile_pb_5fpacket_2eproto();
@@ -437,7 +437,7 @@ inline void ProtoCommonHeader::set_seq(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:stream_switch.ProtoCommonHeader.seq)
 }
 
-// optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+// optional int32 status = 5 [default = 200];
 inline bool ProtoCommonHeader::has_status() const {
   return (_has_bits_[0] & 0x00000010u) != 0;
 }
@@ -451,12 +451,11 @@ inline void ProtoCommonHeader::clear_status() {
   status_ = 200;
   clear_has_status();
 }
-inline ::stream_switch::ProtoPacketStatus ProtoCommonHeader::status() const {
+inline ::google::protobuf::int32 ProtoCommonHeader::status() const {
   // @@protoc_insertion_point(field_get:stream_switch.ProtoCommonHeader.status)
-  return static_cast< ::stream_switch::ProtoPacketStatus >(status_);
+  return status_;
 }
-inline void ProtoCommonHeader::set_status(::stream_switch::ProtoPacketStatus value) {
-  assert(::stream_switch::ProtoPacketStatus_IsValid(value));
+inline void ProtoCommonHeader::set_status(::google::protobuf::int32 value) {
   set_has_status();
   status_ = value;
   // @@protoc_insertion_point(field_set:stream_switch.ProtoCommonHeader.status)

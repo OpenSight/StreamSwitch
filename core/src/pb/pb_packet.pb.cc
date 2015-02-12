@@ -112,30 +112,28 @@ void protobuf_AddDesc_pb_5fpacket_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\017pb_packet.proto\022\rstream_switch\"\351\001\n\021Pro"
+    "\n\017pb_packet.proto\022\rstream_switch\"\264\001\n\021Pro"
     "toCommonHeader\022\022\n\007version\030\001 \001(\r:\0011\022G\n\004ty"
     "pe\030\002 \001(\0162\036.stream_switch.ProtoPacketType"
     ":\031PROTO_PACKET_TYPE_REQUEST\022\017\n\004code\030\003 \001("
-    "\005:\0010\022\016\n\003seq\030\004 \001(\r:\0010\022H\n\006status\030\005 \001(\0162 .s"
-    "tream_switch.ProtoPacketStatus:\026PROTO_PA"
-    "CKET_STATUS_OK\022\014\n\004info\030\006 \001(\t\"S\n\021ProtoCom"
-    "monPacket\0220\n\006header\030\001 \001(\0132 .stream_switc"
-    "h.ProtoCommonHeader\022\014\n\004body\030\002 \001(\014*l\n\017Pro"
-    "toPacketType\022\035\n\031PROTO_PACKET_TYPE_REQUES"
-    "T\020\000\022\033\n\027PROTO_PACKET_TYPE_REPLY\020\001\022\035\n\031PROT"
-    "O_PACKET_TYPE_MESSAGE\020\002*\241\001\n\021ProtoPacketS"
-    "tatus\022\033\n\026PROTO_PACKET_STATUS_OK\020\310\001\022$\n\037PR"
-    "OTO_PACKET_STATUS_BAD_REQUEST\020\220\003\022\"\n\035PROT"
-    "O_PACKET_STATUS_NOT_FOUND\020\224\003\022%\n PROTO_PA"
-    "CKET_STATUS_INTERNAL_ERR\020\364\003*\243\002\n\017ProtoPac"
-    "ketCode\022\035\n\031PROTO_PACKET_CODE_INVALID\020\000\022\036"
-    "\n\032PROTO_PACKET_CODE_METADATA\020\001\022\033\n\027PROTO_"
-    "PACKET_CODE_MEDIA\020\002\022!\n\035PROTO_PACKET_CODE"
-    "_STREAM_INFO\020\003\022\037\n\033PROTO_PACKET_CODE_KEY_"
-    "FRAME\020\004\022&\n\"PROTO_PACKET_CODE_CLIENT_HEAR"
-    "TBEAT\020\005\022%\n!PROTO_PACKET_CODE_MEDIA_STATI"
-    "STIC\020\006\022!\n\035PROTO_PACKET_CODE_CLIENT_LIST\020"
-    "\007", 921);
+    "\005:\0010\022\016\n\003seq\030\004 \001(\r:\0010\022\023\n\006status\030\005 \001(\005:\00320"
+    "0\022\014\n\004info\030\006 \001(\t\"S\n\021ProtoCommonPacket\0220\n\006"
+    "header\030\001 \001(\0132 .stream_switch.ProtoCommon"
+    "Header\022\014\n\004body\030\002 \001(\014*l\n\017ProtoPacketType\022"
+    "\035\n\031PROTO_PACKET_TYPE_REQUEST\020\000\022\033\n\027PROTO_"
+    "PACKET_TYPE_REPLY\020\001\022\035\n\031PROTO_PACKET_TYPE"
+    "_MESSAGE\020\002*\241\001\n\021ProtoPacketStatus\022\033\n\026PROT"
+    "O_PACKET_STATUS_OK\020\310\001\022$\n\037PROTO_PACKET_ST"
+    "ATUS_BAD_REQUEST\020\220\003\022\"\n\035PROTO_PACKET_STAT"
+    "US_NOT_FOUND\020\224\003\022%\n PROTO_PACKET_STATUS_I"
+    "NTERNAL_ERR\020\364\003*\243\002\n\017ProtoPacketCode\022\035\n\031PR"
+    "OTO_PACKET_CODE_INVALID\020\000\022\036\n\032PROTO_PACKE"
+    "T_CODE_METADATA\020\001\022\033\n\027PROTO_PACKET_CODE_M"
+    "EDIA\020\002\022!\n\035PROTO_PACKET_CODE_STREAM_INFO\020"
+    "\003\022\037\n\033PROTO_PACKET_CODE_KEY_FRAME\020\004\022&\n\"PR"
+    "OTO_PACKET_CODE_CLIENT_HEARTBEAT\020\005\022%\n!PR"
+    "OTO_PACKET_CODE_MEDIA_STATISTIC\020\006\022!\n\035PRO"
+    "TO_PACKET_CODE_CLIENT_LIST\020\007", 868);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_packet.proto", &protobuf_RegisterTypes);
   ProtoCommonHeader::default_instance_ = new ProtoCommonHeader();
@@ -379,19 +377,14 @@ bool ProtoCommonHeader::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+      // optional int32 status = 5 [default = 200];
       case 5: {
         if (tag == 40) {
          parse_status:
-          int value;
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
-                 input, &value)));
-          if (::stream_switch::ProtoPacketStatus_IsValid(value)) {
-            set_status(static_cast< ::stream_switch::ProtoPacketStatus >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(5, value);
-          }
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, &status_)));
+          set_has_status();
         } else {
           goto handle_unusual;
         }
@@ -462,10 +455,9 @@ void ProtoCommonHeader::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->seq(), output);
   }
 
-  // optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+  // optional int32 status = 5 [default = 200];
   if (has_status()) {
-    ::google::protobuf::internal::WireFormatLite::WriteEnum(
-      5, this->status(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(5, this->status(), output);
   }
 
   // optional string info = 6;
@@ -509,10 +501,9 @@ void ProtoCommonHeader::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->seq(), target);
   }
 
-  // optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+  // optional int32 status = 5 [default = 200];
   if (has_status()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
-      5, this->status(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(5, this->status(), target);
   }
 
   // optional string info = 6;
@@ -565,10 +556,11 @@ int ProtoCommonHeader::ByteSize() const {
           this->seq());
     }
 
-    // optional .stream_switch.ProtoPacketStatus status = 5 [default = PROTO_PACKET_STATUS_OK];
+    // optional int32 status = 5 [default = 200];
     if (has_status()) {
       total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::EnumSize(this->status());
+        ::google::protobuf::internal::WireFormatLite::Int32Size(
+          this->status());
     }
 
     // optional string info = 6;

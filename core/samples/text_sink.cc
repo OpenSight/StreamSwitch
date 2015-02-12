@@ -58,8 +58,10 @@ public:
     TextStreamSink();
     virtual ~TextStreamSink();
     int InitRemote(std::string text_file,                 
-                   std::string source_ip, int source_tcp_port);    
-    int InitLocal(std::string text_file, std::string stream_name);
+                   std::string source_ip, int source_tcp_port, 
+                   int debug_flags);    
+    int InitLocal(std::string text_file, std::string stream_name, 
+                  int debug_flags);
     void Uninit();
     int Start(int timeout);
     void Stop();
@@ -112,7 +114,8 @@ TextStreamSink::~TextStreamSink()
 }
 
 int TextStreamSink::InitRemote(std::string text_file,                 
-                   std::string source_ip, int source_tcp_port)
+                   std::string source_ip, int source_tcp_port, 
+                   int debug_flags)
 {
     int ret;
     std::string err_info;
@@ -128,7 +131,7 @@ int TextStreamSink::InitRemote(std::string text_file,
     
     //init sink
     ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, this, 
-                            DEBUG_FLAG_DUMP_API, &err_info);
+                           debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
         fclose(text_file_);
@@ -145,7 +148,8 @@ int TextStreamSink::InitRemote(std::string text_file,
     return 0;    
     
 } 
-int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name)
+int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name, 
+                              int debug_flags)
 {
     int ret;
     std::string err_info;
@@ -160,7 +164,8 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name)
     
     
     //init sink
-    ret = sink_.InitLocal(stream_name, client_info, this, DEBUG_FLAG_DUMP_API, &err_info);
+    ret = sink_.InitLocal(stream_name, client_info, this, 
+                          debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
         fclose(text_file_);
@@ -249,12 +254,13 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media
 {
     if(text_file_){
         fprintf(text_file_, 
-                "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x\n", 
+                "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x, size: %d\n", 
                 (int)media_frame.sub_stream_index, 
                 media_frame.frame_type, 
                 (long long)media_frame.timestamp.tv_sec, 
                 (int)(media_frame.timestamp.tv_usec/1000), 
-                (unsigned)media_frame.ssrc);
+                (unsigned)media_frame.ssrc, 
+                (int)(media_frame.data.size()));
         int i = 0;
         for(i=0;i < (int)media_frame.data.size(); i++){
             if(i % 32 == 0){
@@ -262,7 +268,7 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media
             }
             fprintf(text_file_, "%02hhx ", media_frame.data[i]);
         }
-        fprintf(text_file_, "\n");
+        fprintf(text_file_, "\n\n");
         
         last_frame_rec_sec_ = time(NULL);           
     }
@@ -278,6 +284,11 @@ void ParseArgv(int argc, char *argv[],
     parser->RegisterBasicOptions();
 
     //register the default options
+    parser->RegisterOption("debug-flags", 'd', 
+                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
+                    "debug flag for stream_switch core library. "
+                    "Default is 0, means no debug dump" , 
+                    NULL, NULL);     
     parser->RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, "STREAM",
                    "local stream name, if the user want to connect this sink "
                    "to local stream, this option should be used to set the "
@@ -408,14 +419,16 @@ int main(int argc, char *argv[])
     if(parser.CheckOption("stream-name")){
         ret = text_sink.InitLocal(
             parser.OptionValue("sink-file", ""),
-            parser.OptionValue("stream-name", "default"));
+            parser.OptionValue("stream-name", "default"), 
+            str2int(parser.OptionValue("debug-flags", "0")));
         
         
     }else if(parser.CheckOption("host")){
         ret = text_sink.InitRemote(
             parser.OptionValue("sink-file", ""),
             parser.OptionValue("host", ""),
-            str2int(parser.OptionValue("port", "0")));
+            str2int(parser.OptionValue("port", "0")),
+            str2int(parser.OptionValue("debug-flags", "0")));
         
     }
     if(ret){    
