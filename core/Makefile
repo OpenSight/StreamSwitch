@@ -90,11 +90,13 @@ SRCDIRS   = src src/pb
 # The executable file name.
 CORE_LIBRARY = libstreamswitch.a
 
-EXAMPLES = $(TEXT_SINK_PROGRAM) $(FILE_LIVE_SOURCE_PROGRAM) $(API_TEST_SINK_PROGRAM)
+EXAMPLES = $(TEXT_SINK_PROGRAM) $(FILE_LIVE_SOURCE_PROGRAM) $(API_TEST_SINK_PROGRAM) $(ROTATE_LOGGER_TEST_PROGRAM)
 
 TEXT_SINK_PROGRAM = samples/text_sink
 FILE_LIVE_SOURCE_PROGRAM = samples/file_live_source
 API_TEST_SINK_PROGRAM = samples/api_test_sink
+ROTATE_LOGGER_TEST_PROGRAM = samples/rotate_logger_test
+
 
 # If not specified, current directory name or `a.out' will be used.
 PROGRAM   = streamswitch_core_library
@@ -267,6 +269,9 @@ $(FILE_LIVE_SOURCE_PROGRAM): $(FILE_LIVE_SOURCE_PROGRAM).o $(CORE_LIBRARY)
 $(API_TEST_SINK_PROGRAM): $(API_TEST_SINK_PROGRAM).o $(CORE_LIBRARY) 
 	$(LINK.cxx) -o $@ $^
     
+$(ROTATE_LOGGER_TEST_PROGRAM): $(ROTATE_LOGGER_TEST_PROGRAM).o $(CORE_LIBRARY) 
+	$(LINK.cxx) -o $@ $^    
+    
 deps: $(DEPS)
 
 ifndef NODEP
@@ -276,7 +281,7 @@ endif
 endif
 
 clean:
-	$(RM) $(OBJS) $(CORE_LIBRARY)
+	$(RM) $(OBJS) $(CORE_LIBRARY) $(EXAMPLES) 
 
 distclean: clean
 	$(RM) $(DEPS) TAGS

@@ -124,7 +124,7 @@ int RotateLogger::Init(std::string prog_name, std::string base_name,
     }
     pthread_mutexattr_destroy(&attr);       
     
-    ret = Reopen();
+    ret = OpenFile();
     if(ret){
         perror("Open log file failed"); 
         goto error_2;
@@ -211,8 +211,9 @@ void RotateLogger::CheckRotate()
     LockGuard guard(&lock_);  
     
     if(IsTooLarge()){
+        CloseFile();
         ShiftFile();
-        Reopen();        
+        OpenFile();        
     }
 }
 
@@ -302,7 +303,8 @@ void RotateLogger::ShiftFile()
     char log_file[1024];
     char log_file_old[1024];
     memset(log_file, 0, 1024);
-    memset(log_file_old, 0, 1024);    
+    memset(log_file_old, 0, 1024); 
+    int ret;
     
     //
     // remove the last rotate file
@@ -310,8 +312,9 @@ void RotateLogger::ShiftFile()
         snprintf(log_file, sizeof(log_file)-1, "%s.%d", base_name_.c_str(), rotate_num_);        
     }else{
         snprintf(log_file, sizeof(log_file)-1, "%s", base_name_.c_str());        
-    }
-    remove(log_file);
+    }    
+    ret = remove(log_file);
+
     
     //
     //change the file name;
@@ -324,18 +327,18 @@ void RotateLogger::ShiftFile()
         }else{
             snprintf(src, sizeof(log_file) -1, "%s", base_name_.c_str());
         }        
-        rename(src,dst);
+        ret = rename(src,dst);
         tmp = dst;
         dst = src;
         src = tmp;
     }
 }
 
-int RotateLogger::Reopen()
+int RotateLogger::OpenFile()
 {
-    CloseFile();
     
-    int fd = open(base_name_.c_str(), O_CREAT|O_APPEND|O_WRONLY, 0777);
+    int fd = open(base_name_.c_str(), 
+                  O_CREAT|O_WRONLY|O_APPEND|O_CLOEXEC, 0777);
     if (fd < 0) {
         
         if(stderr_redirect_){
@@ -343,6 +346,8 @@ int RotateLogger::Reopen()
         }                   
         return ERROR_CODE_SYSTEM;
     }else{
+        
+        lseek(fd, 0, SEEK_END);
 
         if(stderr_redirect_){
             dup2(fd, STDERR_FD);
@@ -360,7 +365,11 @@ void RotateLogger::CloseFile()
         ::close(fd_);
         fd_ = -1;
     }
-        
+/*    
+    if(stderr_redirect_){
+        ::close(STDERR_FD);
+    }      
+*/        
 }    
 
 }

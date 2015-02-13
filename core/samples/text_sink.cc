@@ -377,7 +377,7 @@ void ParseArgv(int argc, char *argv[],
 //main entry    
 int main(int argc, char *argv[])
 {
-    int ret;
+    int ret = 0;
     using namespace stream_switch;    
  
     TextStreamSink text_sink;

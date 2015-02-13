@@ -46,6 +46,8 @@ namespace stream_switch {
 //     most of methods(excepts for init/uninit) are thread safe, which means
 // multi threads can invoke its methods on the same instance of this class 
 // simultaneously without additional lock mechanism
+// Note: 
+//     Only work for linux filesystem
 
 class RotateLogger{
 public:
@@ -75,7 +77,7 @@ protected:
     virtual bool IsTooLarge();
     
     virtual void ShiftFile() ;
-    virtual int Reopen();  
+    virtual int OpenFile();  
     virtual void CloseFile();
     
 private:

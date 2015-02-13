@@ -172,7 +172,7 @@ std::string ArgParser::GetOptionsHelp()
             option_help.push_back(',');            
             
         }else{
-            option_help.append("    ");
+            option_help.append("     ");
         }
         //long option
         option_help.append(" --");
