@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <fcntl.h>
 
 #include <stsw_lock_guard.h>
 
@@ -72,6 +73,7 @@ int RotateLogger::Init(std::string prog_name, std::string base_name,
                        bool stderr_redirect)
 {
     int ret;
+    int val;
     
     if(file_size <= 0 || rotate_num < 0){
         ret = ERROR_CODE_PARAM;
@@ -102,6 +104,23 @@ int RotateLogger::Init(std::string prog_name, std::string base_name,
             ret = ERROR_CODE_SYSTEM;
             goto error_0;
         }
+#ifdef __linux__
+       
+        val = fcntl(redirect_fd_old_, F_GETFD);
+        if(val < 0){
+            perror("fcntl failed");
+            ret = ERROR_CODE_SYSTEM;
+            goto error_1;
+            
+        }
+        val |= FD_CLOEXEC;
+        ret = fcntl(redirect_fd_old_,F_SETFD,val);
+        if(ret < 0){
+            perror("fcntl failed");      
+            ret = ERROR_CODE_SYSTEM;
+            goto error_1;      
+        }
+#endif        
     }    
 
     //init lock
@@ -336,13 +355,21 @@ void RotateLogger::ShiftFile()
 
 int RotateLogger::OpenFile()
 {
-    
+    int ret;
+#ifdef __linux__    
     int fd = open(base_name_.c_str(), 
                   O_CREAT|O_WRONLY|O_APPEND|O_CLOEXEC, 0777);
+#else
+    int fd = open(base_name_.c_str(), 
+                  O_CREAT|O_WRONLY|O_APPEND, 0777);
+#endif                  
     if (fd < 0) {
         
         if(stderr_redirect_){
-            dup2(redirect_fd_old_, STDERR_FD);
+            ret = dup2(redirect_fd_old_, STDERR_FD);
+            if(ret < 0){
+                ::close(STDERR_FD);
+            }            
         }                   
         return ERROR_CODE_SYSTEM;
     }else{
@@ -350,7 +377,12 @@ int RotateLogger::OpenFile()
         lseek(fd, 0, SEEK_END);
 
         if(stderr_redirect_){
-            dup2(fd, STDERR_FD);
+            ret = dup2(fd, STDERR_FD);
+            if(ret < 0){
+                ::close(fd);
+                ::close(STDERR_FD);
+                return ERROR_CODE_SYSTEM;
+            }
         }        
     }    
 
