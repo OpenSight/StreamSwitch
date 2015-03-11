@@ -281,7 +281,7 @@ endif
 endif
 
 clean:
-	$(RM) $(OBJS) $(CORE_LIBRARY) $(EXAMPLES) 
+	$(RM) $(OBJS) $(CORE_LIBRARY) $(EXAMPLES) samples/*.o
 
 distclean: clean
 	$(RM) $(DEPS) TAGS
