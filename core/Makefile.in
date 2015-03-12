@@ -34,10 +34,10 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 subdir = .
-DIST_COMMON = $(am__configure_deps) $(include_HEADERS) \
+DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(top_srcdir)/configure INSTALL compile depcomp install-sh \
-	missing
+	$(top_srcdir)/configure COPYING INSTALL compile depcomp \
+	install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -273,7 +273,7 @@ libstreamswitch_a_SOURCES = src/stsw_arg_parser.cc  src/stsw_global.cc src/stsw_
 
 INSTALL_INCLUDE_DIR = include                    
 INSTALL_INCLUDE_FILES = $(foreach d,$(INSTALL_INCLUDE_DIR),$(wildcard $(d)/*.h))
-include_HEADERS = $(INSTALL_HEADER_FILES)
+include_HEADERS = $(INSTALL_INCLUDE_FILES)
 all: all-recursive
 
 .SUFFIXES:

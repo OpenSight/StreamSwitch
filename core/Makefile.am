@@ -18,4 +18,4 @@ INSTALL_INCLUDE_DIR = include
 INSTALL_INCLUDE_FILES = $(foreach d,$(INSTALL_INCLUDE_DIR),$(wildcard $(d)/*.h))
 
                     
-include_HEADERS = $(INSTALL_HEADER_FILES)
+include_HEADERS = $(INSTALL_INCLUDE_FILES)
