@@ -36,7 +36,7 @@ build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = api_test_sink$(EXEEXT) file_live_source$(EXEEXT) \
 	rotate_logger_test$(EXEEXT) text_sink$(EXEEXT)
-subdir = core/samples
+subdir = libstreamswitch/samples
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -244,9 +244,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign core/samples/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign libstreamswitch/samples/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign core/samples/Makefile
+	  $(AUTOMAKE) --foreign libstreamswitch/samples/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

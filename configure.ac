@@ -7,7 +7,13 @@ AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 AM_SILENT_RULES
 
-AC_CONFIG_SRCDIR([[core/include/stream_switch.h])
+
+LT_PREREQ([2.2])
+AC_PROG_LIBTOOL
+
+
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_SRCDIR([libstreamswitch/include/stream_switch.h])
 # AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
@@ -48,5 +54,8 @@ AC_TYPE_UINT64_T
 # Checks for library functions.
 AC_CHECK_FUNCS([dup2 gettimeofday memset strtol])
 
-AC_CONFIG_FILES([Makefile core/Makefile core/samples/Makefile])
+
+
+AC_CONFIG_FILES([Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile])
+
 AC_OUTPUT
