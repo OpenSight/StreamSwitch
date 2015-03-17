@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS=foreign 
 
 AM_CPPFLAGS = -ggdb -I../include $(zeromq_CFLAGS) $(protobuf_CFLAGS) 
-AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS)
+AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
 
 
 bin_PROGRAMS = api_test_sink file_live_source rotate_logger_test text_sink

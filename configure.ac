@@ -3,6 +3,11 @@
 
 AC_PREREQ([2.63])
 AC_INIT([streamswitch], [0.1.0], [zqwangjk@sina.com])
+
+AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([m4])
+
+
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 AM_SILENT_RULES
@@ -11,8 +16,6 @@ AM_SILENT_RULES
 LT_PREREQ([2.2])
 AC_PROG_LIBTOOL
 
-
-AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([libstreamswitch/include/stream_switch.h])
 # AC_CONFIG_HEADERS([config.h])
 
