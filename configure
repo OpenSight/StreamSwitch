@@ -16289,8 +16289,13 @@ fi
 
 
 
-# Checks for libraries.
+# Set some default features required by streamswitch code.
+CPPFLAGS="-D_REENTRANT -D_THREAD_SAFE $CPPFLAGS"
+CFLAGS="-pthread $CFLAGS"
+CXXFLAGS="-pthread $CXXFLAGS"
 
+
+# Checks for libraries.
 
 { $as_echo "$as_me:$LINENO: checking for pthread_create in -lpthread" >&5
 $as_echo_n "checking for pthread_create in -lpthread... " >&6; }

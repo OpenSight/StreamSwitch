@@ -26,8 +26,13 @@ AC_PROG_MAKE_SET
 # AC_PROG_RANLIB
 AM_PROG_CC_C_O
 
-# Checks for libraries.
+# Set some default features required by streamswitch code.
+CPPFLAGS="-D_REENTRANT -D_THREAD_SAFE $CPPFLAGS"
+CFLAGS="-pthread $CFLAGS"
+CXXFLAGS="-pthread $CXXFLAGS"
 
+
+# Checks for libraries.
 AC_CHECK_LIB([pthread], [pthread_create])
 
 export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/lib/pkgconfig:/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig

@@ -1,5 +1,9 @@
 AUTOMAKE_OPTIONS=foreign subdir-objects
-AM_CPPFLAGS = -ggdb -I./include -I./src/pb
+
+AM_CPPFLAGS = -I./include -I./src/pb 
+AM_CXXFLAGS = -ggdb $(zeromq_CFLAGS) $(protobuf_CFLAGS) 
+AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
+
 
 EXTRA_DIST = protocol
 
@@ -28,7 +32,7 @@ libstreamswitch_la_SOURCES =  src/stsw_arg_parser.cc \
     src/pb/pb_stream_info.pb.cc \
     src/pb/pb_stream_info.pb.h 
 
-libstreamswitch_la_LDFLAGS = -version-info 0:0:0    
+libstreamswitch_la_LDFLAGS = -version-info 0:0:0 $(AM_LDFLAGS)   
                     
 include_HEADERS = include/stream_switch.h \
     include/stsw_arg_parser.h \
