@@ -17879,7 +17879,7 @@ done
 
 
 
-ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile"
+ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc"
 
 
 cat >confcache <<\_ACEOF
@@ -18908,6 +18908,7 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "libstreamswitch/Makefile") CONFIG_FILES="$CONFIG_FILES libstreamswitch/Makefile" ;;
     "libstreamswitch/samples/Makefile") CONFIG_FILES="$CONFIG_FILES libstreamswitch/samples/Makefile" ;;
+    "libstreamswitch/libstreamswitch.pc") CONFIG_FILES="$CONFIG_FILES libstreamswitch/libstreamswitch.pc" ;;
 
   *) { { $as_echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 $as_echo "$as_me: error: invalid argument: $ac_config_target" >&2;}

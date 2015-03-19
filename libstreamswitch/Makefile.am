@@ -4,6 +4,9 @@ AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/src/pb
 AM_CXXFLAGS = -ggdb $(zeromq_CFLAGS) $(protobuf_CFLAGS) 
 AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
 
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libstreamswitch.pc
+
 
 EXTRA_DIST = protocol
 

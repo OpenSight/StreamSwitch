@@ -64,6 +64,9 @@ AC_CHECK_FUNCS([dup2 gettimeofday memset strtol])
 
 
 
-AC_CONFIG_FILES([Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile])
+AC_CONFIG_FILES([Makefile \
+                 libstreamswitch/Makefile \
+                 libstreamswitch/samples/Makefile \
+                 libstreamswitch/libstreamswitch.pc])
 
 AC_OUTPUT
