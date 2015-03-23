@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS=foreign 
 
 AM_CPPFLAGS = -I$(srcdir)/../include 
-AM_CXXFLAGS = -ggdb $(zeromq_CFLAGS) $(protobuf_CFLAGS)
+AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS)
 AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
 
 
