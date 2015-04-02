@@ -18,16 +18,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_rtsp_client_intf.h
- *      Declare the interface functions and variables to LIVE555 rtsp client
+ * stsw_rtsp_client.h
+ *      LiveRtspClient class header file, Declare all the interface of 
+ * LiveRtspClient
  * 
  * author: jamken
  * date: 2015-4-1
 **/ 
 
 
-#ifndef STSW_RTSP_CLIENT_INTF_H
-#define STSW_RTSP_CLIENT_INTF_H
+#ifndef STSW_RTSP_CLIENT_H
+#define STSW_RTSP_CLIENT_H
 
 #include "liveMedia.hh"
 #include "FramedSource.hh"

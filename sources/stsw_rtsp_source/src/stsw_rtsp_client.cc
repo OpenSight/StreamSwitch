@@ -18,8 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_rtsp_client_intf.cc
- *      Implementation of the interface functions to LIVE555 rtsp client
+ * stsw_rtsp_client.cc
+ *      LiveRtspClient class implementation file, defines all the method of 
+ * LiveRtspClient
  * 
  * author: jamken
  * date: 2015-4-1
