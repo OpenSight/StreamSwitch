@@ -77,13 +77,13 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
         //    we prefer video normalizer as master
         if (fMasterSSNormalizer == NULL ||
             (strcmp(fMasterSSNormalizer->mediumName(), "video") != 0 && 
-             strcmp(ssNormalizer->mediumName(), "video") != 0)){
+             strcmp(ssNormalizer->mediumName(), "video") != 0)
+           ){
             // Make "ssNormalizer" the 'master' subsession - meaning that its presentation time is adjusted to align with 'wall clock'
             // time, and the presentation times of other subsessions (if any) are adjusted to retain their relative separation with
             // those of the master:
       
             struct timeval timeNow;
-
             
             if(ssNormalizer->fLastRtpTimestamp == 0){
                 //this is the first packet for this normalizer
@@ -91,6 +91,7 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
                 if(fMasterSSNormalizer == NULL){
                     //no master yet
                     gettimeofday(&timeNow, NULL);
+                    
                 }else{
                     // hack: in this case, we change the master from non-video 
                     // to video, we can use the same fPTAdjustment of the 
@@ -122,19 +123,7 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
          
                 
             }
-
             
-            //toPT now is the PT of the last packet 
-            //if now time is less than the last packet PT, 
-            //use the last packet PT at the now time to avoid
-            //timestamp rollback
-            if((timeNow.tv_sec < toPT->tv_sec) ||
-               (timeNow.tv_sec == toPT->tv_sec && 
-                timeNow.tv_usec < toPT->tv_usec )){
-                
-                timeNow.tv_sec = toPT->tv_sec;
-                timeNow.tv_usec = toPT->tv_usec;
-            }
 
             fMasterSSNormalizer = ssNormalizer;
             // Compute: fPTAdjustment = timeNow - fromPT
