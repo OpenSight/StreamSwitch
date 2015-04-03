@@ -1,0 +1,8 @@
+live.2015.3.19 with StreamSwitch Patch.
+
+
+This directory contains the live555 media library (live.2015.3.19) with StreamSwitch Patch.
+
+StreamSwitch make use of the live555 media library with its private patch for its rtsp source. The RTSP client of the original live555 media library is not very suitable for the real application environment, in which the RTSP server often contains various error in its RTSP protocol. And, live555's RTSP client also contains some hidden bugs which would be exposed for some real world case. To adapt for the imperfect world, StreamSwitch make its amendment based on the live555 media library project at this directory. 
+
+
