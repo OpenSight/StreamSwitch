@@ -70,25 +70,70 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
         // Just copy it 'as is' to "toPT":
         *toPT = fromPT;
     } else {
-      
-        if (fMasterSSNormalizer == NULL){
+        
+        // in two case ,we need to (re)set master
+        // 1) no master available
+        // 2) the master is not video master, but the current normalizer is video.
+        //    we prefer video normalizer as master
+        if (fMasterSSNormalizer == NULL ||
+            (strcmp(fMasterSSNormalizer->mediumName(), "video") != 0 && 
+             strcmp(ssNormalizer->mediumName(), "video") != 0)){
             // Make "ssNormalizer" the 'master' subsession - meaning that its presentation time is adjusted to align with 'wall clock'
             // time, and the presentation times of other subsessions (if any) are adjusted to retain their relative separation with
             // those of the master:
       
             struct timeval timeNow;
-            gettimeofday(&timeNow, NULL);
+
+            
+            if(ssNormalizer->fLastRtpTimestamp == 0){
+                //this is the first packet for this normalizer
+                
+                if(fMasterSSNormalizer == NULL){
+                    //no master yet
+                    gettimeofday(&timeNow, NULL);
+                }else{
+                    // hack: in this case, we change the master from non-video 
+                    // to video, we can use the same fPTAdjustment of the 
+                    // original master so that to avoid timestamp change
+                    timeNow.tv_sec = fPTAdjustment.tv_sec + fromPT.tv_sec;
+                    timeNow.tv_usec = fPTAdjustment.tv_usec + fromPT.tv_usec;
+                }
+            }else{
+                //there is some packets having seen
+                long long offset = 0;
+                u_int32_t lastRtpTimestamp = ssNormalizer->fLastRtpTimestamp;
+                u_int32_t curRtpTimestamp = ssNormalizer->fRTPSource->curPacketRTPTimestamp();
+                long frequency = ssNormalizer->fRTPSource->timestampFrequency();
+                if(frequency <= 0){ //sanity check
+                    frequency = 9000;
+                }            
+                
+                if(curRtpTimestamp >= lastRtpTimestamp){
+                    offset = (long long)(curRtpTimestamp - lastRtpTimestamp);
+                }
+
+                //currently, toPT is the PT of last packet
+                timeNow.tv_sec = offset / frequency + toPT->tv_sec;
+                timeNow.tv_usec = ((long long)(offset % frequency)) * MILLION / frequency 
+                                      + toPT->tv_usec;
+                while (timeNow.tv_usec > MILLION) { 
+                    ++(timeNow.tv_sec); timeNow.tv_usec -= MILLION; 
+                }                   
+         
+                
+            }
+
             
             //toPT now is the PT of the last packet 
             //if now time is less than the last packet PT, 
             //use the last packet PT at the now time to avoid
             //timestamp rollback
-            if((timeNow.tv_sec < toPT.tv_sec) ||
-               (timeNow.tv_sec == toPT.tv_sec && 
-                timeNow.tv_usec < toPT.tv_usec )){
+            if((timeNow.tv_sec < toPT->tv_sec) ||
+               (timeNow.tv_sec == toPT->tv_sec && 
+                timeNow.tv_usec < toPT->tv_usec )){
                 
-                timeNow.tv_sec = toPT.tv_sec;
-                timeNow.tv_usec = toPT.tv_usec;
+                timeNow.tv_sec = toPT->tv_sec;
+                timeNow.tv_usec = toPT->tv_usec;
             }
 
             fMasterSSNormalizer = ssNormalizer;
@@ -99,11 +144,22 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
             // the result still works out OK later.
         }
 
-        // Compute a normalized presentation time: toPT = fromPT + fPTAdjustment
-        toPT->tv_sec = fromPT.tv_sec + fPTAdjustment.tv_sec - 1;
-        toPT->tv_usec = fromPT.tv_usec + fPTAdjustment.tv_usec + MILLION;
-        while (toPT->tv_usec > MILLION) { 
-            ++(toPT->tv_sec); toPT->tv_usec -= MILLION; 
+
+        if(ssNormalizer->fRTPSource->curPacketRTPTimestamp() == 
+           ssNormalizer->fLastRtpTimestamp){
+            //if the current packet has the same rtptimestamp of the last one
+            // it's presentation time should be the same with the last one
+            
+            //just keep the toPT unchanged
+            
+        }else{
+            // Compute a normalized presentation time: toPT = fromPT + fPTAdjustment
+            toPT->tv_sec = fromPT.tv_sec + fPTAdjustment.tv_sec - 1;
+            toPT->tv_usec = fromPT.tv_usec + fPTAdjustment.tv_usec + MILLION;
+            while (toPT->tv_usec > MILLION) { 
+                ++(toPT->tv_sec); toPT->tv_usec -= MILLION; 
+            }
+        
         }
 
     }//if (!hasBeenSynced) {
@@ -131,7 +187,7 @@ PtsSubsessionNormalizer
 				       char const *mediumName, char const* codecName, PtsSubsessionNormalizer* next)
   : FramedFilter(parent.envir(), inputSource),
     fParent(parent), fRTPSource(rtpSource), 
-    fCodecName(NULL), fMediumName(NULL), fNext(next) {
+    fCodecName(NULL), fMediumName(NULL), fLastRtpTimestamp(0), fNext(next) {
     if(codecName != NULL){
         fCodecName = strdup(codecName);        
     }
@@ -167,19 +223,22 @@ void PtsSubsessionNormalizer::afterGettingFrame(unsigned frameSize,
 							     unsigned numTruncatedBytes,
 							     struct timeval presentationTime,
 							     unsigned durationInMicroseconds) {
-  // This filter is implemented by passing all frames through unchanged, except that "fPresentationTime" is changed:
-  fFrameSize = frameSize;
-  fNumTruncatedBytes = numTruncatedBytes;
-  fDurationInMicroseconds = durationInMicroseconds;
+    // This filter is implemented by passing all frames through unchanged, except that "fPresentationTime" is changed:
+    fFrameSize = frameSize;
+    fNumTruncatedBytes = numTruncatedBytes;
+    fDurationInMicroseconds = durationInMicroseconds;
 
-  fParent.normalizePresentationTime(this, presentationTime, &fPresentationTime);
-   
-  // Complete delivery:
-  FramedSource::afterGetting(this);
+    fParent.normalizePresentationTime(this, presentationTime, &fPresentationTime);
+  
+    fLastRtpTimestamp = fRTPSource->curPacketRTPTimestamp();
+  
+ 
+    // Complete delivery:
+    FramedSource::afterGetting(this);
 }
 
 void PtsSubsessionNormalizer::doGetNextFrame() {
-  fInputSource->getNextFrame(fTo, fMaxSize, afterGettingFrame, this, FramedSource::handleClosure, this);
+    fInputSource->getNextFrame(fTo, fMaxSize, afterGettingFrame, this, FramedSource::handleClosure, this);
 }
 
 

@@ -82,6 +82,11 @@ public:
   // (Our implementation of RTP reception already does all needed handling of RTP sequence numbers and timestamps.)
   u_int16_t curPacketRTPSeqNum() const { return fCurPacketRTPSeqNum; }
 private: friend class MediaSubsession; // "MediaSubsession" is the only outside class that ever needs to see RTP timestamps!
+
+#ifdef STREAM_SWITCH
+public:
+#endif
+
   u_int32_t curPacketRTPTimestamp() const { return fCurPacketRTPTimestamp; }
 
 protected:

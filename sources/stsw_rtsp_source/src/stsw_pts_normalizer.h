@@ -30,6 +30,10 @@
 #ifndef STSW_PTS_NORMALIZER_H
 #define STSW_PTS_NORMALIZER_H
 
+#ifndef STREAM_SWITCH
+#define STREAM_SWITCH
+#endif
+
 #include "liveMedia.hh"
 
 ////////// PtsSessionNormalizer and PtsSubsessionNormalizer definitions //////////
@@ -70,7 +74,8 @@ private:
     PtsSessionNormalizer& fParent;
     RTPSource* fRTPSource;
     char * fCodecName;
-    char * fMediumName;  
+    char * fMediumName; 
+    u_int32_t fLastRtpTimestamp;
     PtsSubsessionNormalizer* fNext;
 };
 

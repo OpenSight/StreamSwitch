@@ -305,23 +305,37 @@ void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
     LockGuard guard(&lock_);
     
     //update meta
-    stream_meta_ = stream_meta;       
-    
-    int sub_stream_num = stream_meta.sub_streams.size();
-    
-    // clear the statistic
-    statistic_.clear();
-    statistic_.resize(sub_stream_num);
-    int i;
-    for(i=0;i<sub_stream_num;i++){
-        statistic_[i].sub_stream_index = i;
-        statistic_[i].media_type = (SubStreamMediaType)stream_meta.sub_streams[i].media_type;     
+        
+    if(stream_meta_.ssrc != stream_meta.ssrc || 
+       stream_meta_.sub_streams.size() != stream_meta.sub_streams.size()){
+        //stream source is totaly changed
+        
+        int sub_stream_num = stream_meta.sub_streams.size();
+        
+        // clear the statistic
+        statistic_.clear();
+        statistic_.resize(sub_stream_num);
+        int i;
+        for(i=0;i<sub_stream_num;i++){
+            statistic_[i].sub_stream_index = i;
+            statistic_[i].media_type = (SubStreamMediaType)stream_meta.sub_streams[i].media_type;     
+        }
+        
+        if(stream_meta_.ssrc != stream_meta.ssrc){
+            cur_bps_ = 0;
+            cur_bytes_ = 0;
+            last_frame_sec_ = 0;
+            last_frame_usec_ = 0;
+        }
+        
+    }else{
+        // ssrc is the same, means just update the metadata
+        // to supplement more info
+        
     }
     
-    cur_bps_ = 0;
-    cur_bytes_ = 0;
-    last_frame_sec_ = 0;
-    last_frame_usec_ = 0;
+    stream_meta_ = stream_meta;      
+    
 }
 
 StreamMetadata StreamSource::stream_meta()
