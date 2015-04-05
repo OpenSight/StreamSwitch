@@ -1,0 +1,10 @@
+StreamSwitch make use of many other open source projects for its components. 
+
+The following lists all the projects/libraries which StreamSwitch depends for each of its components.
+
+1. Base depends
+
+    * zeromq >= 4.0.0
+    * czmq >= 3.0.0
+    * protobuf >= 2.6.0
+    
