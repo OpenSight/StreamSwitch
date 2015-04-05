@@ -35,6 +35,8 @@
 #endif
 #include "liveMedia.hh"
 
+#include<stdint.h>
+
 ////////// PtsSessionNormalizer and PtsSubsessionNormalizer definitions //////////
 
 // the Media Output Sink class
@@ -47,6 +49,38 @@
 
 class MediaOutputSink: public MediaSink {
 
+public:
+    static MediaOutputSink* createNew(UsageEnvironment& env,
+            MediaSubsession* subsession, // identifies the kind of data 
+                                         //that's being received
+            int32_t sub_stream_index,    // identifies the stream itself 
+            size_t sink_buf_size        // receive buf size
+            );   
+
+private:
+    MediaOutputSink(UsageEnvironment& env, MediaSubsession* subsession, 
+                  int32_t sub_stream_index, size_t sink_buf_size);
+    // called only by "createNew()"
+    virtual ~MediaOutputSink();
+
+    static void afterGettingFrame(void* clientData, unsigned frameSize,
+                                unsigned numTruncatedBytes,
+                                struct timeval presentationTime,
+                                unsigned durationInMicroseconds);
+    void afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
+                struct timeval presentationTime, unsigned durationInMicroseconds);
+
+private:
+    // redefined virtual functions:
+    virtual Boolean continuePlaying();
+
+private:
+    u_int8_t* recv_buf_;
+    size_t sink_buf_size_;
+    MediaSubsession* subsession_;
+    int32_t sub_stream_index_;  
+    struct timeval last_pts_; 
+    
 };
 
 
