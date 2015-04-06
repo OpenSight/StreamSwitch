@@ -42,23 +42,37 @@
     
 class LiveRtspClientListener{
 public:    
-    onGetFrame();
-    onError();
-    onMetaUpdate();
-     
+    OnMediaFrame();
+    OnError();
+    OnMetaReady();     
 };
 
-}
 
 
 
 class LiveRtspClient: public RTSPClient{
-public:    
-
- 
+public:
+    LiveRtspClient();
+    ~LiveRtspClient();
+    
+    Init();
+    Uninit();
+    
+    Start();
+    Shutdown();
+    
+    GetMetadata();
+    GetStatisticData();
+    ResetStatistic();
+    
+    static void continueAfterOPTIONS(RTSPClient *client, int resultCode, char* resultString);  
+    static void continueAfterDESCRIBE(RTSPClient *client, int resultCode, char* resultString);
+    static void continueAfterSETUP(RTSPClient *client, int resultCode, char* resultString);
+    static void continueAfterPLAY(RTSPClient *client, int resultCode, char* resultString);
+    
 };
 
-}
+
 
 
 
