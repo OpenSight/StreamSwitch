@@ -26,14 +26,9 @@
  * date: 2015-4-1
 **/ 
 
+#include "stsw_rtsp_client.h"
 
-
-#include "stsw_rtsp_client_interface.hh"
-#include "BasicUsageEnvironment.hh"
-#include "GroupsockHelper.hh"
-#include "H264VideoLiveSource.hh"
-#include "MPEG4ESVideoLiveSource.hh"
-#include "SimpleRTPSource.hh"
+#if 0
 
 #if defined(__WIN32__) || defined(_WIN32)
 #define snprintf _snprintf
@@ -148,7 +143,30 @@ extern unsigned g_nIframeNum ;
 extern unsigned g_nIntervalNumOfIframe;
 
 
+#endif
 
+LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
+			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
+                   char const* singleMedium, int verbosityLevel)
+:RTSPClient(env, rtspURL, verbosityLevel, "stsw_rtsp_client", 0, -1), 
+are_already_shutting_down_(True), stream_using_tcp_(streamUsingTCP), 
+enable_rtsp_keep_alive_(enableRtspKeepAlive), single_medium_(NULL)
+{
+    if(singleMedium != NULL){
+        single_medium_ = strdup(singleMedium);
+    }
+}
+
+
+LiveRtspClient::~LiveRtspClient()
+{
+    if(single_medium_ != NULL){
+        free(single_medium_);
+        single_medium_ = NULL;
+    }
+}
+
+#if 0
 int startRtspClient(char const* url, char const* progName, 
                     char const* userName, char const* passwd,
                     RtspClientConstructCallback constructCallback, 
@@ -1362,3 +1380,4 @@ void shutdownRtspClient(void)
 {
   RtspRtpError(RELAY_CLIENT_RESULT_USER_DEMAND);
 }
+#endif 

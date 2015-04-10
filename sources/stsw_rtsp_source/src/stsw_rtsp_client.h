@@ -32,7 +32,7 @@
 
 #include "liveMedia.hh"
 #include "FramedSource.hh"
-
+#include "stream_switch.h"
 
 // the LIve Rtsp Client listener class
 //     An interface to handle live rtsp client's callback. 
@@ -40,11 +40,43 @@
 // invokes the specific method of its listener in its 
 // internal thread context. 
     
+    
+enum RtspClientErrCode{
+    RTSP_CLIENT_ERR_SUCCESSFUL = 0, 
+    RTSP_CLIENT_ERR_CONNECT_FAIL = -1, 
+    RTSP_CLIENT_ERR_DESCRIBE_ERR = -2,  
+    RTSP_CLIENT_ERR_SETUP_ERR = -3,  
+    RTSP_CLIENT_ERR_PLAY_ERR = -4,  
+    RTSP_CLIENT_ERR_MEDIASESSION_CREATE_FAIL = -5,  
+    RTSP_CLIENT_ERR_NO_SUBSESSION = -6,  
+    RTSP_CLIENT_ERR_SUBSESSION_INIT_ERR = -7,  
+    RTSP_CLIENT_ERR_SUBSESSION_BYE = -8,  
+    RTSP_CLIENT_ERR_INTER_PACKET_GAP = -9, 
+    RTSP_CLIENT_ERR_SESSION_TIMER = -10, 
+    RTSP_CLIENT_ERR_USER_DEMAND = -11,
+    RTSP_CLIENT_ERR_RESOUCE_ERR = -12,
+};
+    
 class LiveRtspClientListener{
 public:    
-    OnMediaFrame();
-    OnError();
-    OnMetaReady();     
+    // When the client get a frame from remote server successfully, 
+    // OnMediaFrame() would be invoke 
+    virtual void OnMediaFrame(
+        const stream_switch::MediaDataFrame &media_frame
+    );
+    
+    // When the client detect some error, 
+    // OnError() would be invoked, normally, user would 
+    // exit the program. user shouldn't call shutdown() method in 
+    // this cb which would wait for the client's internal thread
+    // exit so that would result into deadlock
+    // After this cb is invoke, the rtsp client
+    virtual void OnError(RtspClientErrCode err_code, const char * err_info);
+    
+    // when this client's metadata become ready, 
+    // OnMetaReady() would be invoked. Normally, user would 
+    // get the meta data and start streamswitch source in this callbak
+    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);     
 };
 
 
@@ -52,30 +84,57 @@ public:
 
 class LiveRtspClient: public RTSPClient{
 public:
-    LiveRtspClient();
-    ~LiveRtspClient();
+    static LiveRtspClient * CreateNew(UsageEnvironment& env, char const* rtspURL, 
+			       Boolean streamUsingTCP = False, Boolean enableRtspKeepAlive = False, 
+                   char const* singleMedium = NULL, int verbosityLevel = 0);
+
+    LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
+			       Boolean streamUsingTCP = False, Boolean enableRtspKeepAlive = False, 
+                   char const* singleMedium = NULL, int verbosityLevel = 0);
+                   
+    virtual ~LiveRtspClient();
     
-    Init();
-    Uninit();
     
-    Start();
-    Shutdown();
+    virtual int Start();
+    virtual void Shutdown();
     
-    GetMetadata();
-    GetStatisticData();
-    ResetStatistic();
+    virtual bool IsRunning();
     
-    static void continueAfterOPTIONS(RTSPClient *client, int resultCode, char* resultString);  
-    static void continueAfterDESCRIBE(RTSPClient *client, int resultCode, char* resultString);
-    static void continueAfterSETUP(RTSPClient *client, int resultCode, char* resultString);
-    static void continueAfterPLAY(RTSPClient *client, int resultCode, char* resultString);
+    virtual bool IsMetaReady();
+    virtual bool GetMetadata();
+    
+    virtual int GetStatisticData();
+    virtual void ResetStatistic();
+    
+    virtual void afterGettingFrame(int32_t sub_stream_index, 
+                           stream_switch::MediaFrameType frame_type, 
+                           struct timeval timestamp, 
+                           unsigned frame_size, 
+                           char * frame_buf);
+protected:
+    
+    static void ContinueAfterOPTIONS(RTSPClient *client, int resultCode, char* resultString);  
+    static void ContinueAfterDESCRIBE(RTSPClient *client, int resultCode, char* resultString);
+    static void ContinueAfterSETUP(RTSPClient *client, int resultCode, char* resultString);
+    static void ContinueAfterPLAY(RTSPClient *client, int resultCode, char* resultString);
+    
+    static void * StaticThreadRoutine(void *arg);
+
+    virtual void ShutdownInternal();
+    
+private: 
+    Boolean are_already_shutting_down_;
+    Boolean stream_using_tcp_;
+    Boolean enable_rtsp_keep_alive_; 
+    char * single_medium_;
+    
     
 };
 
 
 
 
-
+#if 0
 
 typedef void (*RtspClientConstructCallback)(int resultCode, FramedSource * videoSource, FramedSource * audioSource);
 typedef void (*RtspClientErrorCallback)(int resultCode);
@@ -106,18 +165,6 @@ int getQOSVideoData(unsigned  *outMeasurementTime,
                     unsigned  *outGovNow
                     );
 
-#define RELAY_CLIENT_RESULT_SUCCESSFUL 0 
-#define RELAY_CLIENT_RESULT_CONNECT_FAIL -1 
-#define RELAY_CLIENT_RESULT_DESCRIBE_ERR -2 
-#define RELAY_CLIENT_RESULT_MEDIASESSION_CREATE_FAIL -3 
-#define RELAY_CLIENT_RESULT_NO_SUBSESSION -4 
-#define RELAY_CLIENT_RESULT_SUBSESSION_INIT_ERR -5 
-#define RELAY_CLIENT_RESULT_SETUP_ERR -6 
-#define RELAY_CLIENT_RESULT_PLAY_ERR -7 
-#define RELAY_CLIENT_RESULT_BYE -8 
-#define RELAY_CLIENT_RESULT_INTER_PACKET_GAP -9
-#define RELAY_CLIENT_RESULT_SESSION_TIMER -10
-#define RELAY_CLIENT_RESULT_USER_DEMAND -11
-#define RELAY_CLIENT_RESULT_RESOUCE_ERR -12
+#endif
 
 #endif

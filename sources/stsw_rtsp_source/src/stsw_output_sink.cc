@@ -71,7 +71,7 @@ void MediaOutputSink::afterGettingFrame(void* clientData, unsigned frameSize, un
 // #define DEBUG_PRINT_EACH_RECEIVED_FRAME 1
 
 void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
-				  struct timeval presentationTime, unsigned /*durationInMicroseconds*/) {
+				  struct timeval presentationTime, unsigned durationInMicroseconds) {
   // We've just received a frame of data.  (Optionally) print out information about it:
 #ifdef DEBUG_PRINT_EACH_RECEIVED_FRAME
     envir() << "Stream index:\"" << sub_stream_index_ << "\"; ";
@@ -89,7 +89,6 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
     envir() << "\n";
 #endif
 
-    //update metadata if needed
     
     //check pts
     if(presentationTime.tv_sec < last_pts_.tv_sec ||
@@ -117,13 +116,23 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
     }
     
     
-    //callback the parent rtsp client frame receive interface
-    
-    
+    DoAfterGettingFrame(frameSize, numTruncatedBytes, presentationTime, durationInMicroseconds);
+  
 out:    
   
     // Then continue, to request the next frame of data:
     continuePlaying();
+}
+
+void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
+                struct timeval presentationTime, unsigned durationInMicroseconds)
+{
+    //update metadata if needed
+    
+    //analyze the frame's type
+    
+    //callback the parent rtsp client frame receive interface
+        
 }
 
 
