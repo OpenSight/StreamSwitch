@@ -26,14 +26,14 @@
  * date: 2015-4-1
 **/ 
 
+#include "stsw_rtsp_client.h"
 
-
-#include "stsw_rtsp_client_interface.hh"
 #include "BasicUsageEnvironment.hh"
+#undef _WIN32
+#undef __WIN32__
 #include "GroupsockHelper.hh"
-#include "H264VideoLiveSource.hh"
-#include "MPEG4ESVideoLiveSource.hh"
-#include "SimpleRTPSource.hh"
+
+#if 0
 
 #if defined(__WIN32__) || defined(_WIN32)
 #define snprintf _snprintf
@@ -83,48 +83,39 @@ extern void startPlayingSession(MediaSession* session, double start, double end,
 extern void tearDownSession(MediaSession* session, RTSPClient::responseHandler* afterFunc);
 
 
-extern UsageEnvironment* env;
-extern char *  g_pszCodecName;
-static Medium* ourClient = NULL;
-static Authenticator* ourAuthenticator = NULL;
-static char const* streamURL = NULL;
-static MediaSession* session = NULL;
-static TaskToken sessionTimerTask = NULL;
-static TaskToken interPacketGapCheckTimerTask = NULL;
-static TaskToken qosMeasurementTimerTask = NULL;
-static TaskToken tearDownTask = NULL;
-static TaskToken rtspKeepAliveTask = NULL;
-static TaskToken rtspTimeoutTask = NULL;
-Boolean enableRtspKeepAlive = False;
-static Boolean hasReceiveKeepAliveResponse = False;
+
+
+
+#endif
+
+
 Boolean isRTSPConstructFail = True;
-extern char const* singleMedium ;
-extern int verbosityLevel; // by default, print verbose output
-static double duration = 0;
-static double durationSlop = -1.0; // extra seconds to play at the end
+static Boolean forceMulticastOnUnspecified = False;
+static double durationSlop = 1.0; // extra seconds to play at the end
 static double initialSeekTime = 0.0f;
+static char *initialAbsoluteSeekTime = NULL;
 static float scale = 1.0f;
-static double endTime;
 static unsigned interPacketGapMaxTime = 10; //check for each 10 second 
 static unsigned totNumPacketsReceived = ~0; // used if checking inter-packet gaps
 static int simpleRTPoffsetArg = -1;
 static Boolean sendOptionsRequest = False;
-extern Boolean streamUsingTCP;
 static unsigned short desiredPortNum = 0;
 static portNumBits tunnelOverHTTPPortNum = 0;
 static unsigned qosMeasurementIntervalMS = 1000; // 0 means: Don't output QOS data
 extern unsigned qosMeasurementResetIntervalSec; // 0 means: Don't reset
 
-extern unsigned sinkBufferSize;
+static unsigned VideoSinkBufferSize = 1048576; /* 1M bytes */
+static unsigned AudioSinkBufferSize = 131072; /* 128K bytes */
 static unsigned socketVideoInputBufferSize = 2097152; /* 2M bytes */
 static unsigned socketAudioInputBufferSize = 131072; /* 128K bytes */
 
+#if 0
 static H264VideoLiveSource *outputSource = NULL;
 static MPEG4ESVideoLiveSource* mpeg4Source = NULL;
 static SimpleRTPSource *outputAudioSource = NULL; 
+#endif
 
 
-static struct timeval startTime;
 
 RTSPClient* ourRTSPClient = NULL;
 static char const* clientProtocolName = "RTSP";
@@ -133,9 +124,9 @@ static char const* clientProtocolName = "RTSP";
 static unsigned const rtpClientReorderWindowthresh = 20000; // 20 ms
 Boolean areAlreadyShuttingDown = True;
 
-static RtspClientConstructCallback userConstructCallback = NULL;
+//static RtspClientConstructCallback userConstructCallback = NULL;
 
-static RtspClientErrorCallback userErrorCallback = NULL;
+//static RtspClientErrorCallback userErrorCallback = NULL;
 
 
 #define RTSP_KEEPALIVE_INTERVAL 20000000
@@ -148,7 +139,404 @@ extern unsigned g_nIframeNum ;
 extern unsigned g_nIntervalNumOfIframe;
 
 
+const char* userAgent = "StreamSwitch";
 
+
+
+LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
+			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
+                   char const* singleMedium, 
+                   char const* userName, char const* passwd,  
+                   int verbosityLevel)
+:RTSPClient(env, rtspURL, verbosityLevel, "stsw_rtsp_client", 0, -1), 
+are_already_shutting_down_(True), stream_using_tcp_(streamUsingTCP), 
+enable_rtsp_keep_alive_(enableRtspKeepAlive), single_medium_(NULL), 
+rtsp_url_(rtspURL), our_authenticator(NULL), 
+session_(NULL), session_timer_task_(NULL), 
+inter_packet_gap_check_timer_task_(NULL), qos_measurement_timer_task_(NULL),
+tear_down_task_(NULL), rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
+has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
+made_progress_(False), setup_iter_(NULL)
+
+{
+    if(singleMedium != NULL){
+        single_medium_ = strdup(singleMedium);
+    }
+    client_start_time_.tv_sec = 0;
+    client_start_time_.tv_usec = 0;
+    
+    if(userName != NULL) {
+        our_authenticator = new Authenticator(userName,passwd);
+    }    
+}
+
+
+LiveRtspClient::~LiveRtspClient()
+{
+    if(single_medium_ != NULL){
+        free(single_medium_);
+        single_medium_ = NULL;
+    }
+    
+    if(our_authenticator != NULL){
+        delete our_authenticator;
+        our_authenticator = NULL;
+    }
+}
+
+
+int LiveRtspClient::Start()
+{
+    SetUserAgentString(userAgent);
+    gettimeofday(&client_start_time_, NULL);
+    
+ 
+    if (sendOptionsRequest) {
+        // Begin by sending an "OPTIONS" command:
+        GetOptions(ContinueAfterOPTIONS);
+    } else {
+        ContinueAfterOPTIONS(this, 0, NULL);
+    }  
+
+    // start the timeout check 
+#if 0    
+    rtsp_timeout_task_ = envir()->taskScheduler().scheduleDelayedTask(
+        60000000 /* 1 minutes */, (TaskFunc*)rtspClientConnectTimeout, 
+        (void*)this);
+#endif
+       
+    are_already_shutting_down_ = False;
+    
+    return 0;
+}
+
+
+void LiveRtspClient::Shutdown()
+{
+    //if not start or already shutdown, just return
+    if (are_already_shutting_down_) return; 
+    are_already_shutting_down_ = True;
+    
+    //cancel the delay task
+    
+   // Teardown, then shutdown immediately
+  if (session_ != NULL) {
+    TearDownSession(session_, NULL);
+  }
+
+  ContinueAfterTEARDOWN(this, 0, NULL); 
+    
+}
+
+
+void LiveRtspClient::ContinueAfterOPTIONS(RTSPClient *client, 
+    int resultCode, char* resultString)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)client;
+
+
+    if (resultCode != 0) {
+        client->envir() << clientProtocolName 
+                        << " \"OPTIONS\" request failed: " 
+                        << resultString << "\n";
+    } else {
+        client->envir() << clientProtocolName 
+                        << " \"OPTIONS\" request returned: " 
+                        << resultString << "\n";
+    }
+
+    
+    if(resultString != NULL){
+        delete[] resultString;
+        
+    }
+
+    // Next, get a SDP description for the stream:
+    my_client->GetSDPDescription(ContinueAfterDESCRIBE);
+    
+}
+
+void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, char* resultString) 
+{
+    
+    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    if (resultCode != 0) {
+        my_client->envir() << "Failed to get a SDP description for the URL \"" << my_client->rtsp_url_.c_str() << "\": " << resultString << "\n";
+        delete[] resultString;
+        //TODO ??????//shutdown();
+        return;
+    }
+
+    char* sdpDescription = resultString;
+        my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() << "\", returning a SDP description:\n" << sdpDescription << "\n";
+
+    // Create a media session object from this SDP description:
+    my_client->session_ = MediaSession::createNew(my_client->envir(), sdpDescription);
+    delete[] sdpDescription;
+    if (my_client->session_ == NULL) {
+        client->envir() << "Failed to create a MediaSession object from the SDP description: " << client->envir().getResultMsg() << "\n";
+        //TODO ??????
+        return;
+    
+    } else if (!my_client->session_->hasSubsessions()) {
+        client->envir() << "This session has no media subsessions (i.e., no \"m=\" lines)\n";
+        //shutdown();
+        //TODO ??????
+        return;
+    }
+
+    // Then, setup the "RTPSource"s for the session:
+    MediaSubsessionIterator iter(*(my_client->session_));
+    MediaSubsession *subsession;
+    Boolean madeProgress = False;
+    char const* singleMediumToTest = my_client->single_medium_;
+    while ((subsession = iter.next()) != NULL) {
+        // If we've asked to receive only a single medium, then check this now:
+        if (singleMediumToTest != NULL) {
+            if (strcmp(subsession->mediumName(), singleMediumToTest) != 0) {
+                my_client->envir() << "Ignoring \"" << subsession->mediumName()
+                        << "/" << subsession->codecName()
+                    << "\" subsession, because we've asked to receive a single " << singleMediumToTest
+                    << " session only\n";
+                continue;
+            } else {
+                // Receive this subsession only
+                singleMediumToTest = "xxxxx";
+                // this hack ensures that we get only 1 subsession of this type
+            }
+        }
+
+        if (desiredPortNum != 0) {
+            subsession->setClientPortNum(desiredPortNum);
+            desiredPortNum += 2;
+        }
+
+
+        if (!subsession->initiate(simpleRTPoffsetArg)) {
+            my_client->envir() << "Unable to create receiver for \"" << subsession->mediumName()
+                << "/" << subsession->codecName()
+                << "\" subsession: " << my_client->envir().getResultMsg() << "\n";
+        } else {
+            my_client->envir() << "Created receiver for \"" << subsession->mediumName()
+                << "/" << subsession->codecName() << "\" subsession (";
+            if (subsession->rtcpIsMuxed()) {
+                my_client->envir() << "client port " << subsession->clientPortNum();
+            } else {
+                my_client->envir() << "client ports " << subsession->clientPortNum()
+                    << "-" << subsession->clientPortNum()+1;
+            }
+            my_client->envir() << ")\n";
+            madeProgress = True;
+	
+            if (subsession->rtpSource() != NULL) {
+                // Because we're relaying the incoming data lively, rather than saving, 
+                // should use an especially small time threshold, maybe 10ms is suitable?
+
+                subsession->rtpSource()->setPacketReorderingThresholdTime(rtpClientReorderWindowthresh);
+	  
+        // Set the RTP source's OS socket buffer size as appropriate - either if we were explicitly asked (using -B),
+        // or if the desired FileSink buffer size happens to be larger than the current OS socket buffer size.
+        // (The latter case is a heuristic, on the assumption that if the user asked for a large FileSink buffer size,
+        // then the input data rate may be large enough to justify increasing the OS socket buffer size also.)
+                int socketNum = subsession->rtpSource()->RTPgs()->socketNum();
+                unsigned curBufferSize = getReceiveBufferSize(my_client->envir(), socketNum);
+                unsigned socket_input_buf = 0;
+                unsigned sink_file_buf = 0;
+                if(strcmp(subsession->mediumName(), "video") == 0){
+                    socket_input_buf = socketVideoInputBufferSize;
+                    sink_file_buf = VideoSinkBufferSize;
+                }else{
+                    socket_input_buf = socketAudioInputBufferSize;
+                    sink_file_buf = AudioSinkBufferSize;                    
+                }
+                
+                if (socket_input_buf > 0 || sink_file_buf > curBufferSize) {
+                    unsigned newBufferSize = socket_input_buf > 0 ? socket_input_buf : sink_file_buf;
+                    newBufferSize = setReceiveBufferTo(my_client->envir(), socketNum, newBufferSize);
+                    if (socket_input_buf > 0) { // The user explicitly asked for the new socket buffer size; announce it:
+                        my_client->envir() << "Changed socket receive buffer size for the \""
+                            << subsession->mediumName()
+                            << "/" << subsession->codecName()
+                            << "\" subsession from "
+                            << curBufferSize << " to "
+                            << newBufferSize << " bytes\n";
+                    }
+                } //if (socket_input_buf > 0 || sink_file_buf > curBufferSize)
+            }//if (subsession->rtpSource() != NULL)
+        }//if (!subsession->initiate(simpleRTPoffsetArg))
+
+    }//while ((subsession = iter.next()) != NULL)
+    if (!madeProgress) my_client->Shutdown();
+
+    // Perform additional 'setup' on each subsession, before playing them:
+    my_client->made_progress_ = False;
+    //setupStreams();
+
+}
+
+
+void LiveRtspClient::ContinueAfterSETUP(RTSPClient* client, int resultCode, char* resultString) {
+    
+    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    
+    if (resultCode == 0) {
+        my_client->envir() << "Setup \"" << my_client->cur_setup_subsession_->mediumName()
+            << "/" << my_client->cur_setup_subsession_->codecName()
+            << "\" subsession (";
+        if (my_client->cur_setup_subsession_->rtcpIsMuxed()) {
+            my_client->envir()  << "client port " << my_client->cur_setup_subsession_->clientPortNum();
+        } else {
+            my_client->envir()  << "client ports " << my_client->cur_setup_subsession_->clientPortNum()
+                << "-" << my_client->cur_setup_subsession_->clientPortNum()+1;
+        }
+        my_client->envir()  << ")\n";
+        my_client->made_progress_ = True;
+    } else {
+        my_client->envir()  << "Failed to setup \"" << my_client->cur_setup_subsession_->mediumName()
+            << "/" << my_client->cur_setup_subsession_->codecName()
+            << "\" subsession: " << resultString << "\n";
+    }
+    if(resultString != NULL) {
+        delete[] resultString;
+    }
+
+    //sessionTimeoutParameter = client->sessionTimeoutParameter();
+
+    // Set up the next subsession, if any:
+    my_client->SetupStreams();
+}
+
+
+
+void LiveRtspClient::SetupStreams() {
+    MediaSubsession *subsession;
+    if (setup_iter_ == NULL) setup_iter_ = new MediaSubsessionIterator(*session_);
+    while ((subsession = setup_iter_->next()) != NULL) {
+        // We have another subsession left to set up:
+        if (subsession->clientPortNum() == 0) continue; // port # was not set
+        
+        cur_setup_subsession_ = subsession;
+        SetupSubsession(subsession, stream_using_tcp_, forceMulticastOnUnspecified, ContinueAfterSETUP);
+        return;
+    }
+
+    // We're done setting up subsessions.
+    delete setup_iter_;
+    setup_iter_ = NULL;
+    if (!made_progress_) {
+        //TODO ??? setup error
+        return;
+    }
+
+    //Create sink
+
+
+    //TODO ???? createOutputFiles("");
+
+
+  // Finally, start playing each subsession, to start the data flow:
+    if (duration_ == 0) {
+        if (scale > 0) duration_ = session_->playEndTime() - initialSeekTime; // use SDP end time
+        else if (scale < 0) duration_ = initialSeekTime;
+    }
+    if (duration_ < 0) duration_ = 0.0;
+
+    endTime_ = initialSeekTime;
+    if (scale > 0) {
+        if (duration_ <= 0) endTime_ = -1.0f;
+        else endTime_ = initialSeekTime + duration_;
+    } else {
+        endTime_ = initialSeekTime - duration_;
+        if (endTime_ < 0) endTime_ = 0.0f;
+    } 
+
+    char const* absStartTime = initialAbsoluteSeekTime != NULL ? initialAbsoluteSeekTime : session_->absStartTime();
+    if (absStartTime != NULL) {
+        // Either we or the server have specified that seeking should be done by 'absolute' time:
+        StartPlayingSession(session_, absStartTime, session_->absEndTime(), scale, ContinueAfterPLAY);
+    } else {
+        // Normal case: Seek by relative time (NPT):
+        StartPlayingSession(session_, initialSeekTime, endTime_, scale, ContinueAfterPLAY);
+    }
+}
+
+
+
+
+void LiveRtspClient::ContinueAfterTEARDOWN(RTSPClient* client, 
+    int /*resultCode*/, char* resultString) 
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    if(resultString != NULL) {
+        delete[] resultString;
+    }
+
+    // Now that we've stopped any more incoming data from arriving, close our output files:
+    my_client->closeMediaSinks();
+    Medium::close(my_client->session_);
+    my_client->session_ = NULL;
+
+}
+
+
+
+void LiveRtspClient::GetOptions(RTSPClient::responseHandler* afterFunc) 
+{ 
+    sendOptionsCommand(afterFunc, our_authenticator);
+}
+
+void LiveRtspClient::GetSDPDescription(RTSPClient::responseHandler* afterFunc) 
+{
+    sendDescribeCommand(afterFunc, our_authenticator);
+}
+
+void LiveRtspClient::SetupSubsession(MediaSubsession* subsession, 
+    Boolean streamUsingTCP, Boolean forceMulticastOnUnspecified, 
+    RTSPClient::responseHandler* afterFunc) 
+{
+  
+    sendSetupCommand(*subsession, afterFunc, False, streamUsingTCP, 
+        forceMulticastOnUnspecified, our_authenticator);
+}
+
+void LiveRtspClient::StartPlayingSession(MediaSession* session, 
+    double start, double end, float scale, 
+    RTSPClient::responseHandler* afterFunc) 
+{
+    sendPlayCommand(*session, afterFunc, start, end, scale, our_authenticator);
+}
+
+void LiveRtspClient::StartPlayingSession(MediaSession* session, 
+    char const* absStartTime, char const* absEndTime, 
+    float scale, RTSPClient::responseHandler* afterFunc) 
+{
+    sendPlayCommand(*session, afterFunc, absStartTime, 
+        absEndTime, scale, our_authenticator);
+}
+
+void LiveRtspClient::TearDownSession(MediaSession* session,
+    RTSPClient::responseHandler* afterFunc) 
+{
+    sendTeardownCommand(*session, afterFunc, our_authenticator);
+}
+
+void LiveRtspClient::SetUserAgentString(char const* userAgentString) 
+{
+    SetUserAgentString(userAgentString);
+}
+
+void LiveRtspClient::closeMediaSinks()
+{
+  if (session_ == NULL) return;
+    MediaSubsessionIterator iter(*session_);
+    MediaSubsession* subsession;
+    while ((subsession = iter.next()) != NULL) {
+        Medium::close(subsession->sink);
+        subsession->sink = NULL;
+    }    
+}
+
+#if 0
 int startRtspClient(char const* url, char const* progName, 
                     char const* userName, char const* passwd,
                     RtspClientConstructCallback constructCallback, 
@@ -390,7 +778,7 @@ void continueAfterDESCRIBE(RTSPClient*, int resultCode, char* resultString) {
 
 MediaSubsession *subsession;
 Boolean madeProgress = False;
-void continueAfterSETUP(RTSPClient*, int resultCode, char* resultString) {
+void LiveRtspClient::ContinueAfterSETUP(RTSPClient*, int resultCode, char* resultString) {
   if (resultCode == 0) {
       *env << "Setup \"" << subsession->mediumName()
 	   << "/" << subsession->codecName()
@@ -407,20 +795,20 @@ void continueAfterSETUP(RTSPClient*, int resultCode, char* resultString) {
   setupStreams();
 }
 
-void setupStreams() {
-  static MediaSubsessionIterator* setupIter = NULL;
-  if (setupIter == NULL) setupIter = new MediaSubsessionIterator(*session);
-  while ((subsession = setupIter->next()) != NULL) {
-    // We have another subsession left to set up:
-    if (subsession->clientPortNum() == 0) continue; // port # was not set
+void LiveRtspClient::SetupStreams() {
+    static MediaSubsessionIterator* setupIter = NULL;
+    if (setupIter == NULL) setupIter = new MediaSubsessionIterator(*session);
+    while ((subsession = setupIter->next()) != NULL) {
+        // We have another subsession left to set up:
+        if (subsession->clientPortNum() == 0) continue; // port # was not set
 
-    setupSubsession(subsession, streamUsingTCP, continueAfterSETUP);
-    return;
-  }
+        setupSubsession(subsession, streamUsingTCP, continueAfterSETUP);
+        return;
+    }
 
-  // We're done setting up subsessions.
-  delete setupIter;
-  setupIter = NULL;
+    // We're done setting up subsessions.
+    delete setupIter;
+    setupIter = NULL;
 	
   if (!madeProgress) {
     RTSPConstructFail(RELAY_CLIENT_RESULT_SETUP_ERR);
@@ -1362,3 +1750,4 @@ void shutdownRtspClient(void)
 {
   RtspRtpError(RELAY_CLIENT_RESULT_USER_DEMAND);
 }
+#endif 

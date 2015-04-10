@@ -46,7 +46,7 @@
 // It's reponsieble for 
 // 1) check the PTS is monotonic, otherwise drop the frame
 // 2) analyze the packet, and update the metadata of parent rtsp client. 
-
+// 3) analyze the frame's type
 class MediaOutputSink: public MediaSink {
 
 public:
@@ -56,12 +56,17 @@ public:
             int32_t sub_stream_index,    // identifies the stream itself 
             size_t sink_buf_size        // receive buf size
             );   
+    
 
-private:
+
     MediaOutputSink(UsageEnvironment& env, MediaSubsession* subsession, 
                   int32_t sub_stream_index, size_t sink_buf_size);
     // called only by "createNew()"
     virtual ~MediaOutputSink();
+    
+
+    
+    
 
     static void afterGettingFrame(void* clientData, unsigned frameSize,
                                 unsigned numTruncatedBytes,
@@ -70,11 +75,14 @@ private:
     void afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds);
 
+    virtual void DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
+                struct timeval presentationTime, unsigned durationInMicroseconds);
+
 private:
     // redefined virtual functions:
     virtual Boolean continuePlaying();
 
-private:
+protected:
     u_int8_t* recv_buf_;
     size_t sink_buf_size_;
     MediaSubsession* subsession_;
