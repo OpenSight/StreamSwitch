@@ -127,11 +127,13 @@ out:
 void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds)
 {
-    //update metadata if needed
+    //update metadata if needed    
     
     //analyze the frame's type
-    
+    stream_switch::MediaFrameType frame_type = 
+        MEDIA_FRAME_TYPE_DATA_FRAME; //default is data frame
     //callback the parent rtsp client frame receive interface
+    
         
 }
 

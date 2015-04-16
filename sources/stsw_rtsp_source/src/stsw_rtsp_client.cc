@@ -100,8 +100,6 @@ static unsigned totNumPacketsReceived = ~0; // used if checking inter-packet gap
 static int simpleRTPoffsetArg = -1;
 static Boolean sendOptionsRequest = False;
 static unsigned short desiredPortNum = 0;
-static portNumBits tunnelOverHTTPPortNum = 0;
-static unsigned qosMeasurementIntervalMS = 1000; // 0 means: Don't output QOS data
 extern unsigned qosMeasurementResetIntervalSec; // 0 means: Don't reset
 
 static unsigned VideoSinkBufferSize = 1048576; /* 1M bytes */
@@ -131,12 +129,6 @@ Boolean areAlreadyShuttingDown = True;
 
 #define RTSP_KEEPALIVE_INTERVAL 20000000
 
-
-extern unsigned g_nTotalFrameNum ;
-
-extern unsigned g_nIframeNum ;
-
-extern unsigned g_nIntervalNumOfIframe;
 
 
 const char* userAgent = "StreamSwitch";
@@ -199,11 +191,11 @@ int LiveRtspClient::Start()
     }  
 
     // start the timeout check 
-#if 0    
-    rtsp_timeout_task_ = envir()->taskScheduler().scheduleDelayedTask(
-        60000000 /* 1 minutes */, (TaskFunc*)rtspClientConnectTimeout, 
+  
+    rtsp_timeout_task_ = envir().taskScheduler().scheduleDelayedTask(
+        60000000 /* 1 minutes */, (TaskFunc*)RtspClientConnectTimeout, 
         (void*)this);
-#endif
+
        
     are_already_shutting_down_ = False;
     
@@ -229,11 +221,19 @@ void LiveRtspClient::Shutdown()
 }
 
 
+
+
+////////////////////////////////////////////////////////////
+//RTSP callback function
+
 void LiveRtspClient::ContinueAfterOPTIONS(RTSPClient *client, 
     int resultCode, char* resultString)
 {
-    LiveRtspClient *my_client = (LiveRtspClient *)client;
-
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
+    if(resultString != NULL){
+        delete[] resultString;
+        
+    }
 
     if (resultCode != 0) {
         client->envir() << clientProtocolName 
@@ -246,10 +246,7 @@ void LiveRtspClient::ContinueAfterOPTIONS(RTSPClient *client,
     }
 
     
-    if(resultString != NULL){
-        delete[] resultString;
-        
-    }
+
 
     // Next, get a SDP description for the stream:
     my_client->GetSDPDescription(ContinueAfterDESCRIBE);
@@ -259,22 +256,25 @@ void LiveRtspClient::ContinueAfterOPTIONS(RTSPClient *client,
 void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, char* resultString) 
 {
     
-    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
     if (resultCode != 0) {
-        my_client->envir() << "Failed to get a SDP description for the URL \"" << my_client->rtsp_url_.c_str() << "\": " << resultString << "\n";
+        my_client->envir() << "Failed to get a SDP description for the URL \"" 
+            << my_client->rtsp_url_.c_str() << "\": " << resultString << "\n";
         delete[] resultString;
         //TODO ??????//shutdown();
         return;
     }
 
     char* sdpDescription = resultString;
-        my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() << "\", returning a SDP description:\n" << sdpDescription << "\n";
+        my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() 
+        << "\", returning a SDP description:\n" << sdpDescription << "\n";
 
     // Create a media session object from this SDP description:
     my_client->session_ = MediaSession::createNew(my_client->envir(), sdpDescription);
     delete[] sdpDescription;
     if (my_client->session_ == NULL) {
-        client->envir() << "Failed to create a MediaSession object from the SDP description: " << client->envir().getResultMsg() << "\n";
+        client->envir() << "Failed to create a MediaSession object from the SDP description: " 
+        << client->envir().getResultMsg() << "\n";
         //TODO ??????
         return;
     
@@ -377,7 +377,7 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
 
 void LiveRtspClient::ContinueAfterSETUP(RTSPClient* client, int resultCode, char* resultString) {
     
-    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
     
     if (resultCode == 0) {
         my_client->envir() << "Setup \"" << my_client->cur_setup_subsession_->mediumName()
@@ -463,10 +463,105 @@ void LiveRtspClient::SetupStreams() {
 
 
 
+
+
+
+void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char* resultString) 
+{
+    
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
+    if(resultString != NULL) {
+        delete[] resultString;
+    }    
+    if (resultCode != 0) {
+        my_client->envir() << "Failed to start playing session: " << resultString << "\n";
+        //TODO ???? error
+        return;
+    } else {
+        my_client->envir() << "Started playing session\n";
+    }
+
+
+    // Figure out how long to delay (if at all) before shutting down, or
+    // repeating the playing
+    Boolean timerIsBeingUsed = False;
+    double secondsToDelay = my_client->duration_;
+    if (my_client->duration_ > 0) {
+        // First, adjust "duration" based on any change to the play range 
+        // (that was specified in the "PLAY" response):
+        double rangeAdjustment = 
+            (my_client->session_->playEndTime() - my_client->session_->playStartTime()) - 
+            (my_client->endTime_ - initialSeekTime);
+        if (my_client->duration_ + rangeAdjustment > 0.0) {
+            my_client->duration_ += rangeAdjustment;
+        }
+
+        timerIsBeingUsed = True;
+        double absScale = scale > 0 ? scale : -scale; // ASSERT: scale != 0
+        secondsToDelay = my_client->duration_/absScale + durationSlop;
+
+        int64_t uSecsToDelay = (int64_t)(secondsToDelay*1000000.0);
+        my_client->session_timer_task_ = 
+            my_client->envir().taskScheduler().scheduleDelayedTask(
+            uSecsToDelay, (TaskFunc*)SessionTimerHandler, (void*)NULL);
+    }
+
+    char const* actionString =  "Receiving streamed data";
+    if (timerIsBeingUsed) {
+        my_client->envir() << actionString
+            << " (for up to " << secondsToDelay
+            << " seconds)...\n";
+    } else {
+        my_client->envir() << actionString << "...\n";
+
+    }
+
+  // Watch for incoming packets (if desired):
+  //checkForPacketArrival(NULL);
+  //checkInterPacketGaps(NULL);
+  //checkSessionTimeoutBrokenServer(NULL);
+  
+    if(my_client->rtsp_timeout_task_ != NULL) {
+        my_client->envir().taskScheduler().unscheduleDelayedTask(
+            my_client->rtsp_timeout_task_);
+        my_client->rtsp_timeout_task_ = NULL;
+    }  
+    
+    if(my_client->enable_rtsp_keep_alive_ == True){
+        my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);    
+    }
+  
+  
+    //callback user function
+    //TODO ???
+}
+
+
+void LiveRtspClient::ContinueAfterKeepAlive(RTSPClient* client, int resultCode, char* resultString) 
+{
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
+    if(resultString != NULL) {
+        delete[] resultString;
+    }
+    
+    if(my_client->session_ != NULL){
+        unsigned sessionTimeoutParameter = my_client->sessionTimeoutParameter();
+        unsigned sessionTimeout = sessionTimeoutParameter == 0 ? 60/*default*/ : sessionTimeoutParameter;
+        unsigned secondsUntilNextKeepAlive = sessionTimeout <= 5 ? 1 : sessionTimeout - 5;
+        // Reduce the interval a little, to be on the safe side
+
+        my_client->rtsp_keep_alive_task_ 
+            = my_client->envir().taskScheduler().scheduleDelayedTask(
+            secondsUntilNextKeepAlive*1000000, (TaskFunc*)RtspKeepAliveHandler, my_client);
+        
+    }
+
+}
+
 void LiveRtspClient::ContinueAfterTEARDOWN(RTSPClient* client, 
     int /*resultCode*/, char* resultString) 
 {
-    LiveRtspClient *my_client = (LiveRtspClient *)client;
+    LiveRtspClient *my_client = dynamic_cast<LiveRtspClient *> (client);
     if(resultString != NULL) {
         delete[] resultString;
     }
@@ -478,7 +573,8 @@ void LiveRtspClient::ContinueAfterTEARDOWN(RTSPClient* client,
 
 }
 
-
+////////////////////////////////////////////////////////////
+//RTSP command sending functions
 
 void LiveRtspClient::GetOptions(RTSPClient::responseHandler* afterFunc) 
 { 
@@ -503,6 +599,7 @@ void LiveRtspClient::StartPlayingSession(MediaSession* session,
     double start, double end, float scale, 
     RTSPClient::responseHandler* afterFunc) 
 {
+    
     sendPlayCommand(*session, afterFunc, start, end, scale, our_authenticator);
 }
 
@@ -520,6 +617,70 @@ void LiveRtspClient::TearDownSession(MediaSession* session,
     sendTeardownCommand(*session, afterFunc, our_authenticator);
 }
 
+void LiveRtspClient::KeepAliveSession(MediaSession* session, 
+        RTSPClient::responseHandler* afterFunc)
+{
+    sendSetParameterCommand(*session, afterFunc, "Ping", "Pong", our_authenticator);
+}
+
+
+
+////////////////////////////////////////////////////////////
+//Timer task
+
+void LiveRtspClient::RtspKeepAliveHandler(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+    my_client->rtsp_keep_alive_task_ = NULL;
+        
+    if(my_client->session_ != NULL) {
+        my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);
+    }
+
+}
+
+
+void LiveRtspClient::SessionTimerHandler(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+    my_client->session_timer_task_ = NULL;
+    
+    //TODO: error handle    
+}
+
+void LiveRtspClient::SubsessionByeHandler(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+
+    struct timeval timeNow;
+    gettimeofday(&timeNow, NULL);
+    unsigned secsDiff = 
+        timeNow.tv_sec - my_client->client_start_time_.tv_sec;
+
+    my_client->envir() << "Received RTCP \"BYE\" on one subsession (after " 
+        << secsDiff
+        << " seconds)\n";
+        
+    //TODO: error handle        
+    
+}
+
+
+void LiveRtspClient::RtspClientConnectTimeout(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+    my_client->rtsp_timeout_task_ = NULL;
+    
+    my_client->envir() << "Rtsp negotiation time out\n";
+    //TODO ????
+    //RTSPConstructFail(RELAY_CLIENT_RESULT_CONNECT_FAIL);
+    return;        
+}
+
+
+
+
+
 void LiveRtspClient::SetUserAgentString(char const* userAgentString) 
 {
     SetUserAgentString(userAgentString);
@@ -535,6 +696,12 @@ void LiveRtspClient::closeMediaSinks()
         subsession->sink = NULL;
     }    
 }
+
+
+
+
+
+
 
 #if 0
 int startRtspClient(char const* url, char const* progName, 

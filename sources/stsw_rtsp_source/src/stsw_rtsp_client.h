@@ -121,24 +121,29 @@ public:
                            unsigned frame_size, 
                            char * frame_buf);
 protected:
-    
+    ////////////////////////////////////////////////////////////
+    //RTSP callback function
     static void ContinueAfterOPTIONS(RTSPClient *client, int resultCode, char* resultString);  
     static void ContinueAfterDESCRIBE(RTSPClient *client, int resultCode, char* resultString);
     static void ContinueAfterSETUP(RTSPClient *client, int resultCode, char* resultString);
     static void ContinueAfterPLAY(RTSPClient *client, int resultCode, char* resultString);
     static void ContinueAfterTEARDOWN(RTSPClient* client, int resultCode, char* resultString);
-    static void ContinueAfterKeepAlive(RTSPClient*, int resultCode, char* resultString);
+    static void ContinueAfterKeepAlive(RTSPClient* client, int resultCode, char* resultString);
     
-    static void * StaticThreadRoutine(void *arg);
+    //////////////////////////////////////////////////
+    //Timer task handler
+    static void RtspKeepAliveHandler(void* clientData);
+    static void SessionTimerHandler(void* clientData);
+    static void SubsessionByeHandler(void* clientData);
+    static void RtspClientConnectTimeout(void* clientData);
+    
+    
+    
 
     
-    virtual void RTSPConstructFail(RtspClientErrCode err_code, 
-        const char * err_info);
 
-    virtual void RtspRtpError(RtspClientErrCode err_code, 
-        const char * err_info);
-    
-
+    ////////////////////////////////////////////////////////////
+    //RTSP command sending functions
     virtual void GetOptions(RTSPClient::responseHandler* afterFunc);
     
     virtual void GetSDPDescription(RTSPClient::responseHandler* afterFunc);
@@ -159,9 +164,22 @@ protected:
     virtual void TearDownSession(MediaSession* session, 
         RTSPClient::responseHandler* afterFunc);
         
-    virtual void keepAliveSession(MediaSession* session, 
+    virtual void KeepAliveSession(MediaSession* session, 
         RTSPClient::responseHandler* afterFunc);
         
+        
+    /////////////////////////////////////////////////////////
+    //error handler        
+    virtual void RTSPConstructFail(RtspClientErrCode err_code, 
+        const char * err_info);
+
+    virtual void RtspRtpError(RtspClientErrCode err_code, 
+        const char * err_info);       
+        
+    
+    ///////////////////////////////////////////////////////////
+    //utils
+    
     virtual void SetUserAgentString(char const* userAgentString);
     
     virtual void closeMediaSinks();
