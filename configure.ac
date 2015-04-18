@@ -8,7 +8,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_MACRO_DIR([m4])
 
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([tar-ustar])
 AM_MAINTAINER_MODE
 AM_SILENT_RULES
 
@@ -18,6 +18,15 @@ AC_PROG_LIBTOOL
 
 AC_CONFIG_SRCDIR([libstreamswitch/include/stream_switch.h])
 # AC_CONFIG_HEADERS([config.h])
+
+
+AC_ARG_WITH([rtsp-source],
+[AS_HELP_STRING([--with-rtsp-source],
+[would contains the stsw_rtsp_source program @<:@default=yes@:>@])],
+[rtsp_source=${withval}], [rtsp_source=yes])
+
+AM_CONDITIONAL([INCLUDE_RTSP_SOURCE], [test "x$rtsp_source" = xyes])
+
 
 # Checks for programs.
 AC_PROG_CXX
@@ -64,9 +73,22 @@ AC_CHECK_FUNCS([dup2 gettimeofday memset strtol])
 
 
 
+
+
+
+
 AC_CONFIG_FILES([Makefile \
                  libstreamswitch/Makefile \
                  libstreamswitch/samples/Makefile \
-                 libstreamswitch/libstreamswitch.pc])
+                 libstreamswitch/libstreamswitch.pc \
+                 sources/stsw_rtsp_source/Makefile])
+
+# Generate other makefiles
+
+if test "x$rtsp_source" = xyes; then
+  AC_MSG_NOTICE(Create Makefiles for LIVE555)
+  #sub-shell
+  (cd $srcdir/sources/stsw_rtsp_source/live/; ./genMakefiles.stream_switch stream-switch)
+fi
 
 AC_OUTPUT
