@@ -11,12 +11,16 @@ In StreamSwitch, the component implenting an input protocol is called "source", 
 
 From the above, it's very easy to add the new input/output protocol support to StreamSwitch. And each protcol component in StreamSwitch is completely independent, and each transmitting media stream on StreamSwitch can work totally in parallel. On the other hand, because each of the StreamSwitch component is a standalone program, which communicates with each other throught network, the customer can deloy all of them on the same mahine, as well as deloy different components on different node. 
 
-Not only that, StreamSwitch also provide a special source, called "proxy" source, which is the secret weapon of StreamSwitch. Through that, it's easy to construct a cascade streaming media server cluster to deal with the massive media trasmitting. 
-
+Not only that, StreamSwitch also provide a special source, called "proxy" source, which is the secret weapon to construct a cascade streaming media server cluster to deal with the massive media streams.
 
 
 ## 1.2 Why need StreamSwitch
 
+In the past time, streaming media server is usualy focus on one protocol, like LIVE555, Red5. They are very excellent to handle its own protocol. But in pratice, there are many kind of streaming protocol active in the world, like RTSP, RTMP, HLS, and various private protocols of manufactures. In many case, the media source output the media stream on one protocol, but your clients can only receive the mediay by another protocol, even different clients support different protocols. The solution for these situation is converting, which is also a nighmare for us. To rescue us from this bad circumstance, we decide to develop a new stream server framework to support all kinds of conversion between protocols. All Input protcol is converted to the intermedia form, and all kinds of output protocol is converted from the intermedia form, so that the input and output protocol can decouple. Engineer can focus on one specific protcol processing which he is familiar with, and does not need to need how to convert with the other protocols. 
+
+So this is StreamStream comes from. It's a stream protocol conversion framework rather than a real media server, and all the "source"s and "port"s in it are the pratical media server based on this framework. 
+
+StreamSwitch shipped with some "source"/"ports" for the popular streaming protocol, and the new "source" / "ports" would continually be added in as time goes on. The user can also develop his "source" / "port" for his private protocol to make use the conversion power of StreamSwitch. 
 
 
 ## 1.3 Highlights
