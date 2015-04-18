@@ -250,7 +250,7 @@ enum MediaFrameType{
     MEDIA_FRAME_TYPE_DATA_FRAME = 1,     //normal data frame of the stream
     MEDIA_FRAME_TYPE_PARAM_FRAME = 2,    //frame only include some codec parameter of the stream
     
-    MEDIA_FRAME_TYPE_PARAM_FRAME = 256,  //A special frame type means reach the end of the media stream, 
+    MEDIA_FRAME_TYPE_EOF_FRAME = 256,  //A special frame type means reach the end of the media stream, 
                                          //no valid media data in this message
 };    
 
