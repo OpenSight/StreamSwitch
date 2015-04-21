@@ -19,7 +19,7 @@ AC_PROG_LIBTOOL
 AC_CONFIG_SRCDIR([libstreamswitch/include/stream_switch.h])
 # AC_CONFIG_HEADERS([config.h])
 
-
+# With feature list
 AC_ARG_WITH([rtsp-source],
 [AS_HELP_STRING([--with-rtsp-source],
 [would contains the stsw_rtsp_source program @<:@default=yes@:>@])],
@@ -71,12 +71,7 @@ AC_TYPE_UINT64_T
 # Checks for library functions.
 AC_CHECK_FUNCS([dup2 gettimeofday memset strtol])
 
-
-
-
-
-
-
+# generate Makefiles 
 AC_CONFIG_FILES([Makefile \
                  libstreamswitch/Makefile \
                  libstreamswitch/samples/Makefile \
