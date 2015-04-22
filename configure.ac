@@ -46,7 +46,7 @@ AC_CHECK_LIB([pthread], [pthread_create])
 
 export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/lib/pkgconfig:/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
 
-PKG_CHECK_MODULES(zeromq, [libczmq >= 3.0.0 libzmq >= 4.0.0])
+PKG_CHECK_MODULES(zeromq, [libczmq >= 3.0.0 libzmq >= 4.0.0 librtmp >= v2.3])
 AC_SUBST(zeromq_LIBS)
 AC_SUBST(zeromq_CFLAGS)
 
@@ -55,7 +55,7 @@ AC_SUBST(protobuf_LIBS)
 AC_SUBST(protobuf_CFLAGS)
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h])
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h librtmp/rtmp.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -81,7 +81,8 @@ AC_CONFIG_FILES([Makefile \
                  libstreamswitch/Makefile \
                  libstreamswitch/samples/Makefile \
                  libstreamswitch/libstreamswitch.pc \
-                 sources/stsw_rtsp_source/Makefile])
+                 sources/stsw_rtsp_source/Makefile \
+                 sources/stsw_rtmp_source/Makefile])
 
 # Generate other makefiles
 

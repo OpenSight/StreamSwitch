@@ -5,37 +5,65 @@
  *      Author: hyt
  */
 
+#include <string.h>
+
 #include "stsw_rtmp_source.h"
 
 
-RtmpClientSource::RtmpClientSource() {
+RtmpClientSource::RtmpClientSource(const char* rtmpUrl)
+    :rtmp_(NULL),
+     source_()
+{
+
+    int len;
+
+    len = strlen(rtmpUrl);
+    if ((len > 512) || (len <= 7)) {
+        rtmpUrl_[0] = 0;
+        return;
+    }
+    memcpy(rtmpUrl_, rtmpUrl, len);
+    rtmpUrl_[len] = 0;
+}
+
+
+int RtmpClientSource::Connect() {
 
     RTMPPacket* packet;
 
-    rtmp_ = RTMP_Alloc();
+    if (strlen(rtmpUrl_) == 0) {
+        return -1;
+    }
+
+    if ((rtmp_ = RTMP_Alloc()) == NULL) {
+        return -1;
+    }
 
     RTMP_Init(rtmp_);
+    if (!RTMP_SetupURL(rtmp_, rtmpUrl_)) {
+        return -1;
+    }
 
-    RTMP_SetupURL(rtmp_, "rtmp://192.168.1.180:1935/vod/wow.flv");
+    if (!RTMP_Connect(rtmp_, NULL)) {
+        return -1;
+    }
 
-    RTMP_ReadPacket(rtmp_, packet);
+    if (!RTMP_ConnectStream(rtmp_, 0)) {
+        return -1;
+    }
 
 
-
+    return 0;
 }
 
 
 RtmpClientSource::~RtmpClientSource() {
 
-    RTMP_Close(rtmp_);
-    RTMP_Free(rtmp_);
+    if (rtmp_) {
+        RTMP_Close(rtmp_);
+        RTMP_Free(rtmp_);
+    }
     rtmp_ = NULL;
 }
 
 
-int main() {
-
-
-
-    return 0;
-}
