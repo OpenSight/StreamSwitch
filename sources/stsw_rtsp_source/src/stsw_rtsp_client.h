@@ -56,7 +56,11 @@ enum RtspClientErrCode{
     RTSP_CLIENT_ERR_USER_DEMAND = -11,
     RTSP_CLIENT_ERR_RESOUCE_ERR = -12,
 };
-    
+
+class MediaOutputSink;   
+class PtsSessionNormalizer;
+typedef std::vector<MediaOutputSink *> MediaOutputSinkList;
+
 class LiveRtspClientListener{
 public:    
     // When the client get a frame from remote server successfully, 
@@ -92,13 +96,15 @@ public:
     static LiveRtspClient * CreateNew(UsageEnvironment& env, char const* rtspURL,                    
 			       Boolean streamUsingTCP = False, Boolean enableRtspKeepAlive = False, 
                    char const* singleMedium = NULL, 
-                   char const* userName = NULL, char const* passwd = NULL,
+                   char const* userName = NULL, char const* passwd = NULL, 
+                   LiveRtspClientListener * listener = NULL, 
                    int verbosityLevel = 0);
 
     LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
-                   char const* userName, char const* passwd,    
+                   char const* userName, char const* passwd,  
+                   LiveRtspClientListener * listener, 
                    int verbosityLevel);
                    
     virtual ~LiveRtspClient();
@@ -120,6 +126,12 @@ public:
                            struct timeval timestamp, 
                            unsigned frame_size, 
                            char * frame_buf);
+                           
+    virtual void SetListener(LiveRtspClientListener * listener)
+    {
+        listener_ = listener;
+    }
+    
 protected:
     ////////////////////////////////////////////////////////////
     //RTSP callback function
@@ -129,6 +141,8 @@ protected:
     static void ContinueAfterPLAY(RTSPClient *client, int resultCode, char* resultString);
     static void ContinueAfterTEARDOWN(RTSPClient* client, int resultCode, char* resultString);
     static void ContinueAfterKeepAlive(RTSPClient* client, int resultCode, char* resultString);
+    static void SubsessionAfterPlaying(void* clientData);
+    
     
     //////////////////////////////////////////////////
     //Timer task handler
@@ -170,11 +184,8 @@ protected:
         
     /////////////////////////////////////////////////////////
     //error handler        
-    virtual void RTSPConstructFail(RtspClientErrCode err_code, 
-        const char * err_info);
-
-    virtual void RtspRtpError(RtspClientErrCode err_code, 
-        const char * err_info);       
+    virtual void HandleError(RtspClientErrCode err_code, 
+        const char * err_info);  
         
     
     ///////////////////////////////////////////////////////////
@@ -185,8 +196,10 @@ protected:
     virtual void closeMediaSinks();
     
     virtual void SetupStreams();
+    virtual int SetupSinks();
     
 protected: 
+    LiveRtspClientListener * listener_;
     Boolean are_already_shutting_down_;
     Boolean stream_using_tcp_;
     Boolean enable_rtsp_keep_alive_; 
@@ -207,6 +220,9 @@ protected:
     double endTime_;
     
     struct timeval client_start_time_;
+    
+    PtsSessionNormalizer *pts_session_normalizer;
+    
     
     //internal used in setup streams
     Boolean made_progress_;
