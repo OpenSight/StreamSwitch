@@ -22,8 +22,10 @@
 class RtmpClientSource: public stream_switch::SourceListener{
 
 public:
-    RtmpClientSource();
+    RtmpClientSource(const char* rtmpUrl);
     ~RtmpClientSource();
+
+    int Connect();
 
     void OnKeyFrame(void) {};
     void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic) {};
@@ -31,6 +33,7 @@ public:
 
 private:
     stream_switch::StreamSource source_;
+    char  rtmpUrl_[512];
     RTMP*  rtmp_;
 
 };
