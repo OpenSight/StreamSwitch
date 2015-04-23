@@ -590,33 +590,40 @@ int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacke
 }
 int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
 {
-    MediaDataFrame media_frame;
+    MediaFrameInfo media_frame;
+    const char *frame_data;
+    size_t frame_size;
     int ret;
     uint64_t seq;
     
     //extract media frame from message
-    ProtoMediaFrameMsg frame_msg;
-    if(! frame_msg.ParseFromString(msg->body())){
-        //body parse error
-        ret = ERROR_CODE_PARSE;
-        fprintf(stderr, "media frame Parse Error");
-        return ret;                
-    } 
-    
-    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
-        fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA message in MediaFrameHandler:\n");
-        fprintf(stderr, "%s\n", frame_msg.DebugString().c_str());
-    }    
-    
+    do{
+        ProtoMediaFrameMsg frame_msg;
+        if(! frame_msg.ParseFromString(msg->body())){
+            //body parse error
+            ret = ERROR_CODE_PARSE;
+            fprintf(stderr, "media frame Parse Error");
+            return ret;                
+        } 
+        
+        if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+            fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA message in MediaFrameHandler:\n");
+            fprintf(stderr, "%s\n", frame_msg.DebugString().c_str());
+        }    
+        
 
 
-    media_frame.sub_stream_index = frame_msg.stream_index();
-    media_frame.frame_type = (MediaFrameType)frame_msg.frame_type();
-    media_frame.ssrc = frame_msg.ssrc();
-    media_frame.timestamp.tv_sec = frame_msg.sec();
-    media_frame.timestamp.tv_usec = frame_msg.usec();
-    media_frame.data = frame_msg.data();   
-    seq = frame_msg.seq();
+        media_frame.sub_stream_index = frame_msg.stream_index();
+        media_frame.frame_type = (MediaFrameType)frame_msg.frame_type();
+        media_frame.ssrc = frame_msg.ssrc();
+        media_frame.timestamp.tv_sec = frame_msg.sec();
+        media_frame.timestamp.tv_usec = frame_msg.usec();
+        frame_data = frame_msg.data().data();
+        frame_size = frame_msg.data().size();
+        
+        seq = frame_msg.seq();
+        
+    }while(0); //free frame_msg at once
 
     //
     // update statistic_
@@ -640,7 +647,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
             media_frame.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
             //the frames contains media data   
             statistic_[sub_stream_index].data_frames++;
-            statistic_[sub_stream_index].data_bytes += media_frame.data.size();
+            statistic_[sub_stream_index].data_bytes += frame_size;
             if( (statistic_[sub_stream_index].last_seq != 0) 
                 && (seq > (statistic_[sub_stream_index].last_seq + 1))){
                 statistic_[sub_stream_index].lost_frames +=  
@@ -651,7 +658,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
      
             if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
                 statistic_[sub_stream_index].key_frames ++;
-                statistic_[sub_stream_index].key_bytes += media_frame.data.size();
+                statistic_[sub_stream_index].key_bytes += frame_size;
                     
                 //start a new gov
                 statistic_[sub_stream_index].last_gov = 
@@ -671,7 +678,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
 
     SinkListener *plistener = listener();
     if(plistener != NULL){
-        plistener->OnLiveMediaFrame(media_frame);
+        plistener->OnLiveMediaFrame(media_frame, frame_data, frame_size);
     }    
     
        

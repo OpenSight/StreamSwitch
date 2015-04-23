@@ -416,8 +416,10 @@ void StreamSource::Stop()
     pthread_mutex_unlock(&lock_);      
 }
 
-int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame, 
-                                     std::string *err_info)
+int StreamSource::SendLiveMediaFrame(const MediaFrameInfo &frame_info, 
+                                    const char * frame_data, 
+                                    size_t frame_size, 
+                                    std::string *err_info)
 {
     uint64_t seq;
 
@@ -429,14 +431,14 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     LockGuard guard(&lock_);
     
     // check metadata
-    if(stream_meta_.ssrc != media_frame.ssrc){
+    if(stream_meta_.ssrc != frame_info.ssrc){
         SET_ERR_INFO(err_info, "ssrc not match");
         return ERROR_CODE_PARAM;
     }
     // check sub stream index
-    if(media_frame.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
+    if(frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
         char tmp[64];
-        sprintf(tmp, "Sub Stream(%d) Not Found", media_frame.sub_stream_index);
+        sprintf(tmp, "Sub Stream(%d) Not Found", frame_info.sub_stream_index);
         SET_ERR_INFO(err_info, tmp);
         return ERROR_CODE_PARAM;        
     }
@@ -444,22 +446,22 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     //
     // update the statistic
     //
-    cur_bytes_ += media_frame.data.size();
-    last_frame_sec_ = media_frame.timestamp.tv_sec;
-    last_frame_usec_ = media_frame.timestamp.tv_usec;
+    cur_bytes_ += frame_size;
+    last_frame_sec_ = frame_info.timestamp.tv_sec;
+    last_frame_usec_ = frame_info.timestamp.tv_usec;
     
-    int sub_stream_index = media_frame.sub_stream_index;
+    int sub_stream_index = frame_info.sub_stream_index;
     
-    if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
-       media_frame.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+    if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+       frame_info.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
         //the frames contains media data   
         statistic_[sub_stream_index].data_frames++;
-        statistic_[sub_stream_index].data_bytes += media_frame.data.size();
+        statistic_[sub_stream_index].data_bytes += frame_size;
         seq = ++statistic_[sub_stream_index].last_seq;
  
-        if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+        if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
             statistic_[sub_stream_index].key_frames ++;
-            statistic_[sub_stream_index].key_bytes += media_frame.data.size();
+            statistic_[sub_stream_index].key_bytes += frame_size;
             
             //start a new gov
             statistic_[sub_stream_index].last_gov = 
@@ -478,25 +480,29 @@ int StreamSource::SendLiveMediaFrame(const MediaDataFrame &media_frame,
     //
     // pack the frame to pb packet
     //
-    ProtoMediaFrameMsg media_info;
     ProtoCommonPacket media_msg;
-    media_info.set_stream_index(media_frame.sub_stream_index);
-    media_info.set_sec(media_frame.timestamp.tv_sec);
-    media_info.set_usec(media_frame.timestamp.tv_usec);
-    media_info.set_frame_type((ProtoMediaFrameType)media_frame.frame_type);
-    media_info.set_ssrc(media_frame.ssrc);
-    media_info.set_seq(seq);
-    media_info.set_data(media_frame.data);
+    do {
+        ProtoMediaFrameMsg media_info;
 
-    media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
-    media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
-    media_info.SerializeToString(media_msg.mutable_body());    
+        media_info.set_stream_index(frame_info.sub_stream_index);
+        media_info.set_sec(frame_info.timestamp.tv_sec);
+        media_info.set_usec(frame_info.timestamp.tv_usec);
+        media_info.set_frame_type((ProtoMediaFrameType)frame_info.frame_type);
+        media_info.set_ssrc(frame_info.ssrc);
+        media_info.set_seq(seq);
+        media_info.set_data(frame_data, frame_size);
 
-    if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
-        fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA message in SendLiveMediaFrame():\n");
-        fprintf(stderr, "%s\n", media_info.DebugString().c_str());
-    }     
-    
+        media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
+        media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
+        media_info.SerializeToString(media_msg.mutable_body());    
+
+        if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
+            fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA message in SendLiveMediaFrame():\n");
+            fprintf(stderr, "%s\n", media_info.DebugString().c_str());
+        }
+        
+    }while(0);//release the media_info memory
+
     //
     // send out from publish socket
     //

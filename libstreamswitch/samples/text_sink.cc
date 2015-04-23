@@ -69,7 +69,9 @@ public:
     {
         return last_frame_rec_sec_;
     }
-    virtual void OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame);    
+    virtual void OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                  const char * frame_data, 
+                                  size_t frame_size);    
        
 private: 
     stream_switch::StreamSink sink_;
@@ -250,23 +252,25 @@ void TextStreamSink::Stop()
 }
 
 
-void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame)
+void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                      const char * frame_data, 
+                                      size_t frame_size)
 {
     if(text_file_){
         fprintf(text_file_, 
                 "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x, size: %d\n", 
-                (int)media_frame.sub_stream_index, 
-                media_frame.frame_type, 
-                (long long)media_frame.timestamp.tv_sec, 
-                (int)(media_frame.timestamp.tv_usec/1000), 
-                (unsigned)media_frame.ssrc, 
-                (int)(media_frame.data.size()));
+                (int)frame_info.sub_stream_index, 
+                frame_info.frame_type, 
+                (long long)frame_info.timestamp.tv_sec, 
+                (int)(frame_info.timestamp.tv_usec/1000), 
+                (unsigned)frame_info.ssrc, 
+                (int)(frame_size));
         int i = 0;
-        for(i=0;i < (int)media_frame.data.size(); i++){
+        for(i=0;i < (int)frame_size; i++){
             if(i % 32 == 0){
                 fprintf(text_file_, "\n");                
             }
-            fprintf(text_file_, "%02hhx ", media_frame.data[i]);
+            fprintf(text_file_, "%02hhx ", frame_data[i]);
         }
         fprintf(text_file_, "\n\n");
         

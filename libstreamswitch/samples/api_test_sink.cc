@@ -51,7 +51,11 @@ class ApiTestSinkListener:public stream_switch::SinkListener{
   
 public:
 
-    virtual void OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame);    
+    virtual void OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                  const char * frame_data, 
+                                  size_t frame_size
+    
+                                 );    
        
   
         
@@ -69,7 +73,9 @@ static std::string int2str(int int_value)
     return stream.str();
 }
 
-void ApiTestSinkListener::OnLiveMediaFrame(const stream_switch::MediaDataFrame &media_frame)
+void ApiTestSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                           const char * frame_data, 
+                                           size_t frame_size)
 {
     //just ignore the receive frame
 }

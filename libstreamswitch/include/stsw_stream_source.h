@@ -104,10 +104,12 @@ public:
     // send out a llive media frame of a specific sub stream with a valid sequence number.
     // replay source should not invoke this method.
     // Args:
-    //     media_frame MediaDataFrame in : the media frame to send
+    //     media_frame MediaFrameInfo in : the media frame to send
     //     err_info string out: the error info if failed
-    virtual int SendLiveMediaFrame(const MediaDataFrame &media_frame, 
-                              std::string *err_info);
+    virtual int SendLiveMediaFrame(const MediaFrameInfo &frame_info, 
+                                    const char * frame_data, 
+                                    size_t frame_size, 
+                                    std::string *err_info);
     
     
     // accessors 

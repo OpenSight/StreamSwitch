@@ -255,7 +255,7 @@ enum MediaFrameType{
 };    
 
 
-struct MediaDataFrame{
+struct MediaFrameInfo{
     
     // the sub stream index in the configured metadata
     int32_t sub_stream_index;    
@@ -272,10 +272,7 @@ struct MediaDataFrame{
     // must match the ssrc in the metadata of source
     uint32_t ssrc; 
     
-    //the media data
-    std::string data;
-
-    MediaDataFrame()
+    MediaFrameInfo()
     :sub_stream_index(0), frame_type(MEDIA_FRAME_TYPE_DATA_FRAME),
      ssrc(0)
     {

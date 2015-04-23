@@ -271,7 +271,7 @@ void FileLiveSource::Stop()
 
 void FileLiveSource::SendNextFrame()
 {
-    stream_switch::MediaDataFrame frame;    
+    stream_switch::MediaFrameInfo frame;    
     int ret;
     std::string err_info;
     
@@ -290,9 +290,8 @@ void FileLiveSource::SendNextFrame()
     frame.ssrc = ssrc_;
 
     gettimeofday(&(frame.timestamp), NULL);
-    frame.data.assign(frame_buf_, ret);
     
-    ret = source_.SendLiveMediaFrame(frame, &err_info);
+    ret = source_.SendLiveMediaFrame(frame, frame_buf_, frame_size_, &err_info);
     
 }
 

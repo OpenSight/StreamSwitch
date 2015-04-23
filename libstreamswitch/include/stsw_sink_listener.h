@@ -51,7 +51,9 @@ public:
     // OnLiveMediaFrame
     // When a live media frame is received, this method would be invoked
     // by the internal thread
-    virtual void OnLiveMediaFrame(const MediaDataFrame &media_frame) = 0;    
+    virtual void OnLiveMediaFrame(const MediaFrameInfo &frame_info, 
+                                  const char * frame_data, 
+                                  size_t frame_size) = 0;    
  
 };
 
