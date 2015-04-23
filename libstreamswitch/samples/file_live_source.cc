@@ -205,7 +205,7 @@ int FileLiveSource::Init(std::string src_file,
     
     //setup metadata
     metadata.bps = 0;
-    metadata.play_type = Stream_PLAY_TYPE_LIVE;
+    metadata.play_type = STREAM_PLAY_TYPE_LIVE;
     metadata.source_proto = "FileSystem";
     srand(time(NULL));
     ssrc_ = (uint32_t)(rand() % 0xffffffff); 

@@ -94,8 +94,8 @@ enum SourceStreamState {
 
 
 enum StreamPlayType{
-    Stream_PLAY_TYPE_LIVE = 0,
-    Stream_PLAY_TYPE_REPLAY = 1,    
+    STREAM_PLAY_TYPE_LIVE = 0,
+    STREAM_PLAY_TYPE_REPLAY = 1,    
 };
 
 enum SubStreamMediaType{
@@ -194,7 +194,7 @@ struct StreamMetadata{
     SubStreamMetadataVector sub_streams; 
     
     StreamMetadata(){
-        play_type = Stream_PLAY_TYPE_LIVE;
+        play_type = STREAM_PLAY_TYPE_LIVE;
         ssrc = 0;
         bps = 0;
     }

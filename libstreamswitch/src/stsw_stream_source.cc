@@ -226,7 +226,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     //init metadata
     stream_meta_.sub_streams.clear();
     stream_meta_.bps = 0;
-    stream_meta_.play_type = Stream_PLAY_TYPE_LIVE;
+    stream_meta_.play_type = STREAM_PLAY_TYPE_LIVE;
     stream_meta_.ssrc = 0;
     stream_meta_.source_proto = "";    
     
