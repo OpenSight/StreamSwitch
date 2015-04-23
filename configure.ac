@@ -28,6 +28,14 @@ AC_ARG_WITH([rtsp-source],
 AM_CONDITIONAL([INCLUDE_RTSP_SOURCE], [test "x$rtsp_source" = xyes])
 
 
+AC_ARG_WITH([rtmp-source],
+[AS_HELP_STRING([--with-rtmp-source],
+[would contains the stsw_rtmp_source program @<:@default=yes@:>@])],
+[rtmp_source=${withval}], [rtmp_source=yes])
+
+AM_CONDITIONAL([INCLUDE_RTMP_SOURCE], [test "x$rtmp_source" = xyes])
+
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
@@ -46,7 +54,7 @@ AC_CHECK_LIB([pthread], [pthread_create])
 
 export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/lib/pkgconfig:/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
 
-PKG_CHECK_MODULES(zeromq, [libczmq >= 3.0.0 libzmq >= 4.0.0 librtmp >= v2.3])
+PKG_CHECK_MODULES(zeromq, [libczmq >= 3.0.0 libzmq >= 4.0.0])
 AC_SUBST(zeromq_LIBS)
 AC_SUBST(zeromq_CFLAGS)
 
@@ -54,8 +62,15 @@ PKG_CHECK_MODULES(protobuf, [protobuf >= 2.0.0])
 AC_SUBST(protobuf_LIBS)
 AC_SUBST(protobuf_CFLAGS)
 
+if test "x$rtmp_source" = xyes; then
+  PKG_CHECK_MODULES(librtmp, [librtmp >= v2.3])
+fi
+AC_SUBST(librtmp_LIBS)
+AC_SUBST(librtmp_CFLAGS)
+
+
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h librtmp/rtmp.h])
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.
