@@ -136,7 +136,8 @@ Boolean areAlreadyShuttingDown = True;
 
 const char* userAgent = "StreamSwitch";
 
-
+///////////////////////////////////////////////////////////
+//Public interfaces
 
 LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
@@ -149,7 +150,9 @@ listener_(listener),
 are_already_shutting_down_(True), stream_using_tcp_(streamUsingTCP), 
 enable_rtsp_keep_alive_(enableRtspKeepAlive), single_medium_(NULL), 
 rtsp_url_(rtspURL), our_authenticator(NULL), 
-session_(NULL), session_timer_task_(NULL), 
+session_(NULL), 
+ssrc_(0), is_metadata_ok_(False), 
+session_timer_task_(NULL), 
 inter_packet_gap_check_timer_task_(NULL), qos_measurement_timer_task_(NULL),
 tear_down_task_(NULL), rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
@@ -165,7 +168,9 @@ made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
     
     if(userName != NULL) {
         our_authenticator = new Authenticator(userName,passwd);
-    }    
+    }  
+    metadata_.source_proto = "RTSP"; 
+    metadata_.play_type = stream_switch::STREAM_PLAY_TYPE_LIVE;
 }
 
 
@@ -190,6 +195,10 @@ int LiveRtspClient::Start()
     SetUserAgentString(userAgent);
     gettimeofday(&client_start_time_, NULL);
     
+    srand(client_start_time_.tv_sec + client_start_time_.tv_usec);
+    metadata_.ssrc = (uint32_t)(rand() % 0xffffffff);     
+    
+    //select a random ssrc
  
     if (sendOptionsRequest) {
         // Begin by sending an "OPTIONS" command:
@@ -229,6 +238,50 @@ void LiveRtspClient::Shutdown()
 }
 
 
+void LiveRtspClient::CheckMetadata()
+{
+    if(is_metadata_ok_){
+        //if OK already, just ignore
+        return;
+    }
+    
+    //check subsesion number
+    if(metadata_.sub_streams.size() == 0){
+        //no subsessions
+        return;
+    }
+    //check each subsession
+    
+    
+    //check successful
+    is_metadata_ok_ = True;
+    if(listener_ != NULL){
+        listener_->OnMetaReady(metadata_);
+    }
+}
+
+
+void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index, 
+                           stream_switch::MediaFrameType frame_type, 
+                           struct timeval timestamp, 
+                           unsigned frame_size, 
+                           char * frame_buf)
+{
+    if(!IsMetaReady()){
+        //metadata not ready, just drop the frame
+        return;
+    }
+    if(listener_ != NULL){
+        stream_switch::MediaFrameInfo frame_info;
+        frame_info.frame_type = frame_type;
+        frame_info.timestamp.tv_sec = timestamp.tv_sec;
+        frame_info.timestamp.tv_usec = timestamp.tv_usec;
+        frame_info.sub_stream_index = sub_stream_index;
+        frame_info.ssrc = metadata_.ssrc;
+        listener_->OnMediaFrame(frame_info, frame_buf, frame_size);
+    }
+    
+}
 
 
 ////////////////////////////////////////////////////////////
@@ -252,10 +305,7 @@ void LiveRtspClient::ContinueAfterOPTIONS(RTSPClient *client,
                         << " \"OPTIONS\" request returned: " 
                         << resultString << "\n";
     }
-
     
-
-
     // Next, get a SDP description for the stream:
     my_client->GetSDPDescription(ContinueAfterDESCRIBE);
     
@@ -481,21 +531,25 @@ int LiveRtspClient::SetupSinks()
 
          
             }else{
-                output_sink = MediaOutputSink::createNew(envir(), subsession, index, 
+                output_sink = MediaOutputSink::createNew(envir(), 
+                                            this, 
+                                            subsession, index, 
                                             VideoSinkBufferSize);                   
             }
         } else if (strcmp(subsession->mediumName(), "audio") == 0) {
-            output_sink = MediaOutputSink::createNew(envir(), subsession, index, 
+            output_sink = MediaOutputSink::createNew(envir(), 
+                                          this, 
+                                          subsession, index, 
                                           AudioSinkBufferSize);            
         }
         if (output_sink == NULL) {
             // Normal case:
-            output_sink = MediaOutputSink::createNew(envir(), subsession, index, 
-                                          AudioSinkBufferSize);
+            output_sink = MediaOutputSink::createNew(envir(), 
+                this, 
+                subsession, index, 
+                AudioSinkBufferSize);
 
         }
-
-        
 
         subsession->miscPtr = this; // a hack to let subsession handler functions get the "RTSPClient" from the subsession        
 
@@ -666,7 +720,9 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
   
   
     //callback user function
-    //TODO ???
+    if(my_client->listener_ != NULL){
+        my_client->listener_->OnRtspOK();
+    }
 }
 
 

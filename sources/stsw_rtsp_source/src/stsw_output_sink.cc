@@ -27,9 +27,10 @@
 **/ 
 
 #include "stsw_output_sink.h"
-
+#include "stsw_rtsp_client.h"
 
 MediaOutputSink* MediaOutputSink::createNew(UsageEnvironment& env,
+                                            LiveRtspClient *rtsp_client,
                                             MediaSubsession* subsession,                                          
                                             int32_t sub_stream_index,    
                                             size_t sink_buf_size)
@@ -41,16 +42,17 @@ MediaOutputSink* MediaOutputSink::createNew(UsageEnvironment& env,
         return NULL;
     }
     
-    return new MediaOutputSink(env, subsession, 
+    return new MediaOutputSink(env, rtsp_client, subsession, 
                                sub_stream_index, sink_buf_size);
 }
 
 
 MediaOutputSink::MediaOutputSink(UsageEnvironment& env, 
+                    LiveRtspClient *rtsp_client,
                     MediaSubsession* subsession, 
                     int32_t sub_stream_index, size_t sink_buf_size)
 : MediaSink(env), sink_buf_size_(sink_buf_size), subsession_(subsession), 
-sub_stream_index_(sub_stream_index)
+sub_stream_index_(sub_stream_index), rtsp_client_(rtsp_client)
 {
     recv_buf_ = new u_int8_t[sink_buf_size];
 }
@@ -58,6 +60,7 @@ sub_stream_index_(sub_stream_index)
 
 MediaOutputSink::~MediaOutputSink() {
     delete[] recv_buf_;
+
 }
 
 void MediaOutputSink::afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes,
@@ -131,8 +134,13 @@ void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
     
     //analyze the frame's type
     stream_switch::MediaFrameType frame_type = 
-        MEDIA_FRAME_TYPE_DATA_FRAME; //default is data frame
+        stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME; //default is data frame
+    
     //callback the parent rtsp client frame receive interface
+    if(rtsp_client_ != NULL){
+        rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
+                                        presentationTime, frameSize, (char *)recv_buf_);
+    }
     
         
 }

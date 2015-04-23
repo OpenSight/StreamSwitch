@@ -34,10 +34,13 @@
 #define STREAM_SWITCH
 #endif
 #include "liveMedia.hh"
+#include "stream_switch.h"
 
 #include<stdint.h>
 
-////////// PtsSessionNormalizer and PtsSubsessionNormalizer definitions //////////
+
+class LiveRtspClient;
+////////////////////
 
 // the Media Output Sink class
 //     this class is used to get the media frame from the underlayer source
@@ -51,6 +54,7 @@ class MediaOutputSink: public MediaSink {
 
 public:
     static MediaOutputSink* createNew(UsageEnvironment& env,
+            LiveRtspClient *rtsp_client, 
             MediaSubsession* subsession, // identifies the kind of data 
                                          //that's being received
             int32_t sub_stream_index,    // identifies the stream itself 
@@ -59,8 +63,9 @@ public:
     
 
 
-    MediaOutputSink(UsageEnvironment& env, MediaSubsession* subsession, 
-                  int32_t sub_stream_index, size_t sink_buf_size);
+    MediaOutputSink(UsageEnvironment& env, LiveRtspClient *rtsp_client,
+                    MediaSubsession* subsession, 
+                    int32_t sub_stream_index, size_t sink_buf_size);
     // called only by "createNew()"
     virtual ~MediaOutputSink();
     
@@ -88,6 +93,8 @@ protected:
     MediaSubsession* subsession_;
     int32_t sub_stream_index_;  
     struct timeval last_pts_; 
+    
+    LiveRtspClient *rtsp_client_;
     
 };
 

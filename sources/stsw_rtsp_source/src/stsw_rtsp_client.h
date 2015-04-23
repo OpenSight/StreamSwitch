@@ -66,7 +66,9 @@ public:
     // When the client get a frame from remote server successfully, 
     // OnMediaFrame() would be invoke 
     virtual void OnMediaFrame(
-        const stream_switch::MediaDataFrame &media_frame
+        const stream_switch::MediaFrameInfo &frame_info, 
+        const char * frame_data, 
+        size_t frame_size
     );
     
     // When the client detect some error, 
@@ -116,12 +118,16 @@ public:
     virtual bool IsRunning();
     
     virtual bool IsMetaReady();
-    virtual bool GetMetadata();
+    virtual stream_switch::StreamMetadata *mutable_metadata()
+    {
+        return &metadata_;
+    }
+    virtual void CheckMetadata();
     
     virtual int GetStatisticData();
     virtual void ResetStatistic();
     
-    virtual void afterGettingFrame(int32_t sub_stream_index, 
+    virtual void AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
                            struct timeval timestamp, 
                            unsigned frame_size, 
@@ -198,6 +204,8 @@ protected:
     virtual void SetupStreams();
     virtual int SetupSinks();
     
+    virtual void SetupMetaFromSession();
+    
 protected: 
     LiveRtspClientListener * listener_;
     Boolean are_already_shutting_down_;
@@ -207,6 +215,10 @@ protected:
     std::string rtsp_url_;
     Authenticator * our_authenticator;
     MediaSession* session_;
+    uint32_t ssrc_;
+    stream_switch::StreamMetadata metadata_;
+    Boolean is_metadata_ok_;
+    
 
     TaskToken session_timer_task_;
     TaskToken inter_packet_gap_check_timer_task_;
