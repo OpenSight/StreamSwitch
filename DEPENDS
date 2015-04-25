@@ -1,6 +1,12 @@
 StreamSwitch make use of many other open source projects for its components. 
 
-The following lists all the projects/libraries which StreamSwitch depends for each of its components.
+The following lists all the projects/libraries which StreamSwitch depends 
+on for each of its components.
+
+You can visit the following page of StreamSwitch's wiki to download the source 
+packages of the following projects:
+
+    https://github.com/OpenSight/StreamSwitch/wiki/Depends-Download 
 
 1. Base depends
 
@@ -8,3 +14,5 @@ The following lists all the projects/libraries which StreamSwitch depends for ea
     * czmq >= 3.0.0
     * protobuf >= 2.6.0
     
+
+
