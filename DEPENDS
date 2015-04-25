@@ -15,4 +15,8 @@ packages of the following projects:
     * protobuf >= 2.6.0
     
 
+2. stsw_rtmp_source depends
+  
+    * RTMPDump >= 2.3
+    
 
