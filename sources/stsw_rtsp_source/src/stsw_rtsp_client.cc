@@ -132,7 +132,7 @@ Boolean areAlreadyShuttingDown = True;
 
 #define RTSP_KEEPALIVE_INTERVAL 20000000
 
-
+#define METADATA_SUBSESSION_RESERVE_NUM 10
 
 const char* userAgent = "StreamSwitch";
 
@@ -171,6 +171,7 @@ made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
     }  
     metadata_.source_proto = "RTSP"; 
     metadata_.play_type = stream_switch::STREAM_PLAY_TYPE_LIVE;
+    metadata_.sub_streams.reserve(METADATA_SUBSESSION_RESERVE_NUM);
 }
 
 
@@ -617,7 +618,9 @@ void LiveRtspClient::SetupStreams() {
     }
 
 
-    //TODO ???? setupMetadata();
+    //setup metadata from session, 
+    //and call back user function if ready. 
+    SetupMetaFromSession();
 
 
   // Finally, start playing each subsession, to start the data flow:
@@ -913,6 +916,124 @@ void LiveRtspClient::closeMediaSinks()
         subsession->sink = NULL;
     }    
 }
+
+
+void LiveRtspClient::SetupMetaFromSession()
+{
+    using namespace stream_switch;
+    if(session_ == NULL){
+        return; //no session yet
+    }
+    uint32_t bps = 0; 
+    
+    //setup for the w
+    
+    
+    MediaSubsession *subsession;
+    MediaSubsessionIterator iter(*session_);
+    int index = 0;
+    while ((subsession = iter.next()) != NULL) {
+        if (subsession->readSource() == NULL) continue; // was not initiated
+
+        char const* const codecName = subsession->codecName();
+        char const* const mediaName = subsession->mediumName();    
+        
+        if(strcmp(codecName, "MP2P") == 0 ||
+           strcmp(codecName, "MP2T") == 0 ){
+            //this is a mux stream, cannot setup metadata from sdp
+            metadata_.sub_streams.clear(); // no sub stream available
+            return;
+        }
+        metadata_.sub_streams[index].sub_stream_index = index;
+        metadata_.sub_streams[index].codec_name = codecName;
+        metadata_.sub_streams[index].direction = SUB_STREAM_DIRECTION_OUTBOUND;
+        
+        if(strcmp(mediaName, "video") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_VIDEO;
+            metadata_.sub_streams[index].media_param.video.height = 
+                subsession->videoHeight();
+            metadata_.sub_streams[index].media_param.video.width = 
+                subsession->videoWidth(); 
+            metadata_.sub_streams[index].media_param.video.fps = 
+                subsession->videoFPS(); 
+            
+            if(strcmp(codecName, "H264") == 0){
+                char const* sPropParameterSetsStr = 
+                    subsession->fmtp_spropparametersets();
+                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+                unsigned numSPropRecords;
+                SPropRecord* sPropRecords
+                    = parseSPropParameterSets(sPropParameterSetsStr, 
+                            numSPropRecords);
+                for (unsigned i = 0; i < numSPropRecords; ++i) {
+                    metadata_.sub_streams[index].extra_data.append(start_code, 4);
+                    metadata_.sub_streams[index].extra_data.append(
+                        (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
+
+                }
+                delete[] sPropRecords;
+                
+            }else if(strcmp(codecName, "H265") == 0){
+                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+		        char const* fSPropParameterSetsStr[3];
+                fSPropParameterSetsStr[0] = subsession->fmtp_spropvps();
+                fSPropParameterSetsStr[1] = subsession->fmtp_spropsps();
+                fSPropParameterSetsStr[2] = subsession->fmtp_sproppps();    
+                
+                for (unsigned j = 0; j < 3; ++j) {
+                    unsigned numSPropRecords;
+                    SPropRecord* sPropRecords
+                        = parseSPropParameterSets(fSPropParameterSetsStr[j], 
+                            numSPropRecords);
+                    for (unsigned i = 0; i < numSPropRecords; ++i) {
+                        metadata_.sub_streams[index].extra_data.append(start_code, 4);
+                        metadata_.sub_streams[index].extra_data.append(
+                            (const char *)sPropRecords[i].sPropBytes, 
+                            (size_t)sPropRecords[i].sPropLength);
+                    }
+                    delete[] sPropRecords;
+                }               
+                
+                
+            }else if(strcmp(codecName, "MP4V-ES") == 0){
+                unsigned configSize = 0;
+                unsigned char* config = 
+                    parseGeneralConfigStr(subsession->fmtp_config(), configSize);
+                if(configSize != 0 && config != NULL){
+                    metadata_.sub_streams[index].extra_data.assign(
+                        (const char *)config, (size_t)configSize);
+                }   
+            }
+               
+        }else if(strcmp(mediaName, "audio") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_AUDIO;           
+            metadata_.sub_streams[index].media_param.audio.channels = 1;
+            if(subsession->numChannels() != 0 ){
+                metadata_.sub_streams[index].media_param.audio.channels = 
+                    subsession->numChannels();
+            }
+        }else if(strcmp(mediaName, "text") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_TEXT;            
+        }else{
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_PRIVATE;            
+        }
+
+        
+        
+        bps + subsession->bandwidth() * 1000;
+        
+        index++;
+    } 
+    metadata_.bps = bps;
+    
+    CheckMetadata();
+        
+}
+
 
 
 /////////////////////////////////////////////////////////

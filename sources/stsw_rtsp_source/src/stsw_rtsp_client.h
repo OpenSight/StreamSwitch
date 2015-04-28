@@ -96,7 +96,7 @@ public:
 class LiveRtspClient: public RTSPClient{
 public:
     static LiveRtspClient * CreateNew(UsageEnvironment& env, char const* rtspURL,                    
-			       Boolean streamUsingTCP = False, Boolean enableRtspKeepAlive = False, 
+			       Boolean streamUsingTCP = True, Boolean enableRtspKeepAlive = True, 
                    char const* singleMedium = NULL, 
                    char const* userName = NULL, char const* passwd = NULL, 
                    LiveRtspClientListener * listener = NULL, 
@@ -117,7 +117,10 @@ public:
     
     virtual bool IsRunning();
     
-    virtual bool IsMetaReady();
+    virtual bool IsMetaReady()
+    {
+        return is_metadata_ok_;
+    }
     virtual stream_switch::StreamMetadata *mutable_metadata()
     {
         return &metadata_;
