@@ -241,8 +241,18 @@ void LiveRtspClient::Shutdown()
 
 void LiveRtspClient::CheckMetadata()
 {
+    using namespace stream_switch;
     if(is_metadata_ok_){
         //if OK already, just ignore
+        return;
+    }
+    
+    if(metadata_.ssrc == 0){
+        //ssrc not ready
+        return;
+    }
+    if(metadata_.source_proto.size() == 0){
+        //protocol name not ready
         return;
     }
     
@@ -251,8 +261,26 @@ void LiveRtspClient::CheckMetadata()
         //no subsessions
         return;
     }
-    //check each subsession
     
+    //check each subsession
+    SubStreamMetadataVector::iterator it;
+    for(it = metadata_.sub_streams.begin();
+        it != metadata_.sub_streams.end();
+        it++)
+    {
+        if(it->codec_name.size() == 0){
+            //codec name not ready
+            return; 
+        }
+        
+        if(it->codec_name == "H264" || it->codec_name == "H265" ){
+            if(it->extra_data.size() == 0){
+                //extra_data must present
+                return;
+            }
+        }
+        
+    }
     
     //check successful
     is_metadata_ok_ = True;
@@ -512,7 +540,7 @@ int LiveRtspClient::SetupSinks()
 					 ::createNew(envir(), subsession->readSource(),
 						     False, 5.0, True/* leave PTs unmodified*/));
         } else if (strcmp(codecName, "DV") == 0) {
-        subsession->addFilter(DVVideoStreamFramer
+            subsession->addFilter(DVVideoStreamFramer
 					 ::createNew(envir(), subsession->readSource(),
 						     False, True/* leave PTs unmodified*/));
         }
@@ -523,14 +551,18 @@ int LiveRtspClient::SetupSinks()
 
         if (strcmp(subsession->mediumName(), "video") == 0) {
             if (strcmp(subsession->codecName(), "H264") == 0) {
-        // For H.264 video stream, we use a special sink that adds 'start codes',
-        // and (at the start) the SPS and PPS NAL units:
+            // For H.264 video stream, we use a special sink that adds 'start codes',
+            // and (at the start) the SPS and PPS NAL units:
 
             } else if (strcmp(subsession->codecName(), "H265") == 0) {
             // For H.265 video stream, we use a special sink that adds 'start codes',
             // and (at the start) the VPS, SPS, and PPS NAL units:
 
-         
+            } else if (strcmp(subsession->codecName(), "MP4V-ES") == 0) {
+            // For H.265 video stream, we use a special sink :
+
+                        
+            
             }else{
                 output_sink = MediaOutputSink::createNew(envir(), 
                                             this, 
@@ -925,9 +957,6 @@ void LiveRtspClient::SetupMetaFromSession()
         return; //no session yet
     }
     uint32_t bps = 0; 
-    
-    //setup for the w
-    
     
     MediaSubsession *subsession;
     MediaSubsessionIterator iter(*session_);

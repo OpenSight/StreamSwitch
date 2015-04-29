@@ -163,8 +163,8 @@ struct SubStreamMetadata{
     std::string codec_name;
     SubStreamDirectionType direction;
     
-    //below is optional params, if they are 0 or zero-length, 
-    //means they are absent
+    //The below fields are optional. 
+    //If they are 0 or zero-length, means they are absent
     
     // Extra data for the codec:
     // For H264, it's the element stream contains SPS and PPS, 
