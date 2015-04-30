@@ -35,61 +35,9 @@
 
 #include "stsw_output_sink.h"
 #include "stsw_pts_normalizer.h"
+#include "stsw_h264or5_output_sink.h"
+#include "stsw_mpeg4_output_sink.h"
 
-#if 0
-
-#if defined(__WIN32__) || defined(_WIN32)
-#define snprintf _snprintf
-#else
-#include <signal.h>
-#define USE_SIGNALS 1
-#endif
-
-
-// Forward function definitions:
-void continueAfterOPTIONS(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterDESCRIBE(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterSETUP(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterPLAY(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterTEARDOWN(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterKeepAlive(RTSPClient*, int resultCode, char* resultString);
- 
-void setupStreams();
-void closeMediaSinks();
-void closeLiveVideoFramer();
-void closeAudioSource();
-
-
-void subsessionByeHandler(void* clientData);
-
-void sessionTimerHandler(void* clientData);
-
-void sendRtspKeepAliveRequest(void* clientData);
-
-void rtspClientConnectTimeout(void* clientData);
-
-void signalHandlerShutdown(int sig);
-
-void checkInterPacketGaps(void* clientData);
-void beginQOSMeasurement();
-
-
-void clientShutdown(int errorType);
-void RtspRtpError(int errorType);
-void RTSPConstructFail(int errorType);
-
-Medium* createClient(UsageEnvironment& env, char const* url, int verbosityLevel, char const* applicationName);
-void getOptions(RTSPClient::responseHandler* afterFunc);
-extern void getSDPDescription(RTSPClient::responseHandler* afterFunc);
-extern void setupSubsession(MediaSubsession* subsession, Boolean streamUsingTCP, RTSPClient::responseHandler* afterFunc);
-extern void startPlayingSession(MediaSession* session, double start, double end, float scale, RTSPClient::responseHandler* afterFunc);
-extern void tearDownSession(MediaSession* session, RTSPClient::responseHandler* afterFunc);
-
-
-
-
-
-#endif
 
 
 Boolean isRTSPConstructFail = True;
@@ -110,27 +58,14 @@ static unsigned AudioSinkBufferSize = 131072; /* 128K bytes */
 static unsigned socketVideoInputBufferSize = 2097152; /* 2M bytes */
 static unsigned socketAudioInputBufferSize = 131072; /* 128K bytes */
 
-#if 0
-static H264VideoLiveSource *outputSource = NULL;
-static MPEG4ESVideoLiveSource* mpeg4Source = NULL;
-static SimpleRTPSource *outputAudioSource = NULL; 
-#endif
 
-
-
-RTSPClient* ourRTSPClient = NULL;
 static char const* clientProtocolName = "RTSP";
 
-
 static unsigned const rtpClientReorderWindowthresh = 20000; // 20 ms
-Boolean areAlreadyShuttingDown = True;
-
-//static RtspClientConstructCallback userConstructCallback = NULL;
-
-//static RtspClientErrorCallback userErrorCallback = NULL;
 
 
-#define RTSP_KEEPALIVE_INTERVAL 20000000
+
+#define RTSP_KEEPALIVE_INTERVAL 60 /*default is 60 sec*/
 
 #define METADATA_SUBSESSION_RESERVE_NUM 10
 
@@ -165,6 +100,9 @@ made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
     }
     client_start_time_.tv_sec = 0;
     client_start_time_.tv_usec = 0;
+    
+    last_frame_time_.tv_sec = 0;
+    last_frame_time_.tv_usec = 0;
     
     if(userName != NULL) {
         our_authenticator = new Authenticator(userName,passwd);
@@ -239,27 +177,27 @@ void LiveRtspClient::Shutdown()
 }
 
 
-void LiveRtspClient::CheckMetadata()
+bool LiveRtspClient::CheckMetadata()
 {
     using namespace stream_switch;
     if(is_metadata_ok_){
         //if OK already, just ignore
-        return;
+        return false;
     }
     
     if(metadata_.ssrc == 0){
         //ssrc not ready
-        return;
+        return false;
     }
     if(metadata_.source_proto.size() == 0){
         //protocol name not ready
-        return;
+        return false;
     }
     
     //check subsesion number
     if(metadata_.sub_streams.size() == 0){
         //no subsessions
-        return;
+        return false;
     }
     
     //check each subsession
@@ -270,13 +208,13 @@ void LiveRtspClient::CheckMetadata()
     {
         if(it->codec_name.size() == 0){
             //codec name not ready
-            return; 
+            return false; 
         }
         
         if(it->codec_name == "H264" || it->codec_name == "H265" ){
             if(it->extra_data.size() == 0){
                 //extra_data must present
-                return;
+                return false;
             }
         }
         
@@ -287,6 +225,7 @@ void LiveRtspClient::CheckMetadata()
     if(listener_ != NULL){
         listener_->OnMetaReady(metadata_);
     }
+    return true;
 }
 
 
@@ -294,12 +233,15 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
                            stream_switch::MediaFrameType frame_type, 
                            struct timeval timestamp, 
                            unsigned frame_size, 
-                           char * frame_buf)
+                           const char * frame_buf)
 {
     if(!IsMetaReady()){
         //metadata not ready, just drop the frame
         return;
     }
+    
+    gettimeofday(&last_frame_time_, NULL);
+    
     if(listener_ != NULL){
         stream_switch::MediaFrameInfo frame_info;
         frame_info.frame_type = frame_type;
@@ -553,15 +495,29 @@ int LiveRtspClient::SetupSinks()
             if (strcmp(subsession->codecName(), "H264") == 0) {
             // For H.264 video stream, we use a special sink that adds 'start codes',
             // and (at the start) the SPS and PPS NAL units:
+                output_sink = H264or5OutputSink::createNew(
+                                            envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize, 
+                                            264);
 
             } else if (strcmp(subsession->codecName(), "H265") == 0) {
             // For H.265 video stream, we use a special sink that adds 'start codes',
             // and (at the start) the VPS, SPS, and PPS NAL units:
+                output_sink = H264or5OutputSink::createNew(
+                                            envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize, 
+                                            265);
 
             } else if (strcmp(subsession->codecName(), "MP4V-ES") == 0) {
             // For H.265 video stream, we use a special sink :
-
-                        
+                output_sink = Mpeg4OutputSink::createNew(envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize);                          
             
             }else{
                 output_sink = MediaOutputSink::createNew(envir(), 
@@ -770,7 +726,8 @@ void LiveRtspClient::ContinueAfterKeepAlive(RTSPClient* client, int resultCode, 
     
     if(my_client->session_ != NULL && my_client->rtsp_keep_alive_task_ == NULL){
         unsigned sessionTimeoutParameter = my_client->sessionTimeoutParameter();
-        unsigned sessionTimeout = sessionTimeoutParameter == 0 ? 60/*default*/ : sessionTimeoutParameter;
+        unsigned sessionTimeout = sessionTimeoutParameter == 0 ? 
+            RTSP_KEEPALIVE_INTERVAL/*default*/ : sessionTimeoutParameter;
         unsigned secondsUntilNextKeepAlive = sessionTimeout <= 5 ? 1 : sessionTimeout - 5;
         // Reduce the interval a little, to be on the safe side
 

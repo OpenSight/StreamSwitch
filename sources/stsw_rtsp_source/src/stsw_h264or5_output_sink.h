@@ -73,13 +73,19 @@ public:
 
     virtual void DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds);
-                
-    Boolean isVCL(u_int8_t nal_unit_type);
-    Boolean isIDR(u_int8_t nal_unit_type);    
+    
+
+    //utils
+    Boolean IsVCL(u_int8_t nal_unit_type);
+    Boolean IsIDR(u_int8_t nal_unit_type);    
+    
+    
 
 protected:
 
     int h_number_;
+
+    
 };
 
 

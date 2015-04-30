@@ -38,6 +38,15 @@
 
 #include<stdint.h>
 
+struct FrameBuf{    
+    stream_switch::MediaFrameType frame_type; 
+    struct timeval presentation_time; 
+    char * buf;
+    size_t frame_size;
+};
+typedef std::list<FrameBuf> FrameQueue;
+
+
 
 class LiveRtspClient;
 ////////////////////
@@ -83,6 +92,16 @@ public:
     virtual void DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds);
 
+
+    //framebuf queue operations
+    void PushOneFrame(stream_switch::MediaFrameType frame_type, 
+                      struct timeval timestamp, 
+                      unsigned frame_size, 
+                      const char * frame_buf);
+    void FlushQueue();
+    void ClearQueue();
+    void GetQueueFirstPts(struct timeval *presentationTime);
+
 private:
     // redefined virtual functions:
     virtual Boolean continuePlaying();
@@ -95,6 +114,8 @@ protected:
     struct timeval last_pts_; 
     
     LiveRtspClient *rtsp_client_;
+    
+    FrameQueue frame_queue_;
     
 };
 
