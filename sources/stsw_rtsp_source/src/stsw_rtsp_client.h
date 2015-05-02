@@ -96,7 +96,7 @@ public:
 class LiveRtspClient: public RTSPClient{
 public:
     static LiveRtspClient * CreateNew(UsageEnvironment& env, char const* rtspURL,                    
-			       Boolean streamUsingTCP = False, Boolean enableRtspKeepAlive = False, 
+			       Boolean streamUsingTCP = True, Boolean enableRtspKeepAlive = True, 
                    char const* singleMedium = NULL, 
                    char const* userName = NULL, char const* passwd = NULL, 
                    LiveRtspClientListener * listener = NULL, 
@@ -115,14 +115,16 @@ public:
     virtual int Start();
     virtual void Shutdown();
     
-    virtual bool IsRunning();
-    
-    virtual bool IsMetaReady();
+
+    virtual bool IsMetaReady()
+    {
+        return (is_metadata_ok_ == True);
+    }
     virtual stream_switch::StreamMetadata *mutable_metadata()
     {
         return &metadata_;
     }
-    virtual void CheckMetadata();
+    virtual bool CheckMetadata();
     
     virtual int GetStatisticData();
     virtual void ResetStatistic();
@@ -131,7 +133,7 @@ public:
                            stream_switch::MediaFrameType frame_type, 
                            struct timeval timestamp, 
                            unsigned frame_size, 
-                           char * frame_buf);
+                           const char * frame_buf);
                            
     virtual void SetListener(LiveRtspClientListener * listener)
     {
@@ -232,6 +234,7 @@ protected:
     double endTime_;
     
     struct timeval client_start_time_;
+    struct timeval last_frame_time_;
     
     PtsSessionNormalizer *pts_session_normalizer;
     
@@ -246,37 +249,5 @@ protected:
 
 
 
-#if 0
-
-typedef void (*RtspClientConstructCallback)(int resultCode, FramedSource * videoSource, FramedSource * audioSource);
-typedef void (*RtspClientErrorCallback)(int resultCode);
-
-int startRtspClient(char const* url, char const* progName, 
-                    char const* userName, char const* passwd,
-                    RtspClientConstructCallback constructCallback, 
-                    RtspClientErrorCallback errorCallback);
-
-
-
-void shutdownRtspClient(void);
-
-int getQOSVideoData(unsigned  *outMeasurementTime,
-                    unsigned  *outNumPacketsReceived,
-                    unsigned  *outNumPacketsExpected, 
-                    unsigned  *outKbitsPerSecondMin,
-                    unsigned  *outKbitsPerSecondMax,
-                    unsigned  *outKbitsPerSecondAvg,
-                    unsigned  *outKbitsPerSecondNow,
-                    unsigned  *outPacketLossPercentageMin,
-                    unsigned  *outPacketLossPercentageMax,
-                    unsigned  *outPacketLossPercentageAvg, 
-                    unsigned  *outPacketLossPercentageNow,
-                    unsigned  *outFpsAvg,
-                    unsigned  *outFpsNow,
-                    unsigned  *outGovAvg,
-                    unsigned  *outGovNow
-                    );
-
-#endif
 
 #endif

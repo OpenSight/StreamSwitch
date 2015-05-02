@@ -35,61 +35,9 @@
 
 #include "stsw_output_sink.h"
 #include "stsw_pts_normalizer.h"
+#include "stsw_h264or5_output_sink.h"
+#include "stsw_mpeg4_output_sink.h"
 
-#if 0
-
-#if defined(__WIN32__) || defined(_WIN32)
-#define snprintf _snprintf
-#else
-#include <signal.h>
-#define USE_SIGNALS 1
-#endif
-
-
-// Forward function definitions:
-void continueAfterOPTIONS(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterDESCRIBE(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterSETUP(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterPLAY(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterTEARDOWN(RTSPClient* client, int resultCode, char* resultString);
-void continueAfterKeepAlive(RTSPClient*, int resultCode, char* resultString);
- 
-void setupStreams();
-void closeMediaSinks();
-void closeLiveVideoFramer();
-void closeAudioSource();
-
-
-void subsessionByeHandler(void* clientData);
-
-void sessionTimerHandler(void* clientData);
-
-void sendRtspKeepAliveRequest(void* clientData);
-
-void rtspClientConnectTimeout(void* clientData);
-
-void signalHandlerShutdown(int sig);
-
-void checkInterPacketGaps(void* clientData);
-void beginQOSMeasurement();
-
-
-void clientShutdown(int errorType);
-void RtspRtpError(int errorType);
-void RTSPConstructFail(int errorType);
-
-Medium* createClient(UsageEnvironment& env, char const* url, int verbosityLevel, char const* applicationName);
-void getOptions(RTSPClient::responseHandler* afterFunc);
-extern void getSDPDescription(RTSPClient::responseHandler* afterFunc);
-extern void setupSubsession(MediaSubsession* subsession, Boolean streamUsingTCP, RTSPClient::responseHandler* afterFunc);
-extern void startPlayingSession(MediaSession* session, double start, double end, float scale, RTSPClient::responseHandler* afterFunc);
-extern void tearDownSession(MediaSession* session, RTSPClient::responseHandler* afterFunc);
-
-
-
-
-
-#endif
 
 
 Boolean isRTSPConstructFail = True;
@@ -110,29 +58,16 @@ static unsigned AudioSinkBufferSize = 131072; /* 128K bytes */
 static unsigned socketVideoInputBufferSize = 2097152; /* 2M bytes */
 static unsigned socketAudioInputBufferSize = 131072; /* 128K bytes */
 
-#if 0
-static H264VideoLiveSource *outputSource = NULL;
-static MPEG4ESVideoLiveSource* mpeg4Source = NULL;
-static SimpleRTPSource *outputAudioSource = NULL; 
-#endif
 
-
-
-RTSPClient* ourRTSPClient = NULL;
 static char const* clientProtocolName = "RTSP";
 
-
 static unsigned const rtpClientReorderWindowthresh = 20000; // 20 ms
-Boolean areAlreadyShuttingDown = True;
-
-//static RtspClientConstructCallback userConstructCallback = NULL;
-
-//static RtspClientErrorCallback userErrorCallback = NULL;
 
 
-#define RTSP_KEEPALIVE_INTERVAL 20000000
 
+#define RTSP_KEEPALIVE_INTERVAL 60 /*default is 60 sec*/
 
+#define METADATA_SUBSESSION_RESERVE_NUM 10
 
 const char* userAgent = "StreamSwitch";
 
@@ -166,11 +101,15 @@ made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
     client_start_time_.tv_sec = 0;
     client_start_time_.tv_usec = 0;
     
+    last_frame_time_.tv_sec = 0;
+    last_frame_time_.tv_usec = 0;
+    
     if(userName != NULL) {
         our_authenticator = new Authenticator(userName,passwd);
     }  
     metadata_.source_proto = "RTSP"; 
     metadata_.play_type = stream_switch::STREAM_PLAY_TYPE_LIVE;
+    metadata_.sub_streams.reserve(METADATA_SUBSESSION_RESERVE_NUM);
 }
 
 
@@ -238,26 +177,55 @@ void LiveRtspClient::Shutdown()
 }
 
 
-void LiveRtspClient::CheckMetadata()
+bool LiveRtspClient::CheckMetadata()
 {
+    using namespace stream_switch;
     if(is_metadata_ok_){
         //if OK already, just ignore
-        return;
+        return false;
+    }
+    
+    if(metadata_.ssrc == 0){
+        //ssrc not ready
+        return false;
+    }
+    if(metadata_.source_proto.size() == 0){
+        //protocol name not ready
+        return false;
     }
     
     //check subsesion number
     if(metadata_.sub_streams.size() == 0){
         //no subsessions
-        return;
+        return false;
     }
-    //check each subsession
     
+    //check each subsession
+    SubStreamMetadataVector::iterator it;
+    for(it = metadata_.sub_streams.begin();
+        it != metadata_.sub_streams.end();
+        it++)
+    {
+        if(it->codec_name.size() == 0){
+            //codec name not ready
+            return false; 
+        }
+        
+        if(it->codec_name == "H264" || it->codec_name == "H265" ){
+            if(it->extra_data.size() == 0){
+                //extra_data must present
+                return false;
+            }
+        }
+        
+    }
     
     //check successful
     is_metadata_ok_ = True;
     if(listener_ != NULL){
         listener_->OnMetaReady(metadata_);
     }
+    return true;
 }
 
 
@@ -265,12 +233,15 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
                            stream_switch::MediaFrameType frame_type, 
                            struct timeval timestamp, 
                            unsigned frame_size, 
-                           char * frame_buf)
+                           const char * frame_buf)
 {
     if(!IsMetaReady()){
         //metadata not ready, just drop the frame
         return;
     }
+    
+    gettimeofday(&last_frame_time_, NULL);
+    
     if(listener_ != NULL){
         stream_switch::MediaFrameInfo frame_info;
         frame_info.frame_type = frame_type;
@@ -511,7 +482,7 @@ int LiveRtspClient::SetupSinks()
 					 ::createNew(envir(), subsession->readSource(),
 						     False, 5.0, True/* leave PTs unmodified*/));
         } else if (strcmp(codecName, "DV") == 0) {
-        subsession->addFilter(DVVideoStreamFramer
+            subsession->addFilter(DVVideoStreamFramer
 					 ::createNew(envir(), subsession->readSource(),
 						     False, True/* leave PTs unmodified*/));
         }
@@ -522,14 +493,32 @@ int LiveRtspClient::SetupSinks()
 
         if (strcmp(subsession->mediumName(), "video") == 0) {
             if (strcmp(subsession->codecName(), "H264") == 0) {
-        // For H.264 video stream, we use a special sink that adds 'start codes',
-        // and (at the start) the SPS and PPS NAL units:
+            // For H.264 video stream, we use a special sink that adds 'start codes',
+            // and (at the start) the SPS and PPS NAL units:
+                output_sink = H264or5OutputSink::createNew(
+                                            envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize, 
+                                            264);
 
             } else if (strcmp(subsession->codecName(), "H265") == 0) {
             // For H.265 video stream, we use a special sink that adds 'start codes',
             // and (at the start) the VPS, SPS, and PPS NAL units:
+                output_sink = H264or5OutputSink::createNew(
+                                            envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize, 
+                                            265);
 
-         
+            } else if (strcmp(subsession->codecName(), "MP4V-ES") == 0) {
+            // For H.265 video stream, we use a special sink :
+                output_sink = Mpeg4OutputSink::createNew(envir(), 
+                                            this, 
+                                            subsession, index, 
+                                            VideoSinkBufferSize);                          
+            
             }else{
                 output_sink = MediaOutputSink::createNew(envir(), 
                                             this, 
@@ -617,7 +606,9 @@ void LiveRtspClient::SetupStreams() {
     }
 
 
-    //TODO ???? setupMetadata();
+    //setup metadata from session, 
+    //and call back user function if ready. 
+    SetupMetaFromSession();
 
 
   // Finally, start playing each subsession, to start the data flow:
@@ -735,7 +726,8 @@ void LiveRtspClient::ContinueAfterKeepAlive(RTSPClient* client, int resultCode, 
     
     if(my_client->session_ != NULL && my_client->rtsp_keep_alive_task_ == NULL){
         unsigned sessionTimeoutParameter = my_client->sessionTimeoutParameter();
-        unsigned sessionTimeout = sessionTimeoutParameter == 0 ? 60/*default*/ : sessionTimeoutParameter;
+        unsigned sessionTimeout = sessionTimeoutParameter == 0 ? 
+            RTSP_KEEPALIVE_INTERVAL/*default*/ : sessionTimeoutParameter;
         unsigned secondsUntilNextKeepAlive = sessionTimeout <= 5 ? 1 : sessionTimeout - 5;
         // Reduce the interval a little, to be on the safe side
 
@@ -913,6 +905,121 @@ void LiveRtspClient::closeMediaSinks()
         subsession->sink = NULL;
     }    
 }
+
+
+void LiveRtspClient::SetupMetaFromSession()
+{
+    using namespace stream_switch;
+    if(session_ == NULL){
+        return; //no session yet
+    }
+    uint32_t bps = 0; 
+    
+    MediaSubsession *subsession;
+    MediaSubsessionIterator iter(*session_);
+    int index = 0;
+    while ((subsession = iter.next()) != NULL) {
+        if (subsession->readSource() == NULL) continue; // was not initiated
+
+        char const* const codecName = subsession->codecName();
+        char const* const mediaName = subsession->mediumName();    
+        
+        if(strcmp(codecName, "MP2P") == 0 ||
+           strcmp(codecName, "MP2T") == 0 ){
+            //this is a mux stream, cannot setup metadata from sdp
+            metadata_.sub_streams.clear(); // no sub stream available
+            return;
+        }
+        metadata_.sub_streams[index].sub_stream_index = index;
+        metadata_.sub_streams[index].codec_name = codecName;
+        metadata_.sub_streams[index].direction = SUB_STREAM_DIRECTION_OUTBOUND;
+        
+        if(strcmp(mediaName, "video") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_VIDEO;
+            metadata_.sub_streams[index].media_param.video.height = 
+                subsession->videoHeight();
+            metadata_.sub_streams[index].media_param.video.width = 
+                subsession->videoWidth(); 
+            metadata_.sub_streams[index].media_param.video.fps = 
+                subsession->videoFPS(); 
+            
+            if(strcmp(codecName, "H264") == 0){
+                char const* sPropParameterSetsStr = 
+                    subsession->fmtp_spropparametersets();
+                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+                unsigned numSPropRecords;
+                SPropRecord* sPropRecords
+                    = parseSPropParameterSets(sPropParameterSetsStr, 
+                            numSPropRecords);
+                for (unsigned i = 0; i < numSPropRecords; ++i) {
+                    metadata_.sub_streams[index].extra_data.append(start_code, 4);
+                    metadata_.sub_streams[index].extra_data.append(
+                        (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
+
+                }
+                delete[] sPropRecords;
+                
+            }else if(strcmp(codecName, "H265") == 0){
+                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+		        char const* fSPropParameterSetsStr[3];
+                fSPropParameterSetsStr[0] = subsession->fmtp_spropvps();
+                fSPropParameterSetsStr[1] = subsession->fmtp_spropsps();
+                fSPropParameterSetsStr[2] = subsession->fmtp_sproppps();    
+                
+                for (unsigned j = 0; j < 3; ++j) {
+                    unsigned numSPropRecords;
+                    SPropRecord* sPropRecords
+                        = parseSPropParameterSets(fSPropParameterSetsStr[j], 
+                            numSPropRecords);
+                    for (unsigned i = 0; i < numSPropRecords; ++i) {
+                        metadata_.sub_streams[index].extra_data.append(start_code, 4);
+                        metadata_.sub_streams[index].extra_data.append(
+                            (const char *)sPropRecords[i].sPropBytes, 
+                            (size_t)sPropRecords[i].sPropLength);
+                    }
+                    delete[] sPropRecords;
+                }               
+                
+                
+            }else if(strcmp(codecName, "MP4V-ES") == 0){
+                unsigned configSize = 0;
+                unsigned char* config = 
+                    parseGeneralConfigStr(subsession->fmtp_config(), configSize);
+                if(configSize != 0 && config != NULL){
+                    metadata_.sub_streams[index].extra_data.assign(
+                        (const char *)config, (size_t)configSize);
+                }   
+            }
+               
+        }else if(strcmp(mediaName, "audio") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_AUDIO;           
+            metadata_.sub_streams[index].media_param.audio.channels = 1;
+            if(subsession->numChannels() != 0 ){
+                metadata_.sub_streams[index].media_param.audio.channels = 
+                    subsession->numChannels();
+            }
+        }else if(strcmp(mediaName, "text") == 0){
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_TEXT;            
+        }else{
+            metadata_.sub_streams[index].media_type = 
+                SUB_STREAM_MEIDA_TYPE_PRIVATE;            
+        }
+
+        
+        
+        bps + subsession->bandwidth() * 1000;
+        
+        index++;
+    } 
+    metadata_.bps = bps;
+    
+    CheckMetadata();
+        
+}
+
 
 
 /////////////////////////////////////////////////////////

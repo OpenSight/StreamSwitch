@@ -59,8 +59,8 @@ sub_stream_index_(sub_stream_index), rtsp_client_(rtsp_client)
 
 
 MediaOutputSink::~MediaOutputSink() {
-    delete[] recv_buf_;
-
+    delete[] recv_buf_;    
+    ClearQueue();
 }
 
 void MediaOutputSink::afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes,
@@ -143,6 +143,67 @@ void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
     }
     
         
+}
+
+
+//framebuf queue operations
+void MediaOutputSink::PushOneFrame(stream_switch::MediaFrameType frame_type, 
+                  struct timeval timestamp, 
+                  unsigned frame_size, 
+                  const char * frame_buf)
+{
+    FrameBuf temp_frame;
+    temp_frame.frame_type = frame_type;
+    temp_frame.presentation_time = timestamp;
+    temp_frame.frame_size = frame_size;
+    temp_frame.buf = new char[frame_size];
+    memcpy(temp_frame.buf, frame_buf, frame_size);
+    frame_queue_.push_back(temp_frame);
+}
+
+
+
+void MediaOutputSink::FlushQueue()
+{
+    FrameQueue::iterator it;
+    for(it= frame_queue_.begin(); it!= frame_queue_.end(); it++){
+
+        //callback the parent rtsp client frame receive interface
+        if(rtsp_client_ != NULL){
+            rtsp_client_->AfterGettingFrame(
+                sub_stream_index_, 
+                it->frame_type, 
+                it->presentation_time, 
+                it->frame_size,
+                it->buf);
+        }
+        
+        delete[] it->buf;
+    }    
+}
+void MediaOutputSink::ClearQueue()
+{
+    FrameQueue::iterator it;
+    for(it= frame_queue_.begin(); it!= frame_queue_.end(); it++){
+        delete[] it->buf;
+    }
+    frame_queue_.clear();
+}
+void MediaOutputSink::GetQueueFirstPts(struct timeval *presentationTime)
+{
+    if(presentationTime == NULL){
+        return;
+    }
+    if(frame_queue_.size() == 0){
+        presentationTime->tv_sec = 0;
+        presentationTime->tv_usec = 0;
+        return;
+    }
+    presentationTime->tv_sec = 
+        frame_queue_.front().presentation_time.tv_sec;
+    presentationTime->tv_usec = 
+        frame_queue_.front().presentation_time.tv_usec;  
+    
 }
 
 
