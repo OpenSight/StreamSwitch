@@ -299,6 +299,10 @@ bool StreamSource::IsStarted()
 {
      return (flags_ & STREAM_SOURCE_FLAG_STARTED) != 0;   
 }
+bool StreamSource::IsWaitingReply()
+{
+    return (flags_ & STREAM_SOURCE_FLAG_WAITING_REPLY) != 0;   
+}
 
 void StreamSource::set_stream_meta(const StreamMetadata & stream_meta)
 {
@@ -490,7 +494,7 @@ int StreamSource::SendLiveMediaFrame(const MediaFrameInfo &frame_info,
         media_info.set_frame_type((ProtoMediaFrameType)frame_info.frame_type);
         media_info.set_ssrc(frame_info.ssrc);
         media_info.set_seq(seq);
-        media_info.set_data(frame_data, frame_size);
+        //media_info.set_data(frame_data, frame_size);
 
         media_msg.mutable_header()->set_type(PROTO_PACKET_TYPE_MESSAGE);
         media_msg.mutable_header()->set_code(PROTO_PACKET_CODE_MEDIA);
@@ -506,10 +510,66 @@ int StreamSource::SendLiveMediaFrame(const MediaFrameInfo &frame_info,
     //
     // send out from publish socket
     //
-    SendPublishMsg((char *)STSW_PUBLISH_MEDIA_CHANNEL, media_msg);
+    SendPublishMsg((char *)STSW_PUBLISH_MEDIA_CHANNEL, media_msg, frame_data, frame_size);
         
     return 0;
 }
+
+
+int StreamSource::SendRpcReply(const ProtoCommonPacket &reply, 
+                               const char * extra_blob, size_t blob_size, 
+                               std::string *err_info)
+{
+    if(!IsInit()){
+        SET_ERR_INFO(err_info, "Source not init");        
+        return ERROR_CODE_GENERAL;
+    }
+    
+    if(reply.header().type() != PROTO_PACKET_TYPE_REPLY){
+        SET_ERR_INFO(err_info, "Packet Type Not Reply");        
+        return ERROR_CODE_PARAM;        
+    }
+    
+    if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
+        (reply.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
+        ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
+        (reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
+            
+        fprintf(stderr, "Send out the following packet (with blob size:%d) to api socket (timestamp:%lld ms):\n",
+                (int)blob_size,
+                (long long)zclock_time());
+        fprintf(stderr, "%s\n", reply.DebugString().c_str());
+    }
+    
+  
+    pthread_mutex_lock(&lock_); 
+    if(!IsWaitingReply()){
+        pthread_mutex_unlock(&lock_); 
+        //cannot send back the reply because the state mismatch
+        SET_ERR_INFO(err_info, "Not Waiting Reply");        
+        return ERROR_CODE_GENERAL;        
+    }
+    
+    flags_ &= ~(STREAM_SOURCE_FLAG_WAITING_REPLY);  
+    pthread_mutex_unlock(&lock_); 
+    
+    // send back the reply
+    std::string out_data;
+    reply.SerializeToString(&out_data);    
+    
+    zmsg_t *zmsg = zmsg_new ();
+    zmsg_addmem(zmsg, out_data.data(), out_data.size());
+    if(extra_blob != NULL && blob_size != 0){
+        zmsg_addmem(zmsg, extra_blob, blob_size);
+    }
+    zmsg_send (&zmsg, api_socket_);    
+    
+    return 0;
+
+}
+
+
+
 
 void StreamSource::set_stream_state(int stream_state)
 {
@@ -562,43 +622,47 @@ void StreamSource::UnregisterAllApiHandler()
     api_handler_map_.clear(); 
 }
 
-int StreamSource::StaticMetadataHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StaticMetadataHandler(void * user_data, const ProtoCommonPacket &request,
+                                        const char * extra_blob, size_t blob_size)
 {
     StreamSource * source = (StreamSource * )user_data;
-    return source->MetadataHandler(request, reply);    
+    return source->MetadataHandler(request, extra_blob, blob_size);    
 }
-int StreamSource::StaticKeyFrameHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StaticKeyFrameHandler(void * user_data, const ProtoCommonPacket &request,
+                                        const char * extra_blob, size_t blob_size)
 {
     StreamSource * source = (StreamSource * )user_data;
-    return source->KeyFrameHandler(request, reply);
+    return source->KeyFrameHandler(request, extra_blob, blob_size);
 }
-int StreamSource::StaticStatisticHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StaticStatisticHandler(void * user_data, const ProtoCommonPacket &request,
+                                         const char * extra_blob, size_t blob_size)
 {
     StreamSource * source = (StreamSource * )user_data;
-    return source->StatisticHandler(request, reply);
+    return source->StatisticHandler(request, extra_blob, blob_size);
 }
-int StreamSource::StaticClientHeartbeatHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StaticClientHeartbeatHandler(void * user_data, const ProtoCommonPacket &request,
+                                               const char * extra_blob, size_t blob_size)
 {
     StreamSource * source = (StreamSource * )user_data;
-    return source->ClientHeartbeatHandler(request, reply);
+    return source->ClientHeartbeatHandler(request, extra_blob, blob_size);
 }
 
-int StreamSource::StaticClientListHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StaticClientListHandler(void * user_data, const ProtoCommonPacket &request,
+                                          const char * extra_blob, size_t blob_size)
 {
     StreamSource * source = (StreamSource * )user_data;
-    return source->ClientListHandler(request, reply);
+    return source->ClientListHandler(request, extra_blob, blob_size);
 }
 
     
-int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::MetadataHandler(const ProtoCommonPacket &request,
+                                  const char * extra_blob, size_t blob_size)
 {
-    if(request == NULL || reply == NULL){
-        //nothing to do
-        return 0;
-    }
+
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_METADATA request\n");
-    }      
+    } 
+    
     ProtoMetaRep metadata;    
     
     {
@@ -659,26 +723,33 @@ int StreamSource::MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket
             }
         }// for(it = stream_meta_.sub_streams.begin();  
     }
-
-    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info(""); 
-    metadata.SerializeToString(reply->mutable_body());
+    
 
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_METADATA reply:\n");
         fprintf(stderr, "%s\n", metadata.DebugString().c_str());
     }  
+    
+    ProtoCommonPacket reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply.mutable_header()->set_info(""); 
+    reply.mutable_header()->set_code(request.header().code());   
+    reply.mutable_header()->set_seq(request.header().seq());    
+    metadata.SerializeToString(reply.mutable_body());
+
+    
+    //send back the reply
+    SendRpcReply(reply, NULL, 0, NULL);
   
     return 0;
 }
 
-int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::KeyFrameHandler(const ProtoCommonPacket &request, 
+                                  const char * extra_blob, size_t blob_size)
 {
-    if(request == NULL || reply == NULL){
-        //nothing to do
-        return 0;
-    }   
+ 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_KEY_FRAME request\n");
     }     
@@ -686,22 +757,27 @@ int StreamSource::KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket
     if(plistener != NULL){
         plistener->OnKeyFrame();
     }
-
-    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info("");  
-
+    
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Encode no body from a PROTO_PACKET_CODE_KEY_FRAME reply\n");
-    }    
+    }   
+    
+    ProtoCommonPacket reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);    
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply.mutable_header()->set_info(""); 
+    reply.mutable_header()->set_code(request.header().code());   
+    reply.mutable_header()->set_seq(request.header().seq()); 
+    //send back the reply
+    SendRpcReply(reply, NULL, 0, NULL);
+ 
     return 0;
 }
 
-int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::StatisticHandler(const ProtoCommonPacket &request,
+                                   const char * extra_blob, size_t blob_size)
 {
-    if(request == NULL || reply == NULL){
-        //nothing to do
-        return 0;
-    }
+
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
     }    
@@ -749,30 +825,39 @@ int StreamSource::StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacke
         sub_stream_stat->set_lost_frames(it->lost_frames);
         sub_stream_stat->set_last_gov(it->last_gov);            
     }// for(it = stream_meta_.sub_streams.begin();  
-                
-    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-    reply->mutable_header()->set_info(""); 
-    statistic.SerializeToString(reply->mutable_body());      
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_MEDIA_STATISTIC reply:\n");
         fprintf(stderr, "%s\n", statistic.DebugString().c_str());
     }
+                
+    ProtoCommonPacket reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);    
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply.mutable_header()->set_info(""); 
+    reply.mutable_header()->set_code(request.header().code());   
+    reply.mutable_header()->set_seq(request.header().seq());  
+    statistic.SerializeToString(reply.mutable_body());      
+    //send back the reply
+    SendRpcReply(reply, NULL, 0, NULL);
     
     return 0;
 }
 
-int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::ClientHeartbeatHandler(const ProtoCommonPacket &request,
+                                         const char * extra_blob, size_t blob_size)
 {
     
-    if(request == NULL || reply == NULL){
-        //nothing to do
-        return 0;
-    }
-    
+
+    ProtoCommonPacket reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply.mutable_header()->set_info(""); 
+    reply.mutable_header()->set_code(request.header().code());   
+    reply.mutable_header()->set_seq(request.header().seq());     
     
     ProtoClientHeartbeatReq client_heartbeat;
-    if(client_heartbeat.ParseFromString(request->body())){
+    if(client_heartbeat.ParseFromString(request.body())){
         int64_t now = time(NULL);
         client_heartbeat.set_last_active_time(now);
         
@@ -809,9 +894,9 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
                 if(receivers_info_->receiver_list.size() < STSW_MAX_CLIENT_NUM){
                     receivers_info_->receiver_list.push_back(client_heartbeat); 
                 }else{
-                    reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
-                    reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error"); 
-                    return 0;
+                    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+                    reply.mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error"); 
+                    
                     
                 }
             }
@@ -819,40 +904,50 @@ int StreamSource::ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommo
         }
         
         
-        //suceessful
-        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-        reply->mutable_header()->set_info("");  
-        
-        ProtoClientHeartbeatRep reply_info;
-        reply_info.set_timestamp(now);
-        reply_info.set_lease(STSW_CLIENT_LEASE);
-        reply_info.SerializeToString(reply->mutable_body());  
+        if(reply.header().status() == PROTO_PACKET_STATUS_OK){
+            ProtoClientHeartbeatRep reply_info;
+            reply_info.set_timestamp(now);
+            reply_info.set_lease(STSW_CLIENT_LEASE);
+            reply_info.SerializeToString(reply.mutable_body());  
+
+            if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+                fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
+                fprintf(stderr, "%s\n", reply_info.DebugString().c_str());
+            }         
+        }
  
-        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
-            fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_HEARTBEAT reply:\n");
-            fprintf(stderr, "%s\n", reply_info.DebugString().c_str());
-        } 
+
   
 
                     
     }else{
-        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
-        reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
+        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        reply.mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
     }
+
+    //send back the reply
+    SendRpcReply(reply, NULL, 0, NULL);
     
     return 0;
 }
 
 
-int StreamSource::ClientListHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply)
+int StreamSource::ClientListHandler(const ProtoCommonPacket &request, 
+                                    const char * extra_blob, size_t blob_size)
 {
-    if(request == NULL || reply == NULL){
-        //nothing to do
-        return 0;
-    }
+
+    
+    ProtoCommonPacket reply;
+    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
+    reply.mutable_header()->set_info(""); 
+    reply.mutable_header()->set_code(request.header().code());   
+    reply.mutable_header()->set_seq(request.header().seq());     
+    
+        
     ProtoClientListReq client_list_req;
     ProtoClientListRep client_list_rep;
-    if(client_list_req.ParseFromString(request->body())){
+    if(client_list_req.ParseFromString(request.body())){
         
         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
             fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_LIST request:\n");
@@ -885,9 +980,8 @@ int StreamSource::ClientListHandler(ProtoCommonPacket * request, ProtoCommonPack
 
         }
         
-        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_OK);
-        reply->mutable_header()->set_info("");  
-        client_list_rep.SerializeToString(reply->mutable_body());     
+  
+        client_list_rep.SerializeToString(reply.mutable_body());     
 
         if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
             fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_LIST reply:\n");
@@ -895,88 +989,125 @@ int StreamSource::ClientListHandler(ProtoCommonPacket * request, ProtoCommonPack
         } 
                     
     }else{
-        reply->mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
-        reply->mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
+        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        reply.mutable_header()->set_info("ProtoClientHeartbeatReq body Parse Error");           
     }
+
+    //send back the reply
+    SendRpcReply(reply, NULL, 0, NULL);
     
     return 0;
 }
 
-int StreamSource::RpcHandler()
+void StreamSource::OnApiSocketRead()
 {
-    zframe_t * in_frame = NULL;
-    in_frame = zframe_recv(api_socket_);
-    if(in_frame == NULL){
-        return 0;  // no frame receive
-    }
-    std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
-    //after used, need free the frame
-    zframe_destroy(&in_frame);    
-    
+    zframe_t * in_frame = NULL, *blob_frame = NULL;
+    const char * extra_blob = NULL;
+    size_t blob_size = 0;
     ProtoCommonPacket request;
-    ProtoCommonPacket reply;
+
     
-    // initialize the reply;
-    reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
-    reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
-    reply.mutable_header()->set_info("Unknown Error");
+    zmsg_t *zmsg = zmsg_recv(api_socket_);
+    if (!zmsg){
+        return;  // no frame receive
+    }
+    in_frame = zmsg_pop(zmsg);
+    if(in_frame == NULL){
+        //invalid, nothing can do        
+    }
+    blob_frame = zmsg_pop(zmsg);
+    if(blob_frame != NULL){
+        extra_blob = (const char *)zframe_data(blob_frame);
+        blob_size = zframe_size(blob_frame);
+        if(blob_size == 0 && extra_blob != NULL){ //check
+            extra_blob = NULL;
+        }
+    }
+        
             
-    if(request.ParseFromString(in_data)){
+    if(request.ParseFromArray(zframe_data(in_frame), zframe_size(in_frame))){
              
         if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
             (request.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
             ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
             (request.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
             
-            fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
+            fprintf(stderr, "Receive the following packet (with blob size:%d) from api socket (timestamp:%lld ms):\n",
+                    (int)blob_size, 
                     (long long)zclock_time());
             fprintf(stderr, "%s\n", request.DebugString().c_str());
         }
-                   
-        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
-        reply.mutable_header()->set_info("Unknown Error");        
-        reply.mutable_header()->set_code(request.header().code());   
-        reply.mutable_header()->set_seq(request.header().seq());
-        int op_code = request.header().code();
-        SourceApiHanderMap::iterator it;
-        pthread_mutex_lock(&lock_); 
-        it = api_handler_map_.find(op_code);
-        if(it == api_handler_map_.end()){
-            pthread_mutex_unlock(&lock_); 
-            reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
-            char err_info[64];
-            sprintf(err_info, "Handler for code(%d) Not Found", op_code);
-            reply.mutable_header()->set_info(err_info);               
-            
-        }else{
-            SourceApiHandlerEntry entry = it->second;
-            pthread_mutex_unlock(&lock_); 
-            entry.handler(entry.user_data, &request, &reply);            
-        }          
+           
+        OnRpcRequest(request, extra_blob, blob_size); //OnRpcRequest would send out a reply surely.
         
     }else{
-        reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
-        reply.mutable_header()->set_info("Request Parse Error");        
+        ProtoCommonPacket err_reply;
+        err_reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+        err_reply.mutable_header()->set_status(PROTO_PACKET_STATUS_BAD_REQUEST);
+        err_reply.mutable_header()->set_info("Request Parse Error");    
+        SendRpcReply(err_reply, NULL, 0, NULL); 
     }
 
-    if(((debug_flags() & DEBUG_FLAG_DUMP_API) && 
-        (reply.header().code() != PROTO_PACKET_CODE_CLIENT_HEARTBEAT)) ||
-        ((debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT) && 
-        (reply.header().code() == PROTO_PACKET_CODE_CLIENT_HEARTBEAT))) {
-            
-        fprintf(stderr, "Send out the following packet to api socket (timestamp:%lld ms):\n",
-                (long long)zclock_time());
-        fprintf(stderr, "%s\n", request.DebugString().c_str());
+    //after used, need free the frame
+    if(blob_frame != NULL) {
+        zframe_destroy(&blob_frame);
+        blob_frame = NULL;
+    }    
+    
+    if(in_frame != NULL){
+        zframe_destroy(&in_frame);
+        in_frame = NULL;
     }
     
-    // send back the reply
-    std::string out_data;
-    reply.SerializeToString(&out_data);
-    zframe_t * out_frame = NULL;
-    out_frame = zframe_new(out_data.data(), out_data.size());
-    zframe_send(&out_frame, api_socket_, ZFRAME_DONTWAIT);    
-           
-    return 0;   
+    if(zmsg != NULL){
+        zmsg_destroy (&zmsg);
+        zmsg = NULL;        
+    }     
+
+    
+    return;   
+} 
+
+// OnRpcRequest ensure that a reply for the given request 
+// must be send back by SendRpcReply()
+void StreamSource::OnRpcRequest(const ProtoCommonPacket &request,
+                                const char * extra_blob, size_t blob_size)
+{
+    ProtoCommonPacket default_reply;
+    default_reply.mutable_header()->set_type(PROTO_PACKET_TYPE_REPLY);
+    default_reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+    default_reply.mutable_header()->set_info("Handler Not Send Reply");
+    default_reply.mutable_header()->set_code(request.header().code());   
+    default_reply.mutable_header()->set_seq(request.header().seq());
+    
+    int op_code = request.header().code();
+    SourceApiHanderMap::iterator it;
+    pthread_mutex_lock(&lock_); 
+        
+    it = api_handler_map_.find(op_code);
+    if(it == api_handler_map_.end()){  
+        pthread_mutex_unlock(&lock_); 
+        default_reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+        char err_info[64];
+        sprintf(err_info, "Handler for code(%d) Not Found", op_code);
+        default_reply.mutable_header()->set_info(err_info);               
+        //send back the default reply
+        SendRpcReply(default_reply, NULL, 0, NULL);              
+    }else{
+        SourceApiHandlerEntry entry = it->second;
+        flags_ |= STREAM_SOURCE_FLAG_WAITING_REPLY;
+        pthread_mutex_unlock(&lock_); 
+        
+        entry.handler(entry.user_data, request, extra_blob, blob_size); 
+
+        if(IsWaitingReply()){
+            //handler forget to send reply
+            default_reply.mutable_header()->set_status(PROTO_PACKET_STATUS_INTERNAL_ERR);
+            default_reply.mutable_header()->set_info("API Handler Error (Not send reply)");       
+            //send back the default reply
+            SendRpcReply(default_reply, NULL, 0, NULL); 
+        }
+    }//if(it == api_handler_map_.end()){     
 }
 
 int StreamSource::Heartbeat(int64_t now)
@@ -1044,7 +1175,7 @@ void StreamSource::InternalRoutine()
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
         if(socket != NULL){
-            RpcHandler();
+            OnApiSocketRead();
         }
                      
         // check for heartbeat
@@ -1092,12 +1223,13 @@ void StreamSource::SendStreamInfo(void)
     //
     // send out from publish socket
     //
-    SendPublishMsg((char *)STSW_PUBLISH_INFO_CHANNEL, info_msg);
+    SendPublishMsg((char *)STSW_PUBLISH_INFO_CHANNEL, info_msg, NULL, 0);
 
 }
 
-
-void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg)
+//Before invoke SendPublishMsg(), the internal lock must be hold first.
+void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg, 
+                                  const char * extra_blob, size_t blob_size)
 {
     if(channel_name == NULL || strlen(channel_name) == 0){
         //no channel, just ignore
@@ -1109,20 +1241,26 @@ void StreamSource::SendPublishMsg(char * channel_name, const ProtoCommonPacket &
     }    
 
     if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
-        fprintf(stderr, "Send out the following packet into publish socket channel %s (timestamp:%lld ms):\n", 
+        fprintf(stderr, "Send out the following packet (with blob size: %d) into publish socket channel %s (timestamp:%lld ms):\n", 
+                (int)blob_size,
                 channel_name, 
                 (long long)zclock_time());
         fprintf(stderr, "%s\n", msg.DebugString().c_str());
     }
 
-    LockGuard guard(&lock_);
+    //LockGuard guard(&lock_); //no need to lock again
     
     std::string packet_data;
     msg.SerializeToString(&packet_data);
-
-    zsock_send(publish_socket_, "sb",  
-               channel_name, 
-               packet_data.data(), packet_data.size());         
+    
+    zmsg_t *zmsg = zmsg_new ();
+    zmsg_addstr(zmsg, channel_name);
+    zmsg_addmem(zmsg, packet_data.data(), packet_data.size());
+    if(extra_blob != NULL && blob_size != 0){
+        zmsg_addmem(zmsg, extra_blob, blob_size);
+    }
+    zmsg_send (&zmsg, publish_socket_);
+    
     
 }
 

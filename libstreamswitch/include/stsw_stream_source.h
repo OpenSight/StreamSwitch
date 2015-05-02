@@ -87,6 +87,7 @@ public:
     //flag check methods
     virtual bool IsInit();
     virtual bool IsStarted();
+    virtual bool IsWaitingReply();
    
     // Start up the source 
     // After source started up, the internal thread would be spawn up,  
@@ -111,6 +112,8 @@ public:
                                     size_t frame_size, 
                                     std::string *err_info);
     
+
+    
     
     // accessors 
     void set_stream_state(int stream_state);
@@ -134,21 +137,41 @@ public:
     virtual void UnregisterApiHandler(int op_code);
     virtual void UnregisterAllApiHandler();  
 
+    // Send back a RPC reply
+    // This method should be invoked in the API handler to send back a reply. 
+    // It is only for the users who register his own API handler. Otherwize, user
+    // can ignore this method
+    virtual int SendRpcReply(const ProtoCommonPacket &reply, 
+                             const char * extra_blob, size_t blob_size, 
+                             std::string *err_info);
+
 protected:
 
-    static int StaticMetadataHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    static int StaticKeyFrameHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    static int StaticStatisticHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    static int StaticClientHeartbeatHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    static int StaticClientListHandler(void * user_data, ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    static int StaticMetadataHandler(void * user_data, const ProtoCommonPacket &request,
+                                     const char * extra_blob, size_t blob_size);
+    static int StaticKeyFrameHandler(void * user_data, const ProtoCommonPacket &request,
+                                     const char * extra_blob, size_t blob_size);
+    static int StaticStatisticHandler(void * user_data, const ProtoCommonPacket &request,
+                                      const char * extra_blob, size_t blob_size);
+    static int StaticClientHeartbeatHandler(void * user_data, const ProtoCommonPacket &request,
+                                            const char * extra_blob, size_t blob_size);
+    static int StaticClientListHandler(void * user_data, const ProtoCommonPacket &request,
+                                       const char * extra_blob, size_t blob_size);
     
-    virtual int MetadataHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    virtual int KeyFrameHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    virtual int StatisticHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    virtual int ClientHeartbeatHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
-    virtual int ClientListHandler(ProtoCommonPacket * request, ProtoCommonPacket * reply);
+    virtual int MetadataHandler(const ProtoCommonPacket &request,
+                                const char * extra_blob, size_t blob_size);
+    virtual int KeyFrameHandler(const ProtoCommonPacket &request,
+                                const char * extra_blob, size_t blob_size);
+    virtual int StatisticHandler(const ProtoCommonPacket &request,
+                                 const char * extra_blob, size_t blob_size);
+    virtual int ClientHeartbeatHandler(const ProtoCommonPacket &request,
+                                       const char * extra_blob, size_t blob_size);
+    virtual int ClientListHandler(const ProtoCommonPacket &request,
+                                  const char * extra_blob, size_t blob_size);
     
-    virtual int RpcHandler();
+    virtual void OnApiSocketRead();
+    virtual void OnRpcRequest(const ProtoCommonPacket &request,
+                              const char * extra_blob, size_t blob_size);
     virtual int Heartbeat(int64_t now);
     
     static void * StaticThreadRoutine(void *arg);
@@ -157,8 +180,9 @@ protected:
     virtual void SendStreamInfo(void);    
     
     // send the msg from the publish socket on the given channel
-    // 
-    virtual void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg);
+    // The caller must get the internal lock before invoke this method
+    virtual void SendPublishMsg(char * channel_name, const ProtoCommonPacket &msg, 
+                                const char * extra_blob, size_t blob_size);
     
     
     pthread_mutex_t& lock(){
@@ -177,8 +201,9 @@ private:
     
 // stream source flags
 #define STREAM_SOURCE_FLAG_INIT 1
+#define STREAM_SOURCE_FLAG_WAITING_REPLY 2
 #define STREAM_SOURCE_FLAG_STARTED 4
-    uint32_t flags_;      
+    volatile uint32_t flags_;      
 
     SubStreamMediaStatisticVector statistic_;
     StreamMetadata stream_meta_;

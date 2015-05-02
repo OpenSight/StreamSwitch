@@ -95,7 +95,7 @@ private:
 // rotate logger flags
 #define ROTATE_LOGGER_FLAG_INIT 1
 
-    uint32_t flags_;      
+    volatile uint32_t flags_;      
 
 };
 

@@ -583,14 +583,16 @@ void StreamSink::UnregisterAllSubHandler()
     subsriber_handler_map_.clear();    
 }      
 
-int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg)
+int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+                                        const char * extra_blob, size_t blob_size)
 {
     StreamSink *receiver = (StreamSink *)user_data;
-    return receiver->MediaFrameHandler(msg);
+    return receiver->MediaFrameHandler(msg, extra_blob, blob_size);
 }
-int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
+int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg, 
+                                  const char * extra_blob, size_t blob_size)
 {
-    MediaFrameInfo media_frame;
+    MediaFrameInfo frame_info;
     const char *frame_data;
     size_t frame_size;
     int ret;
@@ -613,13 +615,15 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
         
 
 
-        media_frame.sub_stream_index = frame_msg.stream_index();
-        media_frame.frame_type = (MediaFrameType)frame_msg.frame_type();
-        media_frame.ssrc = frame_msg.ssrc();
-        media_frame.timestamp.tv_sec = frame_msg.sec();
-        media_frame.timestamp.tv_usec = frame_msg.usec();
-        frame_data = frame_msg.data().data();
-        frame_size = frame_msg.data().size();
+        frame_info.sub_stream_index = frame_msg.stream_index();
+        frame_info.frame_type = (MediaFrameType)frame_msg.frame_type();
+        frame_info.ssrc = frame_msg.ssrc();
+        frame_info.timestamp.tv_sec = frame_msg.sec();
+        frame_info.timestamp.tv_usec = frame_msg.usec();
+        
+        //for ProtoMediaFrameMsg packet, attached blob is the frame data
+        frame_data = extra_blob;
+        frame_size = blob_size;
         
         seq = frame_msg.seq();
         
@@ -631,20 +635,20 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
         LockGuard guard(&lock());  
         
         // check ssrc
-        if(stream_meta_.ssrc == 0 || stream_meta_.ssrc != media_frame.ssrc){
+        if(stream_meta_.ssrc == 0 || stream_meta_.ssrc != frame_info.ssrc){
             //ssrc mismatch, just ignore this frame
             return 0;
         }
         
-        if(media_frame.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
+        if(frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
             //sub stream index mismatch, just ignore this frame
             return 0;
         }        
     
-        int sub_stream_index = media_frame.sub_stream_index;
+        int sub_stream_index = frame_info.sub_stream_index;
     
-        if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
-            media_frame.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+        if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+            frame_info.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
             //the frames contains media data   
             statistic_[sub_stream_index].data_frames++;
             statistic_[sub_stream_index].data_bytes += frame_size;
@@ -656,7 +660,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
             statistic_[sub_stream_index].last_seq = seq;
 
      
-            if(media_frame.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+            if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
                 statistic_[sub_stream_index].key_frames ++;
                 statistic_[sub_stream_index].key_bytes += frame_size;
                     
@@ -678,7 +682,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg)
 
     SinkListener *plistener = listener();
     if(plistener != NULL){
-        plistener->OnLiveMediaFrame(media_frame, frame_data, frame_size);
+        plistener->OnLiveMediaFrame(frame_info, frame_data, frame_size);
     }    
     
        
@@ -743,23 +747,44 @@ void StreamSink::InternalRoutine()
 
 int StreamSink::SubscriberHandler()
 {
-    zframe_t * in_frame = NULL;
+    zframe_t * packet_frame = NULL, * blob_frame = NULL;
     char *channel_name = NULL;
-    std::string in_data;
     ProtoCommonPacket msg;
-    int ret;
-    ret = zsock_recv(subscriber_socket_, "sf", &channel_name, &in_frame);
-    if(ret || in_frame == NULL || channel_name == NULL){
+    const char * extra_blob = NULL;
+    size_t blob_size = 0;
 
-        goto out;  // no frame receive
+    zmsg_t *zmsg = zmsg_recv (subscriber_socket_);
+    if (!zmsg){
+        goto out; //  Interrupted
     }
-    in_data.assign((const char *)zframe_data(in_frame), zframe_size(in_frame));    
-    
-        
-    if(msg.ParseFromString(in_data)){
+    channel_name = zmsg_popstr(zmsg);
+    if(channel_name == NULL){
+        goto out;  // invalid;
+    }
+    packet_frame = zmsg_pop(zmsg);
+    if(packet_frame == NULL){
+        goto out;  // invalid
+    }
+    blob_frame = zmsg_pop(zmsg);
+    if(blob_frame != NULL){
+        extra_blob = (const char *)zframe_data(blob_frame);
+        blob_size = zframe_size(blob_frame);
+        if(blob_size == 0 && extra_blob != NULL){ //check
+            extra_blob = NULL;
+        }
+    }
+    //release the zmsg as early as possible
+    if(zmsg != NULL){
+        zmsg_destroy (&zmsg);
+        zmsg = NULL;        
+    }
+
+    if(msg.ParseFromArray((const void *)zframe_data(packet_frame), 
+                          (int)zframe_size(packet_frame))){
         
         if(debug_flags() & DEBUG_FLAG_DUMP_PUBLISH){
-            fprintf(stderr, "Received the following packet from subsriber socket channel %s (timestamp:%lld ms):\n", 
+            fprintf(stderr, "Received the following packet (with blob size:%d) from subsriber socket channel %s (timestamp:%lld ms):\n", 
+                    (int)blob_size, 
                     channel_name, 
                     (long long)zclock_time());
             fprintf(stderr, "%s\n", msg.DebugString().c_str());
@@ -776,7 +801,7 @@ int StreamSink::SubscriberHandler()
             SinkSubHandlerEntry entry = it->second;
             pthread_mutex_unlock(&lock_); 
             if(entry.channel_name == std::string(channel_name)){
-                entry.handler(entry.user_data, &msg);
+                entry.handler(entry.user_data, &msg, extra_blob, blob_size);
             }
        
         }//if(it == subsriber_handler_map_.end()){
@@ -784,14 +809,23 @@ int StreamSink::SubscriberHandler()
 
 
 out:
-    if(in_frame != NULL) {
-        zframe_destroy(&in_frame);
-        in_frame = NULL;
+
+    if(blob_frame != NULL) {
+        zframe_destroy(&blob_frame);
+        blob_frame = NULL;
+    }
+    if(packet_frame != NULL) {
+        zframe_destroy(&packet_frame);
+        packet_frame = NULL;
     }
     if(channel_name != NULL){
         free(channel_name);
         channel_name = NULL;
     } 
+    if(zmsg != NULL){
+        zmsg_destroy (&zmsg);
+        zmsg = NULL;        
+    }
            
     return 0; 
       

@@ -37,7 +37,8 @@ typedef void * LockHandle;
 
 
 
-typedef int (*SourceApiHandler)(void * user_data, const ProtoCommonPacket * request, ProtoCommonPacket * reply);
+typedef int (*SourceApiHandler)(void * user_data, const ProtoCommonPacket &request, 
+                                const char * extra_blob, size_t blob_size);
 
 struct SourceApiHandlerEntry{
     SourceApiHandler handler;
@@ -45,7 +46,8 @@ struct SourceApiHandlerEntry{
 };
 
 
-typedef int (*SinkSubHandler)( void * user_data, const ProtoCommonPacket * msg);
+typedef int (*SinkSubHandler)( void * user_data, const ProtoCommonPacket * msg, 
+                               const char * extra_blob, size_t blob_size);
 
 struct SinkSubHandlerEntry{
     SinkSubHandler handler;

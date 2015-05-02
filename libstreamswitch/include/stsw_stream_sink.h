@@ -125,8 +125,10 @@ protected:
     //
     //internal used method
 
-    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg);
-    virtual int MediaFrameHandler(const ProtoCommonPacket * msg);
+    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+                                       const char * extra_blob, size_t blob_size);
+    virtual int MediaFrameHandler(const ProtoCommonPacket * msg, 
+                                  const char * extra_blob, size_t blob_size);
 
 
     virtual int InitBase(const StreamClientInfo &client_info, 
@@ -170,7 +172,7 @@ private:
 // stream source flags
 #define STREAM_RECEIVER_FLAG_INIT 1
 #define STREAM_RECEIVER_FLAG_STARTED 4
-    uint32_t flags_;      
+    volatile uint32_t flags_;      
 
     StreamMetadata stream_meta_;
 
