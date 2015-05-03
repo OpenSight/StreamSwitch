@@ -123,16 +123,20 @@ int TextStreamSink::InitRemote(std::string text_file,
     std::string err_info;
     
     //open file
-    text_file_ = fopen(text_file.c_str(), "w");
-    if(text_file_ == NULL){
-        perror("Open Text File Failed");
-        return -1;
+    if(text_file.size() != 0){
+        text_file_ = fopen(text_file.c_str(), "w");
+        if(text_file_ == NULL){
+            perror("Open Text File Failed");
+            return -1;
+        }
+        text_file_name_ = text_file;        
     }
-    text_file_name_ = text_file;
     
     
     //init sink
-    ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, this, 
+    ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, 
+                           STSW_SUBSCRIBE_SOCKET_HWM, 
+                           this, 
                            debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
@@ -157,16 +161,20 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
     std::string err_info;
     
     //open file
-    text_file_ = fopen(text_file.c_str(), "w");
-    if(text_file_ == NULL){
-        perror("Open Text File Failed");
-        return -1;
+    if(text_file.size() != 0){
+        text_file_ = fopen(text_file.c_str(), "w");
+        if(text_file_ == NULL){
+            perror("Open Text File Failed");
+            return -1;
+        }
+        text_file_name_ = text_file;
     }
-    text_file_name_ = text_file;
     
     
     //init sink
-    ret = sink_.InitLocal(stream_name, client_info, this, 
+    ret = sink_.InitLocal(stream_name, client_info, 
+                          STSW_SUBSCRIBE_SOCKET_HWM, 
+                          this, 
                           debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
@@ -190,8 +198,11 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
 void TextStreamSink::Uninit()
 {
     sink_.Uninit();
-    fclose(text_file_);
-    text_file_ = NULL;
+    if(text_file_ != NULL){
+        fclose(text_file_);
+        text_file_ = NULL;
+    
+    }
     text_file_name_.clear();
 }
 
@@ -256,7 +267,9 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame
                                       const char * frame_data, 
                                       size_t frame_size)
 {
+    
     if(text_file_){
+        char tmp_buf[10];
         fprintf(text_file_, 
                 "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x, size: %d\n", 
                 (int)frame_info.sub_stream_index, 
@@ -270,12 +283,16 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame
             if(i % 32 == 0){
                 fprintf(text_file_, "\n");                
             }
+            
+            //snprintf(tmp_buf, 10, "%d ", (int)0);
             fprintf(text_file_, "%02hhx ", frame_data[i]);
+            //fprintf(text_file_, "%02hhx ", (char)0);
         }
-        fprintf(text_file_, "\n\n");
-        
-        last_frame_rec_sec_ = time(NULL);           
+        fprintf(text_file_, "\n\n"); 
     }
+    
+    last_frame_rec_sec_ = time(NULL);    
+ 
 }
 
 
@@ -316,7 +333,7 @@ void ParseArgv(int argc, char *argv[],
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  "NUM",
                    "log rotate number, 0 means no rotating", NULL, NULL);       
     parser->RegisterOption("sink-file", 'f', 
-                    OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,  "FILE", 
+                    OPTION_FLAG_WITH_ARG,  "FILE", 
                    "the text file path to which this sink dumps the frames. "
                    "This option must be set for text sink", 
                    NULL, NULL); 
@@ -367,11 +384,12 @@ void ParseArgv(int argc, char *argv[],
             exit(-1);
         }
     }
+/*    
     if(!parser->CheckOption("sink-file")){
         fprintf(stderr, "sink-file must be given\n");
         exit(-1);        
     }
-
+*/
     
 
 }
@@ -443,7 +461,7 @@ int main(int argc, char *argv[])
 
     
     
-    ret = text_sink.Start(5000);//5 seconds to wait
+    ret = text_sink.Start(5000);//5 seconds to wait for metadata
     if(ret){        
         ret = -1;
         goto exit_4;
@@ -454,7 +472,8 @@ int main(int argc, char *argv[])
     
     while(1){
         time_t now = time(NULL);
-#define NO_DATA_INTERVAL     10        
+#define NO_DATA_INTERVAL     10    
+    
         if(now - text_sink.last_frame_rec_sec() >= NO_DATA_INTERVAL){
             fprintf(stderr, "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);
             ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
@@ -462,7 +481,7 @@ int main(int argc, char *argv[])
             ret = -1;
             break;
         }
-        
+      
         if(isGlobalInterrupt()){
             fprintf(stderr, "Receive Terminate Signal, exit\n");
             ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 

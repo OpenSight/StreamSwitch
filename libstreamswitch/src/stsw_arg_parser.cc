@@ -79,10 +79,16 @@ void ArgParser::RegisterSourceOptions()
                    "log file max size in bytes", NULL, NULL);   
     RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "NUM",
-                   "log rotate number, 0 means no rotating", NULL, NULL);       
+                   "log rotate number, 0 means no rotating", NULL, NULL);  
+    RegisterOption("queue-size", 'q', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "the size of the message queue for Pub/Sub, 0 means no limit."
+                   "Default is an internal value determined when compiling", NULL, NULL);  
+     
     RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
                    "URL", 
                    "the url which source would connect to", NULL, NULL);   
+                   
     
 }
     

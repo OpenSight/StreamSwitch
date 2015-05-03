@@ -71,14 +71,16 @@ public:
     //     tcp_port int in: the tcp port of this source, api socket would listen
     //         on this port, and publish socket would listen on tcp_port + 1. If
     //         this param is 0, means this source never listen on tcp
+    //     pub_queue_size uint32_t in: the max size of the message queue for each subscriber
     //     listener SourceListener * in: the listener of this source
     //     debug_flags uint32_t in: the debug flags of this source
     //     errInfo string out: error tips if failed
     //
     // return:
     //     0 if successful, or -1 if error;
-    virtual int Init(const std::string &stream_name, int tcp_port, 
-                     SourceListener *listener, 
+    virtual int Init(const std::string &stream_name, int tcp_port,  
+                     uint32_t pub_queue_size, 
+                     SourceListener *listener,  
                      uint32_t debug_flags, std::string *err_info);
     
     // un-init the source, note that it's not thread-safe
@@ -216,6 +218,7 @@ private:
     int64_t last_heartbeat_time_;     // in milli-sec
     
     SourceListener *listener_;
+    uint32_t pub_queue_size_;
 };
 
 }

@@ -59,7 +59,8 @@ StreamSource::StreamSource()
 api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
 flags_(0), cur_bytes_(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
-last_heartbeat_time_(0), listener_(NULL)
+last_heartbeat_time_(0), listener_(NULL), pub_queue_size_(STSW_PUBLISH_SOCKET_HWM)
+
 {
     receivers_info_ = new ReceiversInfoType();
     
@@ -72,6 +73,7 @@ StreamSource::~StreamSource()
 }
 
 int StreamSource::Init(const std::string &stream_name, int tcp_port, 
+                       uint32_t pub_queue_size, 
                        SourceListener *listener, 
                        uint32_t debug_flags, std::string *err_info)
 {
@@ -126,7 +128,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
                        STSW_SOCKET_NAME_STREAM_API);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
             ret = ERROR_CODE_PARAM;
-            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            fprintf(stderr, "socket address too long: %s\n", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
             ret = ERROR_CODE_SYSTEM;
@@ -145,7 +147,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
                        tcp_port);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
             ret = ERROR_CODE_PARAM;
-            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            fprintf(stderr, "socket address too long: %s\n", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
             ret = ERROR_CODE_SYSTEM;
@@ -154,14 +156,21 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
         }
         
     }       
-    api_socket_ = zsock_new_rep(tmp_addr);
+    api_socket_ = zsock_new(ZMQ_REP);
     if(api_socket_ == NULL){
         ret = ERROR_CODE_SYSTEM;
-        SET_ERR_INFO(err_info, "zsock_new_rep create api socket failed: maybe address conflict");   
-        fprintf(stderr, "zsock_new_rep create api socket failed: maybe address (%s) conflict", tmp_addr);
+        SET_ERR_INFO(err_info, "zsock_new() create api socket failed");   
+        fprintf(stderr, "zsock_new() create api socket failed\n");
         goto error_2;            
     }
-    zsock_set_linger(api_socket_, 0); //no linger
+    zsock_set_linger(api_socket_, 0); //no linger 
+    if(zsock_attach((zsock_t *)api_socket_, tmp_addr, true)){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_attach() failed for the api socket: maybe address error");          
+        fprintf(stderr, "zsock_attach() failed for the api socket: "
+                "maybe address (%s) error\n", tmp_addr);
+        goto error_2;         
+    }
     
     memset(tmp_addr, 0, MAX_SOCKET_BIND_ADDR_LEN + 1);
     if(tcp_port == 0){
@@ -174,7 +183,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
                        STSW_SOCKET_NAME_STREAM_PUBLISH);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
             ret = ERROR_CODE_PARAM;
-            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            fprintf(stderr, "socket address too long: %s\n", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
             ret = ERROR_CODE_SYSTEM;
@@ -193,7 +202,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
                        tcp_port + 1);
         if(ret == MAX_SOCKET_BIND_ADDR_LEN){
             ret = ERROR_CODE_PARAM;
-            fprintf(stderr, "socket address too long: %s", tmp_addr);
+            fprintf(stderr, "socket address too long: %s\n", tmp_addr);
             goto error_2;            
         }else if(ret < 0){
             ret = ERROR_CODE_SYSTEM;
@@ -202,19 +211,26 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
         }
         
     }    
-    publish_socket_ = zsock_new_pub(tmp_addr);
+    publish_socket_ = zsock_new(ZMQ_PUB);
     if(api_socket_ == NULL){
         ret = ERROR_CODE_SYSTEM;
-        SET_ERR_INFO(err_info, "zsock_new_pub create publish socket failed: maybe address conflict");          
-        fprintf(stderr, "zsock_new_pub create publish socket failed: "
-                "maybe address (%s) conflict", tmp_addr);
+        SET_ERR_INFO(err_info, "zsock_new create publish socket failed");          
+        fprintf(stderr, "zsock_new create publish socket failed\n");
         goto error_2;            
     }    
     //wait for 100 ms to send the remaining packet before close
     zsock_set_linger(publish_socket_, STSW_PUBLISH_SOCKET_LINGER);
  
-    zsock_set_sndhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
-    zsock_set_rcvhwm(publish_socket_, STSW_PUBLISH_SOCKET_HWM);   
+    zsock_set_sndhwm(publish_socket_, pub_queue_size);   
+    zsock_set_rcvhwm(publish_socket_, pub_queue_size);  
+    if(zsock_attach((zsock_t *)publish_socket_, tmp_addr, false)){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_attach() failed for the pub socket: maybe address error");          
+        fprintf(stderr, "zsock_attach() failed for the pub socket"
+                "maybe address (%s) error\n", tmp_addr);
+        goto error_2;          
+    }
+    
     
     //init handlers
     RegisterApiHandler(PROTO_PACKET_CODE_METADATA, (SourceApiHandler)StaticMetadataHandler, this);
@@ -238,6 +254,8 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     debug_flags_ = debug_flags;
     
     set_listener(listener);
+    
+    pub_queue_size_ = pub_queue_size;
     
     flags_ |= STREAM_SOURCE_FLAG_INIT;        
    

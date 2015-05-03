@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
     if(parser.CheckOption("stream-name")){
         
         ret = test_sink.InitLocal(parser.OptionValue("stream-name", "default"), 
-            client_info, &listener, 
+            client_info, STSW_SUBSCRIBE_SOCKET_HWM, &listener, 
             strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0), 
             &err_info);
 
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
         
         ret = test_sink.InitRemote(parser.OptionValue("host", ""), 
             (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0),
-            client_info, &listener, 
+            client_info,  STSW_SUBSCRIBE_SOCKET_HWM, &listener, 
             strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0),  
             &err_info);
   

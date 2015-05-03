@@ -31,7 +31,7 @@
 #include <set>
 #include <string.h>
 #include <errno.h>
-
+#include <unistd.h>
 #include <czmq.h>
 
 #include <stsw_lock_guard.h>
@@ -87,7 +87,7 @@ worker_thread_id_(0), next_seq_(1), debug_flags_(0), flags_(0),
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0), 
-listener_(NULL)
+listener_(NULL), sub_queue_size_(STSW_SUBSCRIBE_SOCKET_HWM)
 {
     
 }
@@ -100,6 +100,7 @@ StreamSink::~StreamSink()
 
 int StreamSink::InitRemote(const std::string &source_ip, int source_tcp_port, 
                                const StreamClientInfo &client_info, 
+                               uint32_t sub_queue_size, 
                                SinkListener *listener,
                                uint32_t debug_flags,
                                std::string *err_info)
@@ -123,7 +124,7 @@ int StreamSink::InitRemote(const std::string &source_ip, int source_tcp_port,
 
     if(ret == MAX_SOCKET_BIND_ADDR_LEN){
         ret = ERROR_CODE_PARAM;
-        fprintf(stderr, "socket address too long: %s", tmp_addr);
+        fprintf(stderr, "socket address too long: %s\n", tmp_addr);
         SET_ERR_INFO(err_info, "socket address too long");
         goto error_out;            
     }else if(ret < 0){
@@ -143,7 +144,7 @@ int StreamSink::InitRemote(const std::string &source_ip, int source_tcp_port,
 
     if(ret == MAX_SOCKET_BIND_ADDR_LEN){
         ret = ERROR_CODE_PARAM;
-        fprintf(stderr, "socket address too long: %s", tmp_addr);
+        fprintf(stderr, "socket address too long: %s\n", tmp_addr);
         SET_ERR_INFO(err_info, "socket address too long");
         goto error_out;            
     }else if(ret < 0){
@@ -154,7 +155,8 @@ int StreamSink::InitRemote(const std::string &source_ip, int source_tcp_port,
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, listener, debug_flags, err_info);
+    ret = InitBase(client_info, sub_queue_size, listener, 
+                   debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -171,6 +173,7 @@ error_out:
 }
 int StreamSink::InitLocal(const std::string &stream_name, 
                               const StreamClientInfo &client_info, 
+                              uint32_t sub_queue_size, 
                               SinkListener *listener,
                               uint32_t debug_flags,                              
                               std::string *err_info)
@@ -197,7 +200,7 @@ int StreamSink::InitLocal(const std::string &stream_name,
 
     if(ret == MAX_SOCKET_BIND_ADDR_LEN){
         ret = ERROR_CODE_PARAM;
-        fprintf(stderr, "socket address too long: %s", tmp_addr);
+        fprintf(stderr, "socket address too long: %s\n", tmp_addr);
         SET_ERR_INFO(err_info, "socket address too long");
         goto error_out;            
     }else if(ret < 0){
@@ -220,7 +223,7 @@ int StreamSink::InitLocal(const std::string &stream_name,
 
     if(ret == MAX_SOCKET_BIND_ADDR_LEN){
         ret = ERROR_CODE_PARAM;
-        fprintf(stderr, "socket address too long: %s", tmp_addr);
+        fprintf(stderr, "socket address too long: %s\n", tmp_addr);
         SET_ERR_INFO(err_info, "socket address too long");
         goto error_out;            
     }else if(ret < 0){
@@ -231,7 +234,8 @@ int StreamSink::InitLocal(const std::string &stream_name,
     }
     subscriber_addr_ = tmp_addr;
     
-    ret = InitBase(client_info, listener, debug_flags, err_info);
+    ret = InitBase(client_info, sub_queue_size, 
+                   listener, debug_flags, err_info);
     if(ret){
         goto error_out;
     }
@@ -249,6 +253,7 @@ error_out:
 
 
 int StreamSink::InitBase(const StreamClientInfo &client_info, 
+                             uint32_t sub_queue_size, 
                              SinkListener *listener,
                              uint32_t debug_flags, 
                              std::string *err_info)
@@ -287,7 +292,7 @@ int StreamSink::InitBase(const StreamClientInfo &client_info,
     if(client_hearbeat_socket_ == NULL){
         ret = ERROR_CODE_SYSTEM;
         SET_ERR_INFO(err_info, "zsock_new_req create api socket failed: maybe address error");   
-        fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error", api_addr_.c_str());
+        fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error\n", api_addr_.c_str());
         goto error_1;            
     }
     zsock_set_linger(client_hearbeat_socket_, 0); //no linger   
@@ -308,6 +313,7 @@ int StreamSink::InitBase(const StreamClientInfo &client_info,
     
     set_listener(listener);   
     
+    sub_queue_size_ = sub_queue_size;
     
     flags_ |= STREAM_RECEIVER_FLAG_INIT;        
    
@@ -432,18 +438,23 @@ int StreamSink::Start(std::string *err_info)
     // frame. If create subscrber socket in init() ,and keep the same 
     // subscribe socket for the whole life time of receiver, the receiver
     // may get a overdue frame ater next time start()
-    subscriber_socket_ = zsock_new_sub(subscriber_addr_.c_str(), NULL);
+    subscriber_socket_ = zsock_new(ZMQ_SUB);
     if(subscriber_socket_ == NULL){
         ret = ERROR_CODE_SYSTEM;
-        SET_ERR_INFO(err_info, "zsock_new_sub create publish socket failed: maybe address error");          
-        fprintf(stderr, "zsock_new_sub create publish socket failed: "
-                "maybe address (%s) error", subscriber_addr_.c_str());
+        SET_ERR_INFO(err_info, "zsock_new create subsriber socket failed");          
+        fprintf(stderr, "zsock_new create subsriber socket failed\n");
         goto error_1;            
     }    
-    zsock_set_sndhwm(subscriber_socket_, STSW_SUBSCRIBE_SOCKET_HWM);  
-    zsock_set_rcvhwm(subscriber_socket_, STSW_SUBSCRIBE_SOCKET_HWM);      
+    zsock_set_sndhwm(subscriber_socket_, sub_queue_size_);  
+    zsock_set_rcvhwm(subscriber_socket_, sub_queue_size_);      
     zsock_set_linger(subscriber_socket_, 0); //no linger      
-    
+    if(zsock_attach((zsock_t *)subscriber_socket_, subscriber_addr_.c_str(), false)){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_attach() for the subsriber socket failed: maybe address error");          
+        fprintf(stderr, "zsock_attach() for the subsriber socket failed: "
+                "maybe address (%s) error\n", subscriber_addr_.c_str());
+        goto error_2;          
+    }
     
     // 
     // subscribe the channel key
@@ -604,7 +615,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg,
         if(! frame_msg.ParseFromString(msg->body())){
             //body parse error
             ret = ERROR_CODE_PARSE;
-            fprintf(stderr, "media frame Parse Error");
+            fprintf(stderr, "media frame Parse Error\n");
             return ret;                
         } 
         
@@ -1383,7 +1394,7 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
         if(api_socket == NULL){
             ret = ERROR_CODE_SYSTEM;
             SET_ERR_INFO(err_info, "zsock_new_req create api socket failed: maybe address error");   
-            fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error", api_addr.c_str());
+            fprintf(stderr, "zsock_new_req create api socket failed: maybe address (%s) error\n", api_addr.c_str());
             return ret;         
         }
         zsock_set_linger(api_socket, 0); //no linger                   

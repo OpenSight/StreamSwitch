@@ -59,12 +59,14 @@ public:
     virtual ~StreamSink();
 
     virtual int InitRemote(const std::string &source_ip, int source_tcp_port, 
-                           const StreamClientInfo &client_info,
+                           const StreamClientInfo &client_info, 
+                           uint32_t sub_queue_size, 
                            SinkListener *listener, 
                            uint32_t debug_flags,
                            std::string *err_info);    
     virtual int InitLocal(const std::string &stream_name, 
-                          const StreamClientInfo &client_info,
+                          const StreamClientInfo &client_info, 
+                          uint32_t sub_queue_size, 
                           SinkListener *listener, 
                           uint32_t debug_flags,
                           std::string *err_info);      
@@ -132,6 +134,7 @@ protected:
 
 
     virtual int InitBase(const StreamClientInfo &client_info, 
+                         uint32_t sub_queue_size, 
                          SinkListener *listener,
                          uint32_t debug_flags, std::string *err_info);   
 
@@ -184,6 +187,8 @@ private:
     StreamClientInfo client_info_;
     
     SinkListener *listener_;
+    
+    uint32_t sub_queue_size_;
                              
 };
 

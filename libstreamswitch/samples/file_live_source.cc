@@ -50,6 +50,7 @@ public:
     int Init(std::string src_file, 
              std::string stream_name,                       
              int source_tcp_port, 
+             int queue_size, 
              int frame_size, 
              int fps, 
              int debug_flags);    
@@ -169,6 +170,7 @@ FileLiveSource::~FileLiveSource()
 int FileLiveSource::Init(std::string src_file, 
                          std::string stream_name,                       
                          int source_tcp_port, 
+                         int queue_size,
                          int frame_size, 
                          int fps,
                          int debug_flags)
@@ -194,7 +196,9 @@ int FileLiveSource::Init(std::string src_file,
     
     
     //init source
-    ret = source_.Init(stream_name, source_tcp_port, this, debug_flags, &err_info);
+    ret = source_.Init(stream_name, source_tcp_port, 
+                       queue_size, 
+                       this, debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream source error: %s\n", err_info.c_str());
         fclose(src_file_);
@@ -360,6 +364,7 @@ int main(int argc, char *argv[])
         parser.OptionValue("url", ""), 
         parser.OptionValue("stream-name", ""), 
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
+        (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0), 
         (int)strtol(parser.OptionValue("frame-size", "1024").c_str(), NULL, 0), 
         fps, 
         (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
