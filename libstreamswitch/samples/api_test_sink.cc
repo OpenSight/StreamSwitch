@@ -250,6 +250,7 @@ int main(int argc, char *argv[])
         goto exit_4;        
     }
     
+    fprintf(stderr, "sleep 10.......\n");
     usleep(10000000); //10 sec
     
     
