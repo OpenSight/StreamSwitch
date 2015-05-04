@@ -1024,7 +1024,7 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_METADATA request\n");
     }
 
-    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
@@ -1152,7 +1152,7 @@ int StreamSink::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std
         fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
     }
 
-    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
@@ -1218,7 +1218,7 @@ int StreamSink::KeyFrame(int timeout, std::string *err_info)
         fprintf(stderr, "Send out a PROTO_PACKET_CODE_KEY_FRAME request with no body\n");
     }
 
-    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
@@ -1261,7 +1261,7 @@ int StreamSink::ClientList(int timeout, uint32_t start_index, uint32_t request_n
         fprintf(stderr, "%s\n", client_list_req_body.DebugString().c_str());
     }
 
-    ret = SendRpcRequest(&request, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
     if(ret){
         //error
         return ret;
@@ -1350,9 +1350,10 @@ void StreamSink::ReceiverStatistic(MediaStatisticInfo * statistic)
 
 
 
-int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info)
+int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_blob, size_t blob_size, 
+                               int timeout, ProtoCommonPacket * reply,  std::string *err_info)
 {
-    int ret;    
+    int ret = 0;    
     
     if(request == NULL || reply == NULL){
         SET_ERR_INFO(err_info, "request/reply cannot be NULL");          
@@ -1376,10 +1377,11 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
     SocketHandle api_socket = NULL;
     std::string api_addr;
     std::string out_data;
-    zframe_t * out_frame = NULL;
-    zframe_t * in_frame = NULL;
+    //zframe_t * out_frame = NULL;
+    zframe_t * in_frame = NULL, *in_blob_frame = NULL;
     zpoller_t  * poller = NULL;
-    SocketHandle reader_socket = NULL;   
+    SocketHandle reader_socket = NULL;  
+    zmsg_t *out_zmsg = NULL, *in_zmsg = NULL;
     
     // get api socket
     pthread_mutex_lock(&lock_); 
@@ -1401,7 +1403,8 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
     }    
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
-        fprintf(stderr, "Send out the following packet to api socket (timestamp:%lld ms):\n",
+        fprintf(stderr, "Send out the following packet (with blob size: %d)  to api socket (timestamp:%lld ms):\n", 
+                (int)blob_size, 
                 (long long)zclock_time());
         fprintf(stderr, "%s\n", request->DebugString().c_str());
     }
@@ -1414,8 +1417,17 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
         SET_ERR_INFO(err_info, "failed to serialize the request");   
         goto error_1;                
     };
-    out_frame = zframe_new(out_data.data(), out_data.size());
-    zframe_send(&out_frame, api_socket, ZFRAME_DONTWAIT);    
+    //out_frame = zframe_new(out_data.data(), out_data.size());
+    //zframe_send(&out_frame, api_socket, ZFRAME_DONTWAIT);    
+
+    out_zmsg = zmsg_new ();
+    zmsg_addmem(out_zmsg, out_data.data(), out_data.size());
+    if(extra_blob != NULL && blob_size != 0){
+        zmsg_addmem(out_zmsg, extra_blob, blob_size);
+    }
+    zmsg_send (&out_zmsg, api_socket);
+    out_zmsg = NULL;
+    
     
     //
     // wait for the reply
@@ -1431,16 +1443,32 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
       
     }
     //receive the reply
+    
+    in_zmsg = zmsg_recv(api_socket);
+    if (!in_zmsg){
+        goto error_1; //  Interrupted
+    }
+
+    in_frame = zmsg_pop(in_zmsg);
+    if(in_frame == NULL){
+        goto error_1;  // invalid
+    }
+    //in_blob_frame = zmsg_pop(in_zmsg); 
+    
+    
+   
+    
+/*    
     in_frame = zframe_recv(api_socket);
     if(in_frame == NULL){
         ret = ERROR_CODE_GENERAL;
         SET_ERR_INFO(err_info, "NULL Reply");   
         goto error_1;  
     }
+*/
     //after used, need free the frame
         
-    if(!reply->ParseFromString(
-        std::string((const char *)zframe_data(in_frame), zframe_size(in_frame)))){
+    if(!reply->ParseFromArray(zframe_data(in_frame), zframe_size(in_frame))){
  
         zframe_destroy(&in_frame);  
         ret = ERROR_CODE_GENERAL;
@@ -1464,7 +1492,7 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
     }
     
     //successful here    
-    
+error_2:    
     //cache the api socket in receiver
     if(IsInit()){
         pthread_mutex_lock(&lock_); 
@@ -1475,33 +1503,27 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCo
         pthread_mutex_unlock(&lock_);  
     }
 
-    //destroy the socket 
-    if(api_socket != NULL){
-        zsock_destroy((zsock_t **)&api_socket);
-        api_socket = NULL;        
-    }
-
-    return 0;
-    
-error_2:
-
-    pthread_mutex_lock(&lock_); 
-    if(IsInit() && last_api_socket_ == NULL){
-        last_api_socket_ = api_socket;
-        api_socket = NULL;
-    }
-    pthread_mutex_unlock(&lock_);  
-        
-    
 error_1:
-    
+
     //destroy the socket 
     if(api_socket != NULL){
         zsock_destroy((zsock_t **)&api_socket);
         api_socket = NULL;        
     }
+    
+    
+    if(in_frame != NULL){
+        zframe_destroy(&in_frame);
+        in_frame = NULL;
+    }
+    
+    if(in_zmsg != NULL){
+        zmsg_destroy (&in_zmsg);
+        in_zmsg = NULL;        
+    } 
 
-    return ret;    
+    return ret;
+  
         
 }  
 

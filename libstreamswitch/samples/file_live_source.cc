@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
     FileLiveSource source;
     struct timeval next_send_tv;
     int fps, frame_dur;
-    
+    int queue_size = STSW_PUBLISH_SOCKET_HWM;
     
     
     GlobalInit();
@@ -358,13 +358,18 @@ int main(int argc, char *argv[])
     
     fps = (int)strtol(parser.OptionValue("fps", "25").c_str(), NULL, 0);
     frame_dur = 1000000 / fps;
+    
+    
+    if(parser.CheckOption("queue-size")){
+        queue_size = (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0);
+    }
        
     
     ret = source.Init(
         parser.OptionValue("url", ""), 
         parser.OptionValue("stream-name", ""), 
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
-        (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0), 
+        queue_size, 
         (int)strtol(parser.OptionValue("frame-size", "1024").c_str(), NULL, 0), 
         fps, 
         (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));

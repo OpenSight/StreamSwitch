@@ -59,8 +59,10 @@ public:
     virtual ~TextStreamSink();
     int InitRemote(std::string text_file,                 
                    std::string source_ip, int source_tcp_port, 
+                   int queue_size, 
                    int debug_flags);    
     int InitLocal(std::string text_file, std::string stream_name, 
+                  int queue_size,
                   int debug_flags);
     void Uninit();
     int Start(int timeout);
@@ -117,6 +119,7 @@ TextStreamSink::~TextStreamSink()
 
 int TextStreamSink::InitRemote(std::string text_file,                 
                    std::string source_ip, int source_tcp_port, 
+                   int queue_size,
                    int debug_flags)
 {
     int ret;
@@ -135,7 +138,7 @@ int TextStreamSink::InitRemote(std::string text_file,
     
     //init sink
     ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, 
-                           STSW_SUBSCRIBE_SOCKET_HWM, 
+                           queue_size, 
                            this, 
                            debug_flags, &err_info);
     if(ret){
@@ -155,6 +158,7 @@ int TextStreamSink::InitRemote(std::string text_file,
     
 } 
 int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name, 
+                              int queue_size,
                               int debug_flags)
 {
     int ret;
@@ -173,7 +177,7 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
     
     //init sink
     ret = sink_.InitLocal(stream_name, client_info, 
-                          STSW_SUBSCRIBE_SOCKET_HWM, 
+                          queue_size, 
                           this, 
                           debug_flags, &err_info);
     if(ret){
@@ -337,6 +341,11 @@ void ParseArgv(int argc, char *argv[],
                    "the text file path to which this sink dumps the frames. "
                    "This option must be set for text sink", 
                    NULL, NULL); 
+    parser->RegisterOption("queue-size", 'q', 
+                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                    "NUM",
+                    "the size of the message queue for Subscriber, 0 means no limit."
+                    "Default is an internal value determined when compiling", NULL, NULL);      
 
     
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
@@ -400,6 +409,7 @@ void ParseArgv(int argc, char *argv[],
 int main(int argc, char *argv[])
 {
     int ret = 0;
+    int queue_size = STSW_SUBSCRIBE_SOCKET_HWM;
     using namespace stream_switch;    
  
     TextStreamSink text_sink;
@@ -434,6 +444,10 @@ int main(int argc, char *argv[])
     }    
     
 
+    if(parser.CheckOption("queue-size")){
+        queue_size = (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0);
+    }
+
      
     
 
@@ -442,6 +456,7 @@ int main(int argc, char *argv[])
         ret = text_sink.InitLocal(
             parser.OptionValue("sink-file", ""),
             parser.OptionValue("stream-name", "default"), 
+            queue_size,
             str2int(parser.OptionValue("debug-flags", "0")));
         
         
@@ -449,7 +464,8 @@ int main(int argc, char *argv[])
         ret = text_sink.InitRemote(
             parser.OptionValue("sink-file", ""),
             parser.OptionValue("host", ""),
-            str2int(parser.OptionValue("port", "0")),
+            str2int(parser.OptionValue("port", "0")), 
+            queue_size, 
             str2int(parser.OptionValue("debug-flags", "0")));
         
     }

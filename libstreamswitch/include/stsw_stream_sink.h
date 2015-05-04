@@ -138,7 +138,8 @@ protected:
                          SinkListener *listener,
                          uint32_t debug_flags, std::string *err_info);   
 
-    virtual int SendRpcRequest(ProtoCommonPacket * request, int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
+    virtual int SendRpcRequest(ProtoCommonPacket * request, const char * extra_blob, size_t blob_size, 
+                               int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
 
     virtual int Heartbeat(int64_t now);
     

@@ -17,7 +17,7 @@
 
 
 #define STSW_PUBLISH_SOCKET_HWM  60
-#define STSW_SUBSCRIBE_SOCKET_HWM  100
+#define STSW_SUBSCRIBE_SOCKET_HWM  120
 #define STSW_PUBLISH_SOCKET_LINGER  100    
 
 #define STSW_CLIENT_LEASE  15  //client heartbeat lease, in sec
