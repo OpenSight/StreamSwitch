@@ -88,7 +88,7 @@ session_timer_task_(NULL),
 inter_frame_gap_check_timer_task_(NULL), 
 rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
-pts_session_normalizer(new PtsSessionNormalizer(env)),
+pts_session_normalizer_(new PtsSessionNormalizer(env)),
 made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
 
 {
@@ -122,7 +122,7 @@ LiveRtspClient::~LiveRtspClient()
         our_authenticator = NULL;
     }
     
-    Medium::close(pts_session_normalizer);
+    Medium::close(pts_session_normalizer_);
 }
 
 
@@ -196,7 +196,7 @@ bool LiveRtspClient::CheckMetadata()
     using namespace stream_switch;
     if(is_metadata_ok_){
         //if OK already, just ignore
-        return false;
+        return true;
     }
     
     if(metadata_.ssrc == 0){
@@ -243,6 +243,10 @@ bool LiveRtspClient::CheckMetadata()
     return true;
 }
 
+// AfterGettingFrame() is responsible for:
+// 1. Check metadata ready
+// 2. check frame time and local time consistent
+// 3. callback listener
 
 void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
@@ -250,6 +254,8 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
                            unsigned frame_size, 
                            const char * frame_buf)
 {
+    if (are_already_shutting_down_) return; 
+    
     if(!IsMetaReady()){
         //metadata not ready, just drop the frame
         return;
@@ -329,7 +335,7 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
     }
 
     char* sdpDescription = resultString;
-        my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() 
+    my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() 
         << "\", returning a SDP description:\n" << sdpDescription << "\n";
 
     // Create a media session object from this SDP description:
@@ -495,7 +501,7 @@ int LiveRtspClient::SetupSinks()
         // before the frames get re-transmitted by our server:
         char const* const codecName = subsession->codecName();
         char const* const mediaName = subsession->mediumName();
-        FramedFilter* normalizerFilter = pts_session_normalizer->
+        FramedFilter* normalizerFilter = pts_session_normalizer_->
             createNewPtsSubsessionNormalizer(subsession->readSource(), subsession->rtpSource(),
 							mediaName, codecName);
         subsession->addFilter(normalizerFilter);
@@ -729,10 +735,6 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
 
     }
 
-  // Watch for incoming packets (if desired):
-  //checkForPacketArrival(NULL);
-  //checkInterPacketGaps(NULL);
-  //checkSessionTimeoutBrokenServer(NULL);
   
     if(my_client->rtsp_timeout_task_ != NULL) {
         my_client->envir().taskScheduler().unscheduleDelayedTask(
@@ -785,7 +787,7 @@ void LiveRtspClient::ContinueAfterTEARDOWN(RTSPClient* client,
     }
 
     // Now that we've stopped any more incoming data from arriving, close our output files:
-    my_client->closeMediaSinks();
+    my_client->CloseMediaSinks();
     Medium::close(my_client->session_);
     my_client->session_ = NULL;
 
@@ -918,7 +920,7 @@ void LiveRtspClient::RtspClientConnectTimeout(void* clientData)
     my_client->envir() << "Rtsp negotiation time out\n";
     
     my_client->HandleError(RTSP_CLIENT_ERR_CONNECT_FAIL, 
-        "Rtsp negotiation time out");
+        "Rtsp negotiation timeout");
     return;        
 }
 
@@ -956,10 +958,10 @@ void LiveRtspClient::CheckInterFrameGaps(void* clientData)
 
 void LiveRtspClient::SetUserAgentString(char const* userAgentString) 
 {
-    SetUserAgentString(userAgentString);
+    RTSPClient::setUserAgentString(userAgentString);
 }
 
-void LiveRtspClient::closeMediaSinks()
+void LiveRtspClient::CloseMediaSinks()
 {
   if (session_ == NULL) return;
     MediaSubsessionIterator iter(*session_);

@@ -204,7 +204,7 @@ protected:
     
     virtual void SetUserAgentString(char const* userAgentString);
     
-    virtual void closeMediaSinks();
+    virtual void CloseMediaSinks();
     
     virtual void SetupStreams();
     virtual int SetupSinks();
@@ -237,7 +237,7 @@ protected:
     struct timeval client_start_time_;
     struct timeval last_frame_time_;
     
-    PtsSessionNormalizer *pts_session_normalizer;
+    PtsSessionNormalizer *pts_session_normalizer_;
     
     
     //internal used in setup streams

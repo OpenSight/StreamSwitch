@@ -179,7 +179,9 @@ void MediaOutputSink::FlushQueue()
         }
         
         delete[] it->buf;
-    }    
+    }
+    frame_queue_.clear();
+        
 }
 void MediaOutputSink::ClearQueue()
 {
