@@ -237,7 +237,7 @@ stsw_rtmp_source_SOURCES = src/stsw_rtmp_main.cc \
     src/stsw_rtmp_source.cc   \
     src/stsw_rtmp_source.h
 
-stsw_rtmp_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la -lrtmp
+stsw_rtmp_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la
 all: all-am
 
 .SUFFIXES:
