@@ -40,18 +40,15 @@
 
 
 
-Boolean isRTSPConstructFail = True;
 static Boolean forceMulticastOnUnspecified = False;
 static double durationSlop = 1.0; // extra seconds to play at the end
 static double initialSeekTime = 0.0f;
 static char *initialAbsoluteSeekTime = NULL;
 static float scale = 1.0f;
-static unsigned interPacketGapMaxTime = 10; //check for each 10 second 
-static unsigned totNumPacketsReceived = ~0; // used if checking inter-packet gaps
+static int interPacketGapMaxTime = 10; //check for each 10 second 
 static int simpleRTPoffsetArg = -1;
 static Boolean sendOptionsRequest = False;
-static unsigned short desiredPortNum = 0;
-extern unsigned qosMeasurementResetIntervalSec; // 0 means: Don't reset
+//static unsigned short desiredPortNum = 0;
 
 static unsigned VideoSinkBufferSize = 1048576; /* 1M bytes */
 static unsigned AudioSinkBufferSize = 131072; /* 128K bytes */
@@ -88,8 +85,8 @@ rtsp_url_(rtspURL), our_authenticator(NULL),
 session_(NULL), 
 ssrc_(0), is_metadata_ok_(False), 
 session_timer_task_(NULL), 
-inter_packet_gap_check_timer_task_(NULL), qos_measurement_timer_task_(NULL),
-tear_down_task_(NULL), rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
+inter_frame_gap_check_timer_task_(NULL), 
+rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
 pts_session_normalizer(new PtsSessionNormalizer(env)),
 made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
@@ -166,13 +163,30 @@ void LiveRtspClient::Shutdown()
     are_already_shutting_down_ = True;
     
     //cancel the delay task
-    
-   // Teardown, then shutdown immediately
-  if (session_ != NULL) {
-    TearDownSession(session_, NULL);
-  }
+    if(session_timer_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(session_timer_task_);
+        session_timer_task_ = NULL;
+    }
+    if(inter_frame_gap_check_timer_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(inter_frame_gap_check_timer_task_);
+        inter_frame_gap_check_timer_task_ = NULL;
+    }
 
-  ContinueAfterTEARDOWN(this, 0, NULL); 
+    if(rtsp_keep_alive_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(rtsp_keep_alive_task_);
+        rtsp_keep_alive_task_ = NULL;
+    }    
+    if(rtsp_timeout_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(rtsp_timeout_task_);
+        rtsp_timeout_task_ = NULL;
+    }    
+    
+    // Teardown, then shutdown immediately
+    if (session_ != NULL) {
+        TearDownSession(session_, NULL);
+    }
+
+    ContinueAfterTEARDOWN(this, 0, NULL); 
     
 }
 
@@ -211,7 +225,8 @@ bool LiveRtspClient::CheckMetadata()
             return false; 
         }
         
-        if(it->codec_name == "H264" || it->codec_name == "H265" ){
+        if(it->codec_name == "H264" || it->codec_name == "H265" ||
+           it->codec_name == "MP4V-ES"){
             if(it->extra_data.size() == 0){
                 //extra_data must present
                 return false;
@@ -241,6 +256,24 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
     }
     
     gettimeofday(&last_frame_time_, NULL);
+    
+    if(timestamp.tv_sec <= (last_frame_time_.tv_sec - 10) ||
+       timestamp.tv_sec >= (last_frame_time_.tv_sec + 10)){
+        //lost time sync with rtsp server 
+        char tmp_localtime[64], tmp_frametime[64];
+        sprintf(tmp_localtime, "%lld.%06d", 
+               (long long)last_frame_time_.tv_sec, 
+               (int)last_frame_time_.tv_usec);
+        sprintf(tmp_frametime, "%lld.%06d", 
+               (long long)timestamp.tv_sec, 
+               (int)timestamp.tv_usec);        
+        envir() << "lost time sync with rtsp server, localtime = "
+                << tmp_localtime << ", frametime ="
+                << tmp_frametime << "\n";
+        HandleError(RTSP_CLIENT_ERR_TIME_ERR, 
+            "lost time sync with rtsp server");         
+        return;
+    }
     
     if(listener_ != NULL){
         stream_switch::MediaFrameInfo frame_info;
@@ -336,12 +369,14 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
                 // this hack ensures that we get only 1 subsession of this type
             }
         }
-
+        
+        //jamken:no desired port
+/*
         if (desiredPortNum != 0) {
             subsession->setClientPortNum(desiredPortNum);
             desiredPortNum += 2;
         }
-
+*/
 
         if (!subsession->initiate(simpleRTPoffsetArg)) {
             my_client->envir() << "Unable to create receiver for \"" << subsession->mediumName()
@@ -709,6 +744,8 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
         my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);    
     }
   
+    gettimeofday(&my_client->last_frame_time_, NULL);
+    CheckInterFrameGaps(my_client); // start check the frame
   
     //callback user function
     if(my_client->listener_ != NULL){
@@ -886,6 +923,33 @@ void LiveRtspClient::RtspClientConnectTimeout(void* clientData)
 }
 
 
+void LiveRtspClient::CheckInterFrameGaps(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+    my_client->inter_frame_gap_check_timer_task_ = NULL;   
+    
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    
+    if(now.tv_sec >= my_client->last_frame_time_.tv_sec &&
+       now.tv_sec - my_client->last_frame_time_.tv_sec >= 
+       interPacketGapMaxTime){
+        //gap timeout
+        my_client->HandleError(RTSP_CLIENT_ERR_INTER_FRAME_GAP, 
+            "Inter Frame Gap timeout");        
+        return;
+    }else{
+        my_client->inter_frame_gap_check_timer_task_ =
+            my_client->envir().taskScheduler().scheduleDelayedTask(1000000, //each second
+				 (TaskFunc*)CheckInterFrameGaps, my_client);
+        
+    }
+    
+    
+
+    
+}
+
 ////////////////////////////////////////////////////////////
 //Utils
 
@@ -1010,7 +1074,7 @@ void LiveRtspClient::SetupMetaFromSession()
 
         
         
-        bps + subsession->bandwidth() * 1000;
+        bps += subsession->bandwidth() * 1000;
         
         index++;
     } 

@@ -51,10 +51,11 @@ enum RtspClientErrCode{
     RTSP_CLIENT_ERR_NO_SUBSESSION = -6,  
     RTSP_CLIENT_ERR_SUBSESSION_INIT_ERR = -7,  
     RTSP_CLIENT_ERR_SUBSESSION_BYE = -8,  
-    RTSP_CLIENT_ERR_INTER_PACKET_GAP = -9, 
+    RTSP_CLIENT_ERR_INTER_FRAME_GAP = -9, 
     RTSP_CLIENT_ERR_SESSION_TIMER = -10, 
     RTSP_CLIENT_ERR_USER_DEMAND = -11,
     RTSP_CLIENT_ERR_RESOUCE_ERR = -12,
+    RTSP_CLIENT_ERR_TIME_ERR = -13,    
 };
 
 class MediaOutputSink;   
@@ -126,8 +127,9 @@ public:
     }
     virtual bool CheckMetadata();
     
-    virtual int GetStatisticData();
-    virtual void ResetStatistic();
+    //TODO
+    //virtual int GetStatisticData();
+    //virtual void ResetStatistic();
     
     virtual void AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
@@ -158,6 +160,7 @@ protected:
     static void SessionTimerHandler(void* clientData);
     static void SubsessionByeHandler(void* clientData);
     static void RtspClientConnectTimeout(void* clientData);
+    static void CheckInterFrameGaps(void* clientData);    
     
     
     
@@ -223,9 +226,7 @@ protected:
     
 
     TaskToken session_timer_task_;
-    TaskToken inter_packet_gap_check_timer_task_;
-    TaskToken qos_measurement_timer_task_;
-    TaskToken tear_down_task_;
+    TaskToken inter_frame_gap_check_timer_task_;
     TaskToken rtsp_keep_alive_task_;
     TaskToken rtsp_timeout_task_;
     
