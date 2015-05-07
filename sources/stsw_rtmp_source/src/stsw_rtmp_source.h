@@ -22,7 +22,7 @@
 class RtmpClientSource: public stream_switch::SourceListener{
 
 public:
-    RtmpClientSource(const char* rtmpUrl);
+    RtmpClientSource(std::string rtmpUrl);
     ~RtmpClientSource();
 
     int Connect();
@@ -33,7 +33,7 @@ public:
 
 private:
     stream_switch::StreamSource source_;
-    char  rtmpUrl_[512];
+    std::string rtmpUrl_;
     RTMP*  rtmp_;
 
 };
