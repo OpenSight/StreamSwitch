@@ -23,9 +23,11 @@ stsw_rtsp_source_SOURCES = src/stsw_main.cc \
     src/stsw_mpeg4_output_sink.cc \
     src/stsw_mpeg4_output_sink.h \
     src/stsw_h264or5_output_sink.cc\
-    src/stsw_h264or5_output_sink.h 
+    src/stsw_h264or5_output_sink.h \
+    src/stsw_rtsp_source_app.cc \
+    src/stsw_rtsp_source_app.h
     
-    
+ 
 stsw_rtsp_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la \
                          $(srcdir)/live/liveMedia/libliveMedia.a \
                          $(srcdir)/live/BasicUsageEnvironment/libBasicUsageEnvironment.a \

@@ -125,7 +125,11 @@ void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ss
             }
             
 
-            fMasterSSNormalizer = ssNormalizer;
+            fMasterSSNormalizer = ssNormalizer; 
+            envir() << "Sync with subsession (media_name: "<< ssNormalizer->mediumName() 
+                    << ", codec_name: "<< ssNormalizer->codecName()
+                    << ")\n";
+                    
             // Compute: fPTAdjustment = timeNow - fromPT
             fPTAdjustment.tv_sec = timeNow.tv_sec - fromPT.tv_sec;
             fPTAdjustment.tv_usec = timeNow.tv_usec - fromPT.tv_usec;

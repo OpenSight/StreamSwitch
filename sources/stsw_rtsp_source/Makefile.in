@@ -55,7 +55,8 @@ am_stsw_rtsp_source_OBJECTS = src/stsw_main.$(OBJEXT) \
 	src/stsw_pts_normalizer.$(OBJEXT) \
 	src/stsw_output_sink.$(OBJEXT) \
 	src/stsw_mpeg4_output_sink.$(OBJEXT) \
-	src/stsw_h264or5_output_sink.$(OBJEXT)
+	src/stsw_h264or5_output_sink.$(OBJEXT) \
+	src/stsw_rtsp_source_app.$(OBJEXT)
 stsw_rtsp_source_OBJECTS = $(am_stsw_rtsp_source_OBJECTS)
 stsw_rtsp_source_DEPENDENCIES =  \
 	$(builddir)/../../libstreamswitch/libstreamswitch.la \
@@ -257,7 +258,9 @@ stsw_rtsp_source_SOURCES = src/stsw_main.cc \
     src/stsw_mpeg4_output_sink.cc \
     src/stsw_mpeg4_output_sink.h \
     src/stsw_h264or5_output_sink.cc\
-    src/stsw_h264or5_output_sink.h 
+    src/stsw_h264or5_output_sink.h \
+    src/stsw_rtsp_source_app.cc \
+    src/stsw_rtsp_source_app.h
 
 stsw_rtsp_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la \
                          $(srcdir)/live/liveMedia/libliveMedia.a \
@@ -360,6 +363,8 @@ src/stsw_mpeg4_output_sink.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/stsw_h264or5_output_sink.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/stsw_rtsp_source_app.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 stsw_rtsp_source$(EXEEXT): $(stsw_rtsp_source_OBJECTS) $(stsw_rtsp_source_DEPENDENCIES) 
 	@rm -f stsw_rtsp_source$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(stsw_rtsp_source_OBJECTS) $(stsw_rtsp_source_LDADD) $(LIBS)
@@ -372,6 +377,7 @@ mostlyclean-compile:
 	-rm -f src/stsw_output_sink.$(OBJEXT)
 	-rm -f src/stsw_pts_normalizer.$(OBJEXT)
 	-rm -f src/stsw_rtsp_client.$(OBJEXT)
+	-rm -f src/stsw_rtsp_source_app.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -382,6 +388,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_output_sink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_pts_normalizer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_rtsp_client.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_rtsp_source_app.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\

@@ -70,7 +70,7 @@ public:
         const stream_switch::MediaFrameInfo &frame_info, 
         const char * frame_data, 
         size_t frame_size
-    );
+    ) = 0;
     
     // When the client detect some error, 
     // OnError() would be invoked, normally, user would 
@@ -78,17 +78,17 @@ public:
     // this cb which would wait for the client's internal thread
     // exit so that would result into deadlock
     // After this cb is invoke, the rtsp client
-    virtual void OnError(RtspClientErrCode err_code, const char * err_info);
+    virtual void OnError(RtspClientErrCode err_code, const char * err_info) = 0;
     
     // when this client's metadata become ready, 
     // OnMetaReady() would be invoked. Normally, user would 
     // get the meta data and start streamswitch source in this callbak
-    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);  
+    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata) = 0;  
 
     // when this client finish the rtsp process successfully, 
     // OnRtspOK() would be invoked. Normally, user would config the source
     // status in this callback.
-    virtual void OnRtspOK();  
+    virtual void OnRtspOK() = 0;  
 };
 
 

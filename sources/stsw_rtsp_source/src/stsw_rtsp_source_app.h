@@ -48,7 +48,7 @@ class RtspSourceApp: public LiveRtspClientListener
 public:
 	static RtspSourceApp* Instance()
 	{ 
-		if ( 0 == s_instance )
+		if ( NULL == s_instance )
 		{
 			s_instance = new RtspSourceApp();
 		}
@@ -58,7 +58,7 @@ public:
 
 	static void Uninstance()
 	{
-		if ( 0 != s_instance )
+		if ( NULL != s_instance )
 		{
 			delete s_instance;
 			s_instance = 0;

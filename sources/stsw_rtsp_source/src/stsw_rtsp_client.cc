@@ -71,6 +71,24 @@ const char* userAgent = "StreamSwitch";
 ///////////////////////////////////////////////////////////
 //Public interfaces
 
+
+LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rtspURL,                    
+			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
+                   char const* singleMedium, 
+                   char const* userName, char const* passwd, 
+                   LiveRtspClientListener * listener, 
+                   int verbosityLevel)
+{
+    if(rtspURL == NULL){
+        return NULL;
+    }
+
+    return new LiveRtspClient(env, rtspURL, streamUsingTCP, enableRtspKeepAlive, 
+                             singleMedium, userName, passwd, listener,
+                             verbosityLevel);
+}
+                              
+
 LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
@@ -417,14 +435,20 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
                 unsigned sink_file_buf = 0;
                 if(strcmp(subsession->mediumName(), "video") == 0){
                     socket_input_buf = socketVideoInputBufferSize;
-                    sink_file_buf = VideoSinkBufferSize;
+                    sink_file_buf = VideoSinkBufferSize; 
+                    if(my_client->stream_using_tcp_){
+                        //for tcp, no need to using to large buffer, because tcp can control the speed
+                        socket_input_buf /= 2;
+                    }
                 }else{
                     socket_input_buf = socketAudioInputBufferSize;
                     sink_file_buf = AudioSinkBufferSize;                    
                 }
+
                 
                 if (socket_input_buf > 0 || sink_file_buf > curBufferSize) {
                     unsigned newBufferSize = socket_input_buf > 0 ? socket_input_buf : sink_file_buf;
+                    //my_client->envir() << " set new socket bufer size " << newBufferSize <<"\n";
                     newBufferSize = setReceiveBufferTo(my_client->envir(), socketNum, newBufferSize);
                     if (socket_input_buf > 0) { // The user explicitly asked for the new socket buffer size; announce it:
                         my_client->envir() << "Changed socket receive buffer size for the \""
@@ -996,18 +1020,20 @@ void LiveRtspClient::SetupMetaFromSession()
             metadata_.sub_streams.clear(); // no sub stream available
             return;
         }
-        metadata_.sub_streams[index].sub_stream_index = index;
-        metadata_.sub_streams[index].codec_name = codecName;
-        metadata_.sub_streams[index].direction = SUB_STREAM_DIRECTION_OUTBOUND;
+        SubStreamMetadata sub_metadata;
+        
+        sub_metadata.sub_stream_index = index;
+        sub_metadata.codec_name = codecName;
+        sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
         
         if(strcmp(mediaName, "video") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_VIDEO;
-            metadata_.sub_streams[index].media_param.video.height = 
+            sub_metadata.media_param.video.height = 
                 subsession->videoHeight();
-            metadata_.sub_streams[index].media_param.video.width = 
+            sub_metadata.media_param.video.width = 
                 subsession->videoWidth(); 
-            metadata_.sub_streams[index].media_param.video.fps = 
+            sub_metadata.media_param.video.fps = 
                 subsession->videoFPS(); 
             
             if(strcmp(codecName, "H264") == 0){
@@ -1019,8 +1045,8 @@ void LiveRtspClient::SetupMetaFromSession()
                     = parseSPropParameterSets(sPropParameterSetsStr, 
                             numSPropRecords);
                 for (unsigned i = 0; i < numSPropRecords; ++i) {
-                    metadata_.sub_streams[index].extra_data.append(start_code, 4);
-                    metadata_.sub_streams[index].extra_data.append(
+                    sub_metadata.extra_data.append(start_code, 4);
+                    sub_metadata.extra_data.append(
                         (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
 
                 }
@@ -1039,8 +1065,8 @@ void LiveRtspClient::SetupMetaFromSession()
                         = parseSPropParameterSets(fSPropParameterSetsStr[j], 
                             numSPropRecords);
                     for (unsigned i = 0; i < numSPropRecords; ++i) {
-                        metadata_.sub_streams[index].extra_data.append(start_code, 4);
-                        metadata_.sub_streams[index].extra_data.append(
+                        sub_metadata.extra_data.append(start_code, 4);
+                        sub_metadata.extra_data.append(
                             (const char *)sPropRecords[i].sPropBytes, 
                             (size_t)sPropRecords[i].sPropLength);
                     }
@@ -1053,24 +1079,24 @@ void LiveRtspClient::SetupMetaFromSession()
                 unsigned char* config = 
                     parseGeneralConfigStr(subsession->fmtp_config(), configSize);
                 if(configSize != 0 && config != NULL){
-                    metadata_.sub_streams[index].extra_data.assign(
+                    sub_metadata.extra_data.assign(
                         (const char *)config, (size_t)configSize);
                 }   
             }
                
         }else if(strcmp(mediaName, "audio") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_AUDIO;           
-            metadata_.sub_streams[index].media_param.audio.channels = 1;
+            sub_metadata.media_param.audio.channels = 1;
             if(subsession->numChannels() != 0 ){
-                metadata_.sub_streams[index].media_param.audio.channels = 
+                sub_metadata.media_param.audio.channels = 
                     subsession->numChannels();
             }
         }else if(strcmp(mediaName, "text") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_TEXT;            
         }else{
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_PRIVATE;            
         }
 
@@ -1078,6 +1104,7 @@ void LiveRtspClient::SetupMetaFromSession()
         
         bps += subsession->bandwidth() * 1000;
         
+        metadata_.sub_streams.push_back(sub_metadata);        
         index++;
     } 
     metadata_.bps = bps;
