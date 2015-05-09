@@ -127,9 +127,9 @@ protected:
     //
     //internal used method
 
-    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket &msg, 
                                        const char * extra_blob, size_t blob_size);
-    virtual int MediaFrameHandler(const ProtoCommonPacket * msg, 
+    virtual int MediaFrameHandler(const ProtoCommonPacket &msg, 
                                   const char * extra_blob, size_t blob_size);
 
 
@@ -143,7 +143,12 @@ protected:
 
     virtual int Heartbeat(int64_t now);
     
-    virtual int SubscriberHandler();
+    virtual void OnSubRead();
+    virtual void OnSubMsg(std::string channel_name, const ProtoCommonPacket &msg, 
+                          const char * extra_blob, size_t blob_size);
+
+
+    
     
     virtual void ClientHeartbeatHandler(int64_t now);
     

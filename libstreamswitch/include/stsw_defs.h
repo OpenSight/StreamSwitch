@@ -46,7 +46,7 @@ struct SourceApiHandlerEntry{
 };
 
 
-typedef int (*SinkSubHandler)( void * user_data, const ProtoCommonPacket * msg, 
+typedef int (*SinkSubHandler)( void * user_data, const ProtoCommonPacket &msg, 
                                const char * extra_blob, size_t blob_size);
 
 struct SinkSubHandlerEntry{

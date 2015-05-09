@@ -594,13 +594,13 @@ void StreamSink::UnregisterAllSubHandler()
     subsriber_handler_map_.clear();    
 }      
 
-int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket &msg, 
                                         const char * extra_blob, size_t blob_size)
 {
     StreamSink *receiver = (StreamSink *)user_data;
     return receiver->MediaFrameHandler(msg, extra_blob, blob_size);
 }
-int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg, 
+int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg, 
                                   const char * extra_blob, size_t blob_size)
 {
     MediaFrameInfo frame_info;
@@ -612,7 +612,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg,
     //extract media frame from message
     do{
         ProtoMediaFrameMsg frame_msg;
-        if(! frame_msg.ParseFromString(msg->body())){
+        if(! frame_msg.ParseFromString(msg.body())){
             //body parse error
             ret = ERROR_CODE_PARSE;
             fprintf(stderr, "media frame Parse Error\n");
@@ -731,7 +731,7 @@ void StreamSink::InternalRoutine()
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
         if(socket != NULL){
-            SubscriberHandler();
+            OnSubRead();
         }
              
         
@@ -756,7 +756,7 @@ void StreamSink::InternalRoutine()
     
 
 
-int StreamSink::SubscriberHandler()
+void StreamSink::OnSubRead()
 {
     zframe_t * packet_frame = NULL, * blob_frame = NULL;
     char *channel_name = NULL;
@@ -800,22 +800,9 @@ int StreamSink::SubscriberHandler()
                     (long long)zclock_time());
             fprintf(stderr, "%s\n", msg.DebugString().c_str());
         }
-        
-        int op_code = msg.header().code();
-        ReceiverSubHanderMap::iterator it;
-        pthread_mutex_lock(&lock_); 
-        it = subsriber_handler_map_.find(op_code);
-        if(it == subsriber_handler_map_.end()){
-            pthread_mutex_unlock(&lock_); 
-            
-        }else{
-            SinkSubHandlerEntry entry = it->second;
-            pthread_mutex_unlock(&lock_); 
-            if(entry.channel_name == std::string(channel_name)){
-                entry.handler(entry.user_data, &msg, extra_blob, blob_size);
-            }
-       
-        }//if(it == subsriber_handler_map_.end()){
+                
+        OnSubMsg(channel_name, msg, extra_blob, blob_size);
+
     }//if(msg.ParseFromString(in_data)){
 
 
@@ -838,10 +825,31 @@ out:
         zmsg = NULL;        
     }
            
-    return 0; 
+    return; 
       
 }
 
+
+void StreamSink::OnSubMsg(std::string channel_name, const ProtoCommonPacket &msg, 
+                          const char * extra_blob, size_t blob_size)
+{
+    int op_code = msg.header().code();
+    ReceiverSubHanderMap::iterator it;
+    pthread_mutex_lock(&lock_); 
+    it = subsriber_handler_map_.find(op_code);
+    if(it == subsriber_handler_map_.end()){
+        pthread_mutex_unlock(&lock_); 
+            
+    }else{
+        SinkSubHandlerEntry entry = it->second;
+        pthread_mutex_unlock(&lock_); 
+        if(entry.channel_name == channel_name){
+            entry.handler(entry.user_data, msg, extra_blob, blob_size);
+        }
+       
+    }//if(it == subsriber_handler_map_.end())    
+    
+}
 
 
 int StreamSink::Heartbeat(int64_t now)
