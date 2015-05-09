@@ -208,7 +208,7 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
 
 
 
-Boolean H264or5OutputSink::isVCL(u_int8_t nal_unit_type)
+Boolean H264or5OutputSink::IsVCL(u_int8_t nal_unit_type)
 {
   return h_number_ == 264
     ? (nal_unit_type <= 5 && nal_unit_type > 0)

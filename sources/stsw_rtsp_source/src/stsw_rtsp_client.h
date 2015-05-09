@@ -51,10 +51,11 @@ enum RtspClientErrCode{
     RTSP_CLIENT_ERR_NO_SUBSESSION = -6,  
     RTSP_CLIENT_ERR_SUBSESSION_INIT_ERR = -7,  
     RTSP_CLIENT_ERR_SUBSESSION_BYE = -8,  
-    RTSP_CLIENT_ERR_INTER_PACKET_GAP = -9, 
+    RTSP_CLIENT_ERR_INTER_FRAME_GAP = -9, 
     RTSP_CLIENT_ERR_SESSION_TIMER = -10, 
     RTSP_CLIENT_ERR_USER_DEMAND = -11,
     RTSP_CLIENT_ERR_RESOUCE_ERR = -12,
+    RTSP_CLIENT_ERR_TIME_ERR = -13,    
 };
 
 class MediaOutputSink;   
@@ -69,7 +70,7 @@ public:
         const stream_switch::MediaFrameInfo &frame_info, 
         const char * frame_data, 
         size_t frame_size
-    );
+    ) = 0;
     
     // When the client detect some error, 
     // OnError() would be invoked, normally, user would 
@@ -77,17 +78,17 @@ public:
     // this cb which would wait for the client's internal thread
     // exit so that would result into deadlock
     // After this cb is invoke, the rtsp client
-    virtual void OnError(RtspClientErrCode err_code, const char * err_info);
+    virtual void OnError(RtspClientErrCode err_code, const char * err_info) = 0;
     
     // when this client's metadata become ready, 
     // OnMetaReady() would be invoked. Normally, user would 
     // get the meta data and start streamswitch source in this callbak
-    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);  
+    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata) = 0;  
 
     // when this client finish the rtsp process successfully, 
     // OnRtspOK() would be invoked. Normally, user would config the source
     // status in this callback.
-    virtual void OnRtspOK();  
+    virtual void OnRtspOK() = 0;  
 };
 
 
@@ -126,8 +127,9 @@ public:
     }
     virtual bool CheckMetadata();
     
-    virtual int GetStatisticData();
-    virtual void ResetStatistic();
+    //TODO
+    //virtual int GetStatisticData();
+    //virtual void ResetStatistic();
     
     virtual void AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
@@ -158,6 +160,7 @@ protected:
     static void SessionTimerHandler(void* clientData);
     static void SubsessionByeHandler(void* clientData);
     static void RtspClientConnectTimeout(void* clientData);
+    static void CheckInterFrameGaps(void* clientData);    
     
     
     
@@ -201,7 +204,7 @@ protected:
     
     virtual void SetUserAgentString(char const* userAgentString);
     
-    virtual void closeMediaSinks();
+    virtual void CloseMediaSinks();
     
     virtual void SetupStreams();
     virtual int SetupSinks();
@@ -223,9 +226,7 @@ protected:
     
 
     TaskToken session_timer_task_;
-    TaskToken inter_packet_gap_check_timer_task_;
-    TaskToken qos_measurement_timer_task_;
-    TaskToken tear_down_task_;
+    TaskToken inter_frame_gap_check_timer_task_;
     TaskToken rtsp_keep_alive_task_;
     TaskToken rtsp_timeout_task_;
     
@@ -236,7 +237,7 @@ protected:
     struct timeval client_start_time_;
     struct timeval last_frame_time_;
     
-    PtsSessionNormalizer *pts_session_normalizer;
+    PtsSessionNormalizer *pts_session_normalizer_;
     
     
     //internal used in setup streams

@@ -18,17 +18,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_h264or5_output_sink.h
- *      H264or5OutputSink class header file, declare all the interface of 
- *  H264or5OutputSink 
+ * stsw_mpeg4_output_sink.h
+ *      Mpeg4OutputSink class header file, declare all the interface of 
+ *  Mpeg4OutputSink 
  * 
  * author: jamken
  * date: 2015-4-29
 **/ 
 
 
-#ifndef STSW_H264OR5_OUTPUT_SINK_H
-#define STSW_H264OR5_OUTPUT_SINK_H
+#ifndef STSW_MPEG4_OUTPUT_SINK_H
+#define STSW_MPEG4_OUTPUT_SINK_H
 
 #ifndef STREAM_SWITCH
 #define STREAM_SWITCH
@@ -43,48 +43,37 @@
 
 ////////////////////
 
-// H264or5OutputSink class
-//     this class is subclass of MediaOutputSink for H264 or H265, 
-// It can analyze the H264 or H265 frames, and extract its VPS, SPS, PPS to update metadata
-// and detect the frame type by h264or5't nal
+// Mpeg4OutputSink class
+//     this class is subclass of MediaOutputSink for MPEG4 video, 
+// It can analyze the MPEG4 frames, and extract its VS, VO, VOL header to update metadata
+// and detect the frame type by MPEG4 header
 // It's reponsieble for 
 // 1) analyze the packet, and update the metadata of parent rtsp client. 
 // 2) analyze the frame's type
-class H264or5OutputSink: public MediaOutputSink {
+class Mpeg4OutputSink: public MediaOutputSink {
 
 public:
-    static H264or5OutputSink* createNew(UsageEnvironment& env,
+    static Mpeg4OutputSink* createNew(UsageEnvironment& env,
             LiveRtspClient *rtsp_client, 
             MediaSubsession* subsession, // identifies the kind of data 
                                          //that's being received
             int32_t sub_stream_index,    // identifies the stream itself 
-            size_t sink_buf_size,        // receive buf size
-            int h_number                 // 264 or 265
+            size_t sink_buf_size        // receive buf size
             );   
     
 
 
-    H264or5OutputSink(UsageEnvironment& env, LiveRtspClient *rtsp_client,
+    Mpeg4OutputSink(UsageEnvironment& env, LiveRtspClient *rtsp_client,
                     MediaSubsession* subsession, 
-                    int32_t sub_stream_index, size_t sink_buf_size, 
-                    int h_number);
+                    int32_t sub_stream_index, size_t sink_buf_size);
     // called only by "createNew()"
-    virtual ~H264or5OutputSink();
+    virtual ~Mpeg4OutputSink();
 
     virtual void DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds);
     
-
-    //utils
-    virtual Boolean IsVCL(u_int8_t nal_unit_type);
-    virtual Boolean IsIDR(u_int8_t nal_unit_type);    
-    
-    
-
-protected:
-
-    int h_number_;
-
+    Boolean IsKeyFrame(unsigned char * buf, unsigned buf_size);
+    Boolean IsIncludeVOP(unsigned char * buf, unsigned buf_size);    
     
 };
 

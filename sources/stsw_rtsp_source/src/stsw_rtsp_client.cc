@@ -40,18 +40,15 @@
 
 
 
-Boolean isRTSPConstructFail = True;
 static Boolean forceMulticastOnUnspecified = False;
 static double durationSlop = 1.0; // extra seconds to play at the end
 static double initialSeekTime = 0.0f;
 static char *initialAbsoluteSeekTime = NULL;
 static float scale = 1.0f;
-static unsigned interPacketGapMaxTime = 10; //check for each 10 second 
-static unsigned totNumPacketsReceived = ~0; // used if checking inter-packet gaps
+static int interPacketGapMaxTime = 10; //check for each 10 second 
 static int simpleRTPoffsetArg = -1;
 static Boolean sendOptionsRequest = False;
-static unsigned short desiredPortNum = 0;
-extern unsigned qosMeasurementResetIntervalSec; // 0 means: Don't reset
+//static unsigned short desiredPortNum = 0;
 
 static unsigned VideoSinkBufferSize = 1048576; /* 1M bytes */
 static unsigned AudioSinkBufferSize = 131072; /* 128K bytes */
@@ -74,6 +71,24 @@ const char* userAgent = "StreamSwitch";
 ///////////////////////////////////////////////////////////
 //Public interfaces
 
+
+LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rtspURL,                    
+			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
+                   char const* singleMedium, 
+                   char const* userName, char const* passwd, 
+                   LiveRtspClientListener * listener, 
+                   int verbosityLevel)
+{
+    if(rtspURL == NULL){
+        return NULL;
+    }
+
+    return new LiveRtspClient(env, rtspURL, streamUsingTCP, enableRtspKeepAlive, 
+                             singleMedium, userName, passwd, listener,
+                             verbosityLevel);
+}
+                              
+
 LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
@@ -88,10 +103,10 @@ rtsp_url_(rtspURL), our_authenticator(NULL),
 session_(NULL), 
 ssrc_(0), is_metadata_ok_(False), 
 session_timer_task_(NULL), 
-inter_packet_gap_check_timer_task_(NULL), qos_measurement_timer_task_(NULL),
-tear_down_task_(NULL), rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
+inter_frame_gap_check_timer_task_(NULL), 
+rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
-pts_session_normalizer(new PtsSessionNormalizer(env)),
+pts_session_normalizer_(new PtsSessionNormalizer(env)),
 made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
 
 {
@@ -125,7 +140,7 @@ LiveRtspClient::~LiveRtspClient()
         our_authenticator = NULL;
     }
     
-    Medium::close(pts_session_normalizer);
+    Medium::close(pts_session_normalizer_);
 }
 
 
@@ -166,13 +181,30 @@ void LiveRtspClient::Shutdown()
     are_already_shutting_down_ = True;
     
     //cancel the delay task
-    
-   // Teardown, then shutdown immediately
-  if (session_ != NULL) {
-    TearDownSession(session_, NULL);
-  }
+    if(session_timer_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(session_timer_task_);
+        session_timer_task_ = NULL;
+    }
+    if(inter_frame_gap_check_timer_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(inter_frame_gap_check_timer_task_);
+        inter_frame_gap_check_timer_task_ = NULL;
+    }
 
-  ContinueAfterTEARDOWN(this, 0, NULL); 
+    if(rtsp_keep_alive_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(rtsp_keep_alive_task_);
+        rtsp_keep_alive_task_ = NULL;
+    }    
+    if(rtsp_timeout_task_ != NULL) {
+        envir().taskScheduler().unscheduleDelayedTask(rtsp_timeout_task_);
+        rtsp_timeout_task_ = NULL;
+    }    
+    
+    // Teardown, then shutdown immediately
+    if (session_ != NULL) {
+        TearDownSession(session_, NULL);
+    }
+
+    ContinueAfterTEARDOWN(this, 0, NULL); 
     
 }
 
@@ -182,7 +214,7 @@ bool LiveRtspClient::CheckMetadata()
     using namespace stream_switch;
     if(is_metadata_ok_){
         //if OK already, just ignore
-        return false;
+        return true;
     }
     
     if(metadata_.ssrc == 0){
@@ -211,7 +243,8 @@ bool LiveRtspClient::CheckMetadata()
             return false; 
         }
         
-        if(it->codec_name == "H264" || it->codec_name == "H265" ){
+        if(it->codec_name == "H264" || it->codec_name == "H265" ||
+           it->codec_name == "MP4V-ES"){
             if(it->extra_data.size() == 0){
                 //extra_data must present
                 return false;
@@ -228,6 +261,10 @@ bool LiveRtspClient::CheckMetadata()
     return true;
 }
 
+// AfterGettingFrame() is responsible for:
+// 1. Check metadata ready
+// 2. check frame time and local time consistent
+// 3. callback listener
 
 void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
@@ -235,12 +272,32 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
                            unsigned frame_size, 
                            const char * frame_buf)
 {
+    if (are_already_shutting_down_) return; 
+    
     if(!IsMetaReady()){
         //metadata not ready, just drop the frame
         return;
     }
     
     gettimeofday(&last_frame_time_, NULL);
+    
+    if(timestamp.tv_sec <= (last_frame_time_.tv_sec - 10) ||
+       timestamp.tv_sec >= (last_frame_time_.tv_sec + 10)){
+        //lost time sync with rtsp server 
+        char tmp_localtime[64], tmp_frametime[64];
+        sprintf(tmp_localtime, "%lld.%06d", 
+               (long long)last_frame_time_.tv_sec, 
+               (int)last_frame_time_.tv_usec);
+        sprintf(tmp_frametime, "%lld.%06d", 
+               (long long)timestamp.tv_sec, 
+               (int)timestamp.tv_usec);        
+        envir() << "lost time sync with rtsp server, localtime = "
+                << tmp_localtime << ", frametime ="
+                << tmp_frametime << "\n";
+        HandleError(RTSP_CLIENT_ERR_TIME_ERR, 
+            "lost time sync with rtsp server");         
+        return;
+    }
     
     if(listener_ != NULL){
         stream_switch::MediaFrameInfo frame_info;
@@ -296,7 +353,7 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
     }
 
     char* sdpDescription = resultString;
-        my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() 
+    my_client->envir() << "Opened URL \"" << my_client->rtsp_url_.c_str() 
         << "\", returning a SDP description:\n" << sdpDescription << "\n";
 
     // Create a media session object from this SDP description:
@@ -336,12 +393,14 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
                 // this hack ensures that we get only 1 subsession of this type
             }
         }
-
+        
+        //jamken:no desired port
+/*
         if (desiredPortNum != 0) {
             subsession->setClientPortNum(desiredPortNum);
             desiredPortNum += 2;
         }
-
+*/
 
         if (!subsession->initiate(simpleRTPoffsetArg)) {
             my_client->envir() << "Unable to create receiver for \"" << subsession->mediumName()
@@ -376,14 +435,20 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
                 unsigned sink_file_buf = 0;
                 if(strcmp(subsession->mediumName(), "video") == 0){
                     socket_input_buf = socketVideoInputBufferSize;
-                    sink_file_buf = VideoSinkBufferSize;
+                    sink_file_buf = VideoSinkBufferSize; 
+                    if(my_client->stream_using_tcp_){
+                        //for tcp, no need to using to large buffer, because tcp can control the speed
+                        socket_input_buf /= 2;
+                    }
                 }else{
                     socket_input_buf = socketAudioInputBufferSize;
                     sink_file_buf = AudioSinkBufferSize;                    
                 }
+
                 
                 if (socket_input_buf > 0 || sink_file_buf > curBufferSize) {
                     unsigned newBufferSize = socket_input_buf > 0 ? socket_input_buf : sink_file_buf;
+                    //my_client->envir() << " set new socket bufer size " << newBufferSize <<"\n";
                     newBufferSize = setReceiveBufferTo(my_client->envir(), socketNum, newBufferSize);
                     if (socket_input_buf > 0) { // The user explicitly asked for the new socket buffer size; announce it:
                         my_client->envir() << "Changed socket receive buffer size for the \""
@@ -460,7 +525,7 @@ int LiveRtspClient::SetupSinks()
         // before the frames get re-transmitted by our server:
         char const* const codecName = subsession->codecName();
         char const* const mediaName = subsession->mediumName();
-        FramedFilter* normalizerFilter = pts_session_normalizer->
+        FramedFilter* normalizerFilter = pts_session_normalizer_->
             createNewPtsSubsessionNormalizer(subsession->readSource(), subsession->rtpSource(),
 							mediaName, codecName);
         subsession->addFilter(normalizerFilter);
@@ -694,10 +759,6 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
 
     }
 
-  // Watch for incoming packets (if desired):
-  //checkForPacketArrival(NULL);
-  //checkInterPacketGaps(NULL);
-  //checkSessionTimeoutBrokenServer(NULL);
   
     if(my_client->rtsp_timeout_task_ != NULL) {
         my_client->envir().taskScheduler().unscheduleDelayedTask(
@@ -709,6 +770,8 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
         my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);    
     }
   
+    gettimeofday(&my_client->last_frame_time_, NULL);
+    CheckInterFrameGaps(my_client); // start check the frame
   
     //callback user function
     if(my_client->listener_ != NULL){
@@ -748,7 +811,7 @@ void LiveRtspClient::ContinueAfterTEARDOWN(RTSPClient* client,
     }
 
     // Now that we've stopped any more incoming data from arriving, close our output files:
-    my_client->closeMediaSinks();
+    my_client->CloseMediaSinks();
     Medium::close(my_client->session_);
     my_client->session_ = NULL;
 
@@ -881,10 +944,37 @@ void LiveRtspClient::RtspClientConnectTimeout(void* clientData)
     my_client->envir() << "Rtsp negotiation time out\n";
     
     my_client->HandleError(RTSP_CLIENT_ERR_CONNECT_FAIL, 
-        "Rtsp negotiation time out");
+        "Rtsp negotiation timeout");
     return;        
 }
 
+
+void LiveRtspClient::CheckInterFrameGaps(void* clientData)
+{
+    LiveRtspClient *my_client = (LiveRtspClient *)clientData;
+    my_client->inter_frame_gap_check_timer_task_ = NULL;   
+    
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    
+    if(now.tv_sec >= my_client->last_frame_time_.tv_sec &&
+       now.tv_sec - my_client->last_frame_time_.tv_sec >= 
+       interPacketGapMaxTime){
+        //gap timeout
+        my_client->HandleError(RTSP_CLIENT_ERR_INTER_FRAME_GAP, 
+            "Inter Frame Gap timeout");        
+        return;
+    }else{
+        my_client->inter_frame_gap_check_timer_task_ =
+            my_client->envir().taskScheduler().scheduleDelayedTask(1000000, //each second
+				 (TaskFunc*)CheckInterFrameGaps, my_client);
+        
+    }
+    
+    
+
+    
+}
 
 ////////////////////////////////////////////////////////////
 //Utils
@@ -892,10 +982,10 @@ void LiveRtspClient::RtspClientConnectTimeout(void* clientData)
 
 void LiveRtspClient::SetUserAgentString(char const* userAgentString) 
 {
-    SetUserAgentString(userAgentString);
+    RTSPClient::setUserAgentString(userAgentString);
 }
 
-void LiveRtspClient::closeMediaSinks()
+void LiveRtspClient::CloseMediaSinks()
 {
   if (session_ == NULL) return;
     MediaSubsessionIterator iter(*session_);
@@ -930,18 +1020,20 @@ void LiveRtspClient::SetupMetaFromSession()
             metadata_.sub_streams.clear(); // no sub stream available
             return;
         }
-        metadata_.sub_streams[index].sub_stream_index = index;
-        metadata_.sub_streams[index].codec_name = codecName;
-        metadata_.sub_streams[index].direction = SUB_STREAM_DIRECTION_OUTBOUND;
+        SubStreamMetadata sub_metadata;
+        
+        sub_metadata.sub_stream_index = index;
+        sub_metadata.codec_name = codecName;
+        sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
         
         if(strcmp(mediaName, "video") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_VIDEO;
-            metadata_.sub_streams[index].media_param.video.height = 
+            sub_metadata.media_param.video.height = 
                 subsession->videoHeight();
-            metadata_.sub_streams[index].media_param.video.width = 
+            sub_metadata.media_param.video.width = 
                 subsession->videoWidth(); 
-            metadata_.sub_streams[index].media_param.video.fps = 
+            sub_metadata.media_param.video.fps = 
                 subsession->videoFPS(); 
             
             if(strcmp(codecName, "H264") == 0){
@@ -953,8 +1045,8 @@ void LiveRtspClient::SetupMetaFromSession()
                     = parseSPropParameterSets(sPropParameterSetsStr, 
                             numSPropRecords);
                 for (unsigned i = 0; i < numSPropRecords; ++i) {
-                    metadata_.sub_streams[index].extra_data.append(start_code, 4);
-                    metadata_.sub_streams[index].extra_data.append(
+                    sub_metadata.extra_data.append(start_code, 4);
+                    sub_metadata.extra_data.append(
                         (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
 
                 }
@@ -973,8 +1065,8 @@ void LiveRtspClient::SetupMetaFromSession()
                         = parseSPropParameterSets(fSPropParameterSetsStr[j], 
                             numSPropRecords);
                     for (unsigned i = 0; i < numSPropRecords; ++i) {
-                        metadata_.sub_streams[index].extra_data.append(start_code, 4);
-                        metadata_.sub_streams[index].extra_data.append(
+                        sub_metadata.extra_data.append(start_code, 4);
+                        sub_metadata.extra_data.append(
                             (const char *)sPropRecords[i].sPropBytes, 
                             (size_t)sPropRecords[i].sPropLength);
                     }
@@ -987,31 +1079,32 @@ void LiveRtspClient::SetupMetaFromSession()
                 unsigned char* config = 
                     parseGeneralConfigStr(subsession->fmtp_config(), configSize);
                 if(configSize != 0 && config != NULL){
-                    metadata_.sub_streams[index].extra_data.assign(
+                    sub_metadata.extra_data.assign(
                         (const char *)config, (size_t)configSize);
                 }   
             }
                
         }else if(strcmp(mediaName, "audio") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_AUDIO;           
-            metadata_.sub_streams[index].media_param.audio.channels = 1;
+            sub_metadata.media_param.audio.channels = 1;
             if(subsession->numChannels() != 0 ){
-                metadata_.sub_streams[index].media_param.audio.channels = 
+                sub_metadata.media_param.audio.channels = 
                     subsession->numChannels();
             }
         }else if(strcmp(mediaName, "text") == 0){
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_TEXT;            
         }else{
-            metadata_.sub_streams[index].media_type = 
+            sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_PRIVATE;            
         }
 
         
         
-        bps + subsession->bandwidth() * 1000;
+        bps += subsession->bandwidth() * 1000;
         
+        metadata_.sub_streams.push_back(sub_metadata);        
         index++;
     } 
     metadata_.bps = bps;

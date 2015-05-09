@@ -55,6 +55,8 @@ MediaOutputSink::MediaOutputSink(UsageEnvironment& env,
 sub_stream_index_(sub_stream_index), rtsp_client_(rtsp_client)
 {
     recv_buf_ = new u_int8_t[sink_buf_size];
+    last_pts_.tv_sec = 0;
+    last_pts_.tv_usec = 0;
 }
 
 
@@ -179,7 +181,9 @@ void MediaOutputSink::FlushQueue()
         }
         
         delete[] it->buf;
-    }    
+    }
+    frame_queue_.clear();
+        
 }
 void MediaOutputSink::ClearQueue()
 {
