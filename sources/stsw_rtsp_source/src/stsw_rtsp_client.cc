@@ -107,7 +107,8 @@ inter_frame_gap_check_timer_task_(NULL),
 rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
 pts_session_normalizer_(new PtsSessionNormalizer(env)),
-made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
+made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL), 
+org_verbosity_level(verbosityLevel)
 
 {
     if(singleMedium != NULL){
@@ -119,6 +120,7 @@ made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL)
     last_frame_time_.tv_sec = 0;
     last_frame_time_.tv_usec = 0;
     
+   
     if(userName != NULL) {
         our_authenticator = new Authenticator(userName,passwd);
     }  
@@ -346,9 +348,14 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
     if (resultCode != 0) {
         my_client->envir() << "Failed to get a SDP description for the URL \"" 
             << my_client->rtsp_url_.c_str() << "\": " << resultString << "\n";
+            
+        std::string error_info;
+        error_info.append("Fail to get a SDP for DESCRIBE: ");
+        error_info.append(resultString);
         delete[] resultString;
+        
         my_client->HandleError(RTSP_CLIENT_ERR_DESCRIBE_ERR, 
-            "Fail to get a SDP for DESCRIBE");  
+            error_info.c_str());  
         return;
     }
 
@@ -466,8 +473,9 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
     
     if (!madeProgress) {        
         my_client->HandleError(RTSP_CLIENT_ERR_SUBSESSION_INIT_ERR, 
-            "Subsessions init error");          
+            "Subsessions init error");     
 
+        return;
     }
 
     // Perform additional 'setup' on each subsession, before playing them:
@@ -767,6 +775,7 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
     }  
     
     if(my_client->enable_rtsp_keep_alive_ == True){
+        //disable the unne
         my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);    
     }
   
@@ -777,6 +786,8 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
     if(my_client->listener_ != NULL){
         my_client->listener_->OnRtspOK();
     }
+    
+    
 }
 
 
@@ -798,6 +809,11 @@ void LiveRtspClient::ContinueAfterKeepAlive(RTSPClient* client, int resultCode, 
             = my_client->envir().taskScheduler().scheduleDelayedTask(
             secondsUntilNextKeepAlive*1000000, (TaskFunc*)RtspKeepAliveHandler, my_client);
         
+    }
+    
+    if(my_client->fVerbosityLevel != 0){
+        my_client->envir() << "Disable the redundant keep-alive verbosity output\n";
+        my_client->fVerbosityLevel = 0;
     }
 
 }
@@ -880,6 +896,11 @@ void LiveRtspClient::StartPlayingSession(MediaSession* session,
 void LiveRtspClient::TearDownSession(MediaSession* session,
     RTSPClient::responseHandler* afterFunc) 
 {
+    if(fVerbosityLevel == 0 && 
+       org_verbosity_level != 0){
+        fVerbosityLevel = 1;
+    }
+    
     sendTeardownCommand(*session, afterFunc, our_authenticator);
 }
 

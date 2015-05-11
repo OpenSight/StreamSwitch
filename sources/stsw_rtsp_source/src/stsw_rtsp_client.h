@@ -245,6 +245,8 @@ protected:
     MediaSubsessionIterator* setup_iter_;
     MediaSubsession *cur_setup_subsession_;
     
+    int org_verbosity_level;
+    
 };
 
 

@@ -78,6 +78,9 @@ public:
     virtual void SetWatch(){
         watch_variable_ = 1;
     }
+    
+    void ParseArgv(int argc, char *argv[], 
+                   stream_switch::ArgParser *parser);
    
     ///////////////////////////////////////////////////////////
     // LiveRtspClientListener implementation
@@ -105,6 +108,9 @@ private:
     LiveRtspClient * rtsp_client_;
     TaskScheduler * scheduler_;
     UsageEnvironment* env_;
+    stream_switch::RotateLogger * logger_;
+    stream_switch::StreamSource * source_;
+    
     std::string prog_name_;
     char  watch_variable_;
     bool is_init_;
