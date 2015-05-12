@@ -773,19 +773,23 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
             my_client->rtsp_timeout_task_);
         my_client->rtsp_timeout_task_ = NULL;
     }  
+
+    //callback user function
+    if(my_client->listener_ != NULL){
+        my_client->listener_->OnRtspOK();
+    }
+    
+    //start various timer
     
     if(my_client->enable_rtsp_keep_alive_ == True){
-        //disable the unne
+
         my_client->KeepAliveSession(my_client->session_, ContinueAfterKeepAlive);    
     }
   
     gettimeofday(&my_client->last_frame_time_, NULL);
     CheckInterFrameGaps(my_client); // start check the frame
   
-    //callback user function
-    if(my_client->listener_ != NULL){
-        my_client->listener_->OnRtspOK();
-    }
+
     
     
 }

@@ -35,6 +35,15 @@
 
 
 
+#define STDERR_LOG(logger, level, fmt, ...)  \
+do {         \
+    if(logger != NULL){                  \
+        logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
+    }else{                 \
+        fprintf(stderr, fmt, ##__VA_ARGS__);    \
+    }                             \
+}while(0)
+
 
 RtspSourceApp * RtspSourceApp::s_instance = NULL;
 
@@ -140,14 +149,15 @@ int RtspSourceApp::Init(int argc, char ** argv)
         singleMedium,  userName, passwd, (LiveRtspClientListener *)this, 
         verbosityLevel);        
     if(rtsp_client_ == NULL){
-        fprintf(stderr, "LiveRtspClient::CreateNew() Failed: Maybe parameter error\n");
+        STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
+                    "LiveRtspClient::CreateNew() Failed: Maybe parameter error\n");        
         ret = -1;
         goto error_out2;
     }
     
     
-    ROTATE_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
-               "RTSP Source init successful");
+    STDERR_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
+               "RTSP Source init successful\n");
     
     
     //install a logger check timer
@@ -184,10 +194,14 @@ error_out1:
 }
 void RtspSourceApp::Uninit()
 {
+    if(!is_init_){
+        return;
+    }
+    
     is_init_ = false;
 
-    ROTATE_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
-               "RTSP Source Uninit");
+    STDERR_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
+               "RTSP Source Uninit\n");
 
     
     //cancel the logger check timer
@@ -233,13 +247,13 @@ int RtspSourceApp::DoLoop()
         fprintf(stderr, "RtspSourceApp Not Init\n");
         return -1;
     }    
+
+    STDERR_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
+               "RTSP Source start loop\n");
     
     rtsp_client_->Start();
  
-    ROTATE_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
-               "RTSP Source start loop");
    
-    
     env_->taskScheduler().doEventLoop(&watch_variable_);
     
     
@@ -382,16 +396,11 @@ void RtspSourceApp::OnMediaFrame(
 }
 void RtspSourceApp::OnError(RtspClientErrCode err_code, const char * err_info)
 {
-    if(logger_ != NULL){
-        ROTATE_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
-               "RtspSourceApp::OnError() is called with RtspClientErrCode err_code(%d):%s\n",
-                err_code, (err_info!=NULL)? err_info:"");
-    }else{
-        
-        fprintf(stderr, "RtspSourceApp::OnError() is called with RtspClientErrCode err_code(%d):%s\n",
-                err_code, (err_info!=NULL)? err_info:"");
-                
-    }
+
+    STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
+            "RtspSourceApp::OnError() is called with RtspClientErrCode err_code(%d):%s\n",
+            err_code, (err_info!=NULL)? err_info:"");
+
     
     
     exit_code_ = -1;
@@ -429,14 +438,10 @@ void RtspSourceApp::OnMetaReady(const stream_switch::StreamMetadata &metadata)
 }
 void RtspSourceApp::OnRtspOK()
 {
-    if(logger_ != NULL){
-        ROTATE_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
+
+    STDERR_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
                "RTSP Negotiation is successful\n");
-    }else{
-        
-        fprintf(stderr, "RTSP Negotiation is successful\n");
-                
-    }
+
     
    
 }
