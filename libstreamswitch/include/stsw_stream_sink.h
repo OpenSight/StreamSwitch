@@ -41,6 +41,19 @@
 namespace stream_switch {
 
 class SinkListener; 
+
+class RpcResult{
+    
+public:
+    virtual ProtoCommonPacket * GetReply() = 0;
+    virtual const char * ExtraBlob() = 0;
+    virtual size_t BlobSize() = 0;
+    
+    virtual ~RpcResult(){
+        
+    }
+};
+
    
 //opcode -> SinkSubHandlerEntry map
 typedef std::map<int, SinkSubHandlerEntry> ReceiverSubHanderMap;
@@ -127,9 +140,9 @@ protected:
     //
     //internal used method
 
-    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+    static int StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket &msg, 
                                        const char * extra_blob, size_t blob_size);
-    virtual int MediaFrameHandler(const ProtoCommonPacket * msg, 
+    virtual int MediaFrameHandler(const ProtoCommonPacket &msg, 
                                   const char * extra_blob, size_t blob_size);
 
 
@@ -139,11 +152,16 @@ protected:
                          uint32_t debug_flags, std::string *err_info);   
 
     virtual int SendRpcRequest(ProtoCommonPacket * request, const char * extra_blob, size_t blob_size, 
-                               int timeout, ProtoCommonPacket * reply,  std::string *err_info);    
+                               int timeout, RpcResult **result,  std::string *err_info);    
 
     virtual int Heartbeat(int64_t now);
     
-    virtual int SubscriberHandler();
+    virtual void OnSubRead();
+    virtual void OnSubMsg(std::string channel_name, const ProtoCommonPacket &msg, 
+                          const char * extra_blob, size_t blob_size);
+
+
+    
     
     virtual void ClientHeartbeatHandler(int64_t now);
     

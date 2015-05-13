@@ -79,7 +79,74 @@ namespace stream_switch {
     return ret; 
     
 }        
+
+
+////////////////////////////////////////////////////////////////////////
+//Implementation of RpcResult
+class MsgRpcResult: public RpcResult
+{
     
+public:
+    virtual ProtoCommonPacket * GetReply()
+    {
+        return &reply_;
+    }
+    virtual const char * ExtraBlob()
+    {
+        if(blob_frame_ != NULL){
+            return (const char *)zframe_data(blob_frame_);
+        }else{
+            return NULL;
+        }
+    }
+    virtual size_t BlobSize()
+    {
+        if(blob_frame_ != NULL){
+            return zframe_size(blob_frame_);
+        }else{
+            return 0;
+        }        
+    }
+    
+    MsgRpcResult():blob_frame_(NULL)
+    {
+        
+    }
+
+    virtual ~MsgRpcResult()
+    {
+        if(blob_frame_ != NULL){
+            zframe_destroy(&blob_frame_);
+            blob_frame_ = NULL;
+        }
+    }
+    
+    virtual void set_blob_frame(zframe_t * blob_frame)
+    {
+        blob_frame_ = blob_frame;
+    }
+    
+    virtual zframe_t * blob_frame()
+    {
+        return blob_frame_;
+    }
+    
+    virtual ProtoCommonPacket * mutable_reply()
+    {
+        return &reply_;
+    }
+private:
+    
+    ProtoCommonPacket reply_;
+    
+    zframe_t * blob_frame_;
+    
+};
+
+
+
+
+
     
 StreamSink::StreamSink()
 :last_api_socket_(NULL), client_hearbeat_socket_(NULL), subscriber_socket_(NULL),
@@ -594,13 +661,13 @@ void StreamSink::UnregisterAllSubHandler()
     subsriber_handler_map_.clear();    
 }      
 
-int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket * msg, 
+int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket &msg, 
                                         const char * extra_blob, size_t blob_size)
 {
     StreamSink *receiver = (StreamSink *)user_data;
     return receiver->MediaFrameHandler(msg, extra_blob, blob_size);
 }
-int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg, 
+int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg, 
                                   const char * extra_blob, size_t blob_size)
 {
     MediaFrameInfo frame_info;
@@ -612,7 +679,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket * msg,
     //extract media frame from message
     do{
         ProtoMediaFrameMsg frame_msg;
-        if(! frame_msg.ParseFromString(msg->body())){
+        if(! frame_msg.ParseFromString(msg.body())){
             //body parse error
             ret = ERROR_CODE_PARSE;
             fprintf(stderr, "media frame Parse Error\n");
@@ -731,7 +798,7 @@ void StreamSink::InternalRoutine()
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
         if(socket != NULL){
-            SubscriberHandler();
+            OnSubRead();
         }
              
         
@@ -756,7 +823,7 @@ void StreamSink::InternalRoutine()
     
 
 
-int StreamSink::SubscriberHandler()
+void StreamSink::OnSubRead()
 {
     zframe_t * packet_frame = NULL, * blob_frame = NULL;
     char *channel_name = NULL;
@@ -800,22 +867,9 @@ int StreamSink::SubscriberHandler()
                     (long long)zclock_time());
             fprintf(stderr, "%s\n", msg.DebugString().c_str());
         }
-        
-        int op_code = msg.header().code();
-        ReceiverSubHanderMap::iterator it;
-        pthread_mutex_lock(&lock_); 
-        it = subsriber_handler_map_.find(op_code);
-        if(it == subsriber_handler_map_.end()){
-            pthread_mutex_unlock(&lock_); 
-            
-        }else{
-            SinkSubHandlerEntry entry = it->second;
-            pthread_mutex_unlock(&lock_); 
-            if(entry.channel_name == std::string(channel_name)){
-                entry.handler(entry.user_data, &msg, extra_blob, blob_size);
-            }
-       
-        }//if(it == subsriber_handler_map_.end()){
+                
+        OnSubMsg(channel_name, msg, extra_blob, blob_size);
+
     }//if(msg.ParseFromString(in_data)){
 
 
@@ -838,10 +892,31 @@ out:
         zmsg = NULL;        
     }
            
-    return 0; 
+    return; 
       
 }
 
+
+void StreamSink::OnSubMsg(std::string channel_name, const ProtoCommonPacket &msg, 
+                          const char * extra_blob, size_t blob_size)
+{
+    int op_code = msg.header().code();
+    ReceiverSubHanderMap::iterator it;
+    pthread_mutex_lock(&lock_); 
+    it = subsriber_handler_map_.find(op_code);
+    if(it == subsriber_handler_map_.end()){
+        pthread_mutex_unlock(&lock_); 
+            
+    }else{
+        SinkSubHandlerEntry entry = it->second;
+        pthread_mutex_unlock(&lock_); 
+        if(entry.channel_name == channel_name){
+            entry.handler(entry.user_data, msg, extra_blob, blob_size);
+        }
+       
+    }//if(it == subsriber_handler_map_.end())    
+    
+}
 
 
 int StreamSink::Heartbeat(int64_t now)
@@ -881,12 +956,10 @@ void StreamSink::ClientHeartbeatHandler(int64_t now)
             if(in_frame == NULL){
                 return;// no frame receive
             }
-            std::string in_data((const char *)zframe_data(in_frame), zframe_size(in_frame));
-            //after used, need free the frame
-            zframe_destroy(&in_frame);  
+
             ProtoCommonPacket reply;
             
-            if(reply.ParseFromString(in_data)){
+            if(reply.ParseFromArray((const char *)zframe_data(in_frame), zframe_size(in_frame))){
                 
                 if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
                     fprintf(stderr, 
@@ -928,8 +1001,9 @@ void StreamSink::ClientHeartbeatHandler(int64_t now)
                 //send client heartbeat request again after a time
                  next_send_client_heartbeat_msec_ = now + 5000; //resend after 5 sec
             }               
-
+            
             last_send_client_heartbeat_msec_ = 0; // clean;
+            zframe_destroy(&in_frame);
         }else{
             // no reply
             if(now - last_send_client_heartbeat_msec_ >= 
@@ -1005,7 +1079,8 @@ void StreamSink::ClientHeartbeatHandler(int64_t now)
 int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std::string *err_info)
 {
     ProtoCommonPacket request;
-    ProtoCommonPacket reply;
+    ProtoCommonPacket *reply = NULL;
+    RpcResult * result = NULL;
     int ret;
     
     if(IsStarted()){
@@ -1024,32 +1099,36 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_METADATA request\n");
     }
 
-    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &result, err_info);
     if(ret){
         //error
         return ret;
     }
+    reply = result->GetReply();
     
-    ret = ReplyStatus2ErrorCode(reply, err_info);
+    ret = ReplyStatus2ErrorCode(*reply, err_info);
     if(ret){
+        SAFE_DELETE(result);
         return ret;
     }  
     
     //extract metadata from reply
     ProtoMetaRep metadata_rep;
-    if(! metadata_rep.ParseFromString(reply.body())){
+    if(! metadata_rep.ParseFromString(reply->body())){
         //body parse error
         ret = ERROR_CODE_PARSE;
         SET_ERR_INFO(err_info, "reply body parse to metadata error");
+        SAFE_DELETE(result);
         return ret;                
     }
+    
+    //no need the result    
+    SAFE_DELETE(result);
     
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_METADATA reply:\n");
         fprintf(stderr, "%s\n", metadata_rep.DebugString().c_str());
-    }      
-    
-
+    }    
     
     
     //configure the metadata in receiver
@@ -1135,7 +1214,8 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
 int StreamSink::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std::string *err_info)
 {
     ProtoCommonPacket request;
-    ProtoCommonPacket reply;
+    ProtoCommonPacket *reply = NULL;
+    RpcResult * result = NULL;
     int ret;
     
     if(statistic == NULL){
@@ -1152,27 +1232,33 @@ int StreamSink::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std
         fprintf(stderr, "Encode no body into a PROTO_PACKET_CODE_MEDIA_STATISTIC request\n");
     }
 
-    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &result, err_info);
     if(ret){
         //error
         return ret;
     }
+    
+    reply = result->GetReply();
 
     
     
-    ret = ReplyStatus2ErrorCode(reply, err_info);
+    ret = ReplyStatus2ErrorCode(*reply, err_info);
     if(ret){
+        SAFE_DELETE(result);
         return ret;
     }  
     
     //extract statistic from reply
     ProtoMediaStatisticRep statistic_rep;
-    if(! statistic_rep.ParseFromString(reply.body())){
+    if(! statistic_rep.ParseFromString(reply->body())){
         //body parse error
         ret = ERROR_CODE_PARSE;
         SET_ERR_INFO(err_info, "reply body parse to statistic error");
+        SAFE_DELETE(result);
         return ret;                
     }
+    
+    SAFE_DELETE(result);
     
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_MEDIA_STATISTIC reply\n");
@@ -1207,7 +1293,8 @@ int StreamSink::SourceStatistic(int timeout, MediaStatisticInfo * statistic, std
 int StreamSink::KeyFrame(int timeout, std::string *err_info)
 {
     ProtoCommonPacket request;
-    ProtoCommonPacket reply;
+    ProtoCommonPacket *reply = NULL;
+    RpcResult * result = NULL;
     int ret;
     
     request.mutable_header()->set_type(PROTO_PACKET_TYPE_REQUEST);
@@ -1218,17 +1305,21 @@ int StreamSink::KeyFrame(int timeout, std::string *err_info)
         fprintf(stderr, "Send out a PROTO_PACKET_CODE_KEY_FRAME request with no body\n");
     }
 
-    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &result, err_info);
     if(ret){
         //error
         return ret;
     }
+    reply = result->GetReply();
  
    
-    ret = ReplyStatus2ErrorCode(reply, err_info);
+    ret = ReplyStatus2ErrorCode(*reply, err_info);
     if(ret){
+        SAFE_DELETE(result);
         return ret;
     }
+    SAFE_DELETE(result);
+    
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode no body from a PROTO_PACKET_CODE_KEY_FRAME reply\n");
     }    
@@ -1243,7 +1334,8 @@ int StreamSink::ClientList(int timeout, uint32_t start_index, uint32_t request_n
                            std::string *err_info)
 {
     ProtoCommonPacket request;
-    ProtoCommonPacket reply;
+    ProtoCommonPacket *reply = NULL;
+    RpcResult * result = NULL;
     ProtoClientListReq client_list_req_body;
     int ret;
     
@@ -1261,25 +1353,30 @@ int StreamSink::ClientList(int timeout, uint32_t start_index, uint32_t request_n
         fprintf(stderr, "%s\n", client_list_req_body.DebugString().c_str());
     }
 
-    ret = SendRpcRequest(&request, NULL, 0, timeout, &reply, err_info);
+    ret = SendRpcRequest(&request, NULL, 0, timeout, &result, err_info);
     if(ret){
         //error
         return ret;
-    }    
+    } 
+    reply = result->GetReply();
     
-    ret = ReplyStatus2ErrorCode(reply, err_info);
+    ret = ReplyStatus2ErrorCode(*reply, err_info);
     if(ret){
+        SAFE_DELETE(result);
         return ret;
     }  
     
     //extract statistic from reply
     ProtoClientListRep client_list_rep;
-    if(! client_list_rep.ParseFromString(reply.body())){
+    if(! client_list_rep.ParseFromString(reply->body())){
         //body parse error
         ret = ERROR_CODE_PARSE;
         SET_ERR_INFO(err_info, "reply body parse to client_list error");
+        SAFE_DELETE(result);
         return ret;                
     }
+    
+    SAFE_DELETE(result);
     
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
         fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_LIST reply\n");
@@ -1351,12 +1448,12 @@ void StreamSink::ReceiverStatistic(MediaStatisticInfo * statistic)
 
 
 int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_blob, size_t blob_size, 
-                               int timeout, ProtoCommonPacket * reply,  std::string *err_info)
+                               int timeout, RpcResult **result,  std::string *err_info)
 {
     int ret = 0;    
     
-    if(request == NULL || reply == NULL){
-        SET_ERR_INFO(err_info, "request/reply cannot be NULL");          
+    if(request == NULL || result == NULL){
+        SET_ERR_INFO(err_info, "request/result cannot be NULL");          
         return ERROR_CODE_PARAM;        
     }
     if(timeout < 0){
@@ -1377,11 +1474,13 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_b
     SocketHandle api_socket = NULL;
     std::string api_addr;
     std::string out_data;
-    //zframe_t * out_frame = NULL;
+    
     zframe_t * in_frame = NULL, *in_blob_frame = NULL;
     zpoller_t  * poller = NULL;
     SocketHandle reader_socket = NULL;  
     zmsg_t *out_zmsg = NULL, *in_zmsg = NULL;
+    MsgRpcResult * in_result = NULL;
+    ProtoCommonPacket * reply = NULL;
     
     // get api socket
     pthread_mutex_lock(&lock_); 
@@ -1453,10 +1552,14 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_b
     if(in_frame == NULL){
         goto error_1;  // invalid
     }
-    //in_blob_frame = zmsg_pop(in_zmsg); 
+    in_blob_frame = zmsg_pop(in_zmsg); 
     
     
-   
+    //generate a rpc result to store the reply
+    in_result = new MsgRpcResult();
+    reply = in_result->mutable_reply();
+    in_result->set_blob_frame(in_blob_frame);
+
     
 /*    
     in_frame = zframe_recv(api_socket);
@@ -1472,7 +1575,10 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_b
  
         zframe_destroy(&in_frame);  
         ret = ERROR_CODE_GENERAL;
-        SET_ERR_INFO(err_info, "Reply Parse Error");   
+        SET_ERR_INFO(err_info, "Reply Parse Error");  
+        
+        SAFE_DELETE(in_result);
+
         goto error_1;
     }
 
@@ -1487,11 +1593,17 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_b
         request->header().seq() != reply->header().seq() ||
         request->header().code() != reply->header().code()){
         ret = ERROR_CODE_GENERAL;
-        SET_ERR_INFO(err_info, "Received Reply basic info error");    
+        SET_ERR_INFO(err_info, "Received Reply basic info error");   
+        SAFE_DELETE(in_result);
         goto error_2;
     }
     
-    //successful here    
+    //successful here  
+
+    (*result) = in_result;
+    in_result = NULL;
+    
+    
 error_2:    
     //cache the api socket in receiver
     if(IsInit()){
