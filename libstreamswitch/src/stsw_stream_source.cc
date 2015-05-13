@@ -967,7 +967,7 @@ int StreamSource::ClientListHandler(const ProtoCommonPacket &request,
     ProtoClientListRep client_list_rep;
     if(client_list_req.ParseFromString(request.body())){
         
-        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+        if(debug_flags() & DEBUG_FLAG_DUMP_API){
             fprintf(stderr, "Decode the following body from a PROTO_PACKET_CODE_CLIENT_LIST request:\n");
             fprintf(stderr, "%s\n", client_list_req.DebugString().c_str());
         }        
@@ -1001,7 +1001,7 @@ int StreamSource::ClientListHandler(const ProtoCommonPacket &request,
   
         client_list_rep.SerializeToString(reply.mutable_body());     
 
-        if(debug_flags() & DEBUG_FLAG_DUMP_HEARTBEAT){
+        if(debug_flags() & DEBUG_FLAG_DUMP_API){
             fprintf(stderr, "Encode the following body into a PROTO_PACKET_CODE_CLIENT_LIST reply:\n");
             fprintf(stderr, "%s\n", client_list_rep.DebugString().c_str());
         } 

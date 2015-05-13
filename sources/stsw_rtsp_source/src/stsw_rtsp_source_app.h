@@ -43,7 +43,7 @@
 // which is composed of a RTSP client and a stream switch source object. 
 //    General speaking, the class is responsible for getting media frames 
 // from the RTSP client and send them to the source. 
-class RtspSourceApp: public LiveRtspClientListener
+class RtspSourceApp: public LiveRtspClientListener,  public stream_switch::SourceListener
 {
 public:
 	static RtspSourceApp* Instance()
@@ -92,6 +92,20 @@ public:
     virtual void OnError(RtspClientErrCode err_code, const char * err_info);
     virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);  
     virtual void OnRtspOK();  
+    
+    ///////////////////////////////////////////////////////////
+    // SourceListener implementation    
+    // OnKeyFrame
+    // When the source receive a key frame request from receivers, 
+    // this medthod would be invoked
+    virtual void OnKeyFrame(void);
+    
+    // OnMediaStatistic
+    // When receiving a PROTO_PACKET_CODE_MEDIA_STATISTIC request, 
+    // it would be invoked to update statistic info from application
+    // The parameter statistic is initialized with the internal infomation
+    // of the source instance
+    virtual void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic);        
     
     //////////////////////////////////////////////////////////
     //Timer task handler

@@ -74,7 +74,8 @@ int RtspSourceApp::Init(int argc, char ** argv)
     char const* userName = NULL, * passwd = NULL;
     stream_switch::ArgParser parser;
     int verbosityLevel = 0;
-    
+    int queue_size = STSW_PUBLISH_SOCKET_HWM; 
+    std::string err_info;
     
     //
     //Parse options
@@ -113,6 +114,23 @@ int RtspSourceApp::Init(int argc, char ** argv)
     
         
     //Create Stream_switch source and init it
+    if(parser.CheckOption("queue-size")){
+        queue_size = (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0);
+    }    
+    source_ = new stream_switch::StreamSource();
+    ret = source_->Init(
+        parser.OptionValue("stream-name", ""), 
+        (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
+        queue_size, 
+        this,
+        (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0), 
+        &err_info);
+    if(ret){
+        STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
+                    "Init Source Failed: %s\n", err_info.c_str());         
+        ret = -1;
+        goto error_out3;       
+    }    
     
     
     //Create Rtsp Client    
@@ -152,7 +170,7 @@ int RtspSourceApp::Init(int argc, char ** argv)
         STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
                     "LiveRtspClient::CreateNew() Failed: Maybe parameter error\n");        
         ret = -1;
-        goto error_out2;
+        goto error_out3;
     }
     
     
@@ -167,8 +185,14 @@ int RtspSourceApp::Init(int argc, char ** argv)
     is_init_ = true;
     
     return 0;
-
-error_out2:
+    
+    
+error_out3:
+    if(source_){
+        source_->Uninit();
+        delete source_;
+        source_ = NULL;
+    }
 
     //delete logger
     if(logger_){
@@ -218,8 +242,13 @@ void RtspSourceApp::Uninit()
         rtsp_client_ = NULL;
     }
     
+    
     //uninit stream_switch source and delete
- 
+    if(source_){
+        source_->Uninit();
+        delete source_;
+        source_ = NULL;
+    } 
 
     //delete logger
     if(logger_){
@@ -237,9 +266,6 @@ void RtspSourceApp::Uninit()
         delete scheduler_;
         scheduler_ = NULL;
     }    
-    
-    
-    
 }
 int RtspSourceApp::DoLoop()
 {
@@ -382,6 +408,8 @@ void RtspSourceApp::OnMediaFrame(
         size_t frame_size
 )
 {
+    std::string err_info;
+    int ret;
 #if 0    
     fprintf(stderr, "RtspSourceApp::OnMediaFrame() is called with the below frame:\n");
     fprintf(stderr, 
@@ -393,6 +421,15 @@ void RtspSourceApp::OnMediaFrame(
                 (unsigned)frame_info.ssrc, 
                 (int)(frame_size));
 #endif    
+    ret = source_->SendLiveMediaFrame(frame_info, frame_data, frame_size, &err_info);
+    if(ret){
+        STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
+                "Send live media frame Failed (%d):%s\n",
+                 ret,  err_info.c_str());    
+        exit_code_ = ret;
+        SetWatch();         
+    }
+    
 }
 void RtspSourceApp::OnError(RtspClientErrCode err_code, const char * err_info)
 {
@@ -400,16 +437,36 @@ void RtspSourceApp::OnError(RtspClientErrCode err_code, const char * err_info)
     STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
             "RtspSourceApp::OnError() is called with RtspClientErrCode err_code(%d):%s\n",
             err_code, (err_info!=NULL)? err_info:"");
+    int state;
+    //change source stream state
+    switch(err_code){
+ 
+    case RTSP_CLIENT_ERR_CONNECT_FAIL: 
+    case RTSP_CLIENT_ERR_DESCRIBE_ERR:  
+        state = stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL;
+        break;
 
-    
-    
-    exit_code_ = -1;
+    case RTSP_CLIENT_ERR_SUBSESSION_BYE:  
+    case RTSP_CLIENT_ERR_INTER_FRAME_GAP: 
+        state = stream_switch::SOURCE_STREAM_STATE_ERR_MEIDA_STOP;
+        break;
+
+    case RTSP_CLIENT_ERR_TIME_ERR:  
+        state = stream_switch::SOURCE_STREAM_STATE_ERR_TIME;
+        break;
+    default:
+        state = stream_switch::SOURCE_STREAM_STATE_ERR;
+        break;
+    }
+    source_->set_stream_state(state);
+    exit_code_ = state;
     SetWatch();
 }
 
 void RtspSourceApp::OnMetaReady(const stream_switch::StreamMetadata &metadata)
 {
-  
+    int ret;
+    std::string err_info;
     fprintf(stderr, "RtspSourceApp::OnMetaReady() is called with the below metadata:\n");
     fprintf(stderr, 
             "play_type:%d, source_proto:%s, ssrc:0x%x, bps: %d, substream number: %d\n", 
@@ -434,6 +491,18 @@ void RtspSourceApp::OnMetaReady(const stream_switch::StreamMetadata &metadata)
             
     }
     fprintf(stderr, "\n");
+    
+    
+    //start the source
+    source_->set_stream_meta(metadata);
+    ret = source_->Start(&err_info);
+    if(ret){
+        STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
+                "Failed to start the stream_switch source (%d):%s\n",
+                 ret,  err_info.c_str());    
+        exit_code_ = ret;
+        SetWatch();    
+    }
   
 }
 void RtspSourceApp::OnRtspOK()
@@ -441,8 +510,24 @@ void RtspSourceApp::OnRtspOK()
 
     STDERR_LOG(logger_, stream_switch::LOG_LEVEL_INFO, 
                "RTSP Negotiation is successful\n");
-
+    
+    //change source state
+    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);
     
    
 }
     
+
+///////////////////////////////////////////////////////////
+// SourceListener implementation    
+
+void RtspSourceApp::OnKeyFrame(void)
+{
+    //No method to request a key frame for RTSP protcol
+}
+    
+
+void RtspSourceApp::OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic)
+{
+    //Cann't detect lost frame by now
+}
