@@ -91,7 +91,10 @@ public:
 
     virtual void DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                 struct timeval presentationTime, unsigned durationInMicroseconds);
+                
 
+    virtual void  CheckLostByTime(stream_switch::MediaFrameType frame_type, 
+                            struct timeval presentationTime);
 
     //framebuf queue operations
     void PushOneFrame(stream_switch::MediaFrameType frame_type, 
@@ -115,8 +118,14 @@ protected:
     
     LiveRtspClient *rtsp_client_;
     
+    
     FrameQueue frame_queue_;
     
+    //used by CheckLostByTime()
+    double  last_gap_;    
+    uint64_t lost_frames_;
+    struct timeval last_data_frame_pts_; 
+        
 };
 
 

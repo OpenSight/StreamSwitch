@@ -52,11 +52,14 @@ MediaOutputSink::MediaOutputSink(UsageEnvironment& env,
                     MediaSubsession* subsession, 
                     int32_t sub_stream_index, size_t sink_buf_size)
 : MediaSink(env), sink_buf_size_(sink_buf_size), subsession_(subsession), 
-sub_stream_index_(sub_stream_index), rtsp_client_(rtsp_client)
+sub_stream_index_(sub_stream_index), rtsp_client_(rtsp_client), 
+last_gap_(0.0), lost_frames_(0)
 {
     recv_buf_ = new u_int8_t[sink_buf_size];
     last_pts_.tv_sec = 0;
     last_pts_.tv_usec = 0;
+    last_data_frame_pts_.tv_sec = 0;
+    last_data_frame_pts_.tv_usec = 0;
 }
 
 
@@ -122,6 +125,8 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
     
     
     DoAfterGettingFrame(frameSize, numTruncatedBytes, presentationTime, durationInMicroseconds);
+
+
   
 out:    
   
@@ -145,6 +150,43 @@ void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
     }
     
         
+}
+
+
+void  MediaOutputSink::CheckLostByTime(stream_switch::MediaFrameType frame_type, 
+                                   struct timeval presentationTime)
+{
+    if(frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME ||
+       frame_type == stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME){
+        if(last_data_frame_pts_.tv_sec != 0 ||
+           last_data_frame_pts_.tv_usec != 0){
+            double last_pts_f = last_data_frame_pts_.tv_sec + 
+                last_data_frame_pts_.tv_usec/1000000.0;
+            double now_pts_f = presentationTime.tv_sec + 
+                presentationTime.tv_usec/1000000.0;
+            double cur_gap = now_pts_f - last_pts_f;
+            
+            //envir() << "cur_gap :" << cur_gap << "\n"; 
+            
+            if(last_gap_ > 0.001 && 
+               cur_gap >= last_gap_ * 1.7){
+               double lost = (int)((cur_gap - last_gap_) / last_gap_);
+               lost_frames_ += (int)(lost + 0.5);
+               envir() << "lost_frames_ :" << (int)lost_frames_ << "\n"; 
+               if(rtsp_client_!= NULL){
+                   rtsp_client_->UpdateLostFrame(sub_stream_index_, lost_frames_);
+               }
+               
+            }else{
+               
+               last_gap_ = cur_gap; 
+               
+            }
+            
+        }        
+        
+        last_data_frame_pts_ = presentationTime;
+    }
 }
 
 

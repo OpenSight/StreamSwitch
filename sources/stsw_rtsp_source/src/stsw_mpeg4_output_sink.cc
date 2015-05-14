@@ -140,31 +140,40 @@ void Mpeg4OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
             frame_type = MEDIA_FRAME_TYPE_DATA_FRAME;  
         }
     }
-
-    if(rtsp_client_->IsMetaReady()){
-        //flush frame cache first
-        if(frame_queue_.size() != 0){
-            FlushQueue();
-        }
-        
-        //callback the parent rtsp client frame receive interface
-        if(rtsp_client_ != NULL){
-            rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
-                                            presentationTime, frameSize, (const char *)recv_buf_);
-        }
-    }else{
-        
-        if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
-            //only buffer the param frame
-            PushOneFrame(frame_type, 
-                         presentationTime, 
-                         frameSize, (const char *)recv_buf_);
-        }
-        //drop the frame; 
-    }
     
+    //calculate the lost frames
+    CheckLostByTime(frame_type, presentationTime);    
+    
+    if(rtsp_client_!= NULL){
+        if(rtsp_client_->IsMetaReady()){
+            //flush frame cache first
+            if(frame_queue_.size() != 0){
+                FlushQueue();
+            }
+            
+            //callback the parent rtsp client frame receive interface
+            if(rtsp_client_ != NULL){
+                rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
+                                                presentationTime, frameSize, (const char *)recv_buf_);
+            }
+        }else{
+            
+            if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
+                //only buffer the param frame
+                PushOneFrame(frame_type, 
+                             presentationTime, 
+                             frameSize, (const char *)recv_buf_);
+            }
+            //drop the frame; 
+        }
+    }
         
 }
+
+
+
+
+
 
 
 #define GROUP_VOP_START_CODE      0xB3

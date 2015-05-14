@@ -52,7 +52,7 @@ RtspSourceApp::RtspSourceApp()
 : rtsp_client_(NULL), scheduler_(NULL), env_(NULL), logger_(NULL), watch_variable_(0), 
 is_init_(false), exit_code_(0), logger_check_task_(NULL)
 {
-    
+    memset(lost_frames_, 0, sizeof(uint64_t) * MAX_SUBSTREAM_NUMBER);
 }
 
 RtspSourceApp::~RtspSourceApp()
@@ -492,6 +492,7 @@ void RtspSourceApp::OnMetaReady(const stream_switch::StreamMetadata &metadata)
     }
     fprintf(stderr, "\n");
     
+    memset(lost_frames_, 0, sizeof(uint64_t) * MAX_SUBSTREAM_NUMBER);
     
     //start the source
     source_->set_stream_meta(metadata);
@@ -516,7 +517,15 @@ void RtspSourceApp::OnRtspOK()
     
    
 }
-    
+
+
+void RtspSourceApp::OnLostFrameUpdate(int32_t sub_stream_index, 
+                                       uint64_t lost_frame )
+{
+    if(sub_stream_index < MAX_SUBSTREAM_NUMBER){
+        lost_frames_[sub_stream_index] = lost_frame;
+    }
+} 
 
 ///////////////////////////////////////////////////////////
 // SourceListener implementation    
@@ -529,5 +538,15 @@ void RtspSourceApp::OnKeyFrame(void)
 
 void RtspSourceApp::OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic)
 {
-    //Cann't detect lost frame by now
+    stream_switch::SubStreamMediaStatisticVector::iterator it;
+    for(it = statistic->sub_streams.begin(); 
+        it != statistic->sub_streams.end();
+        it++){
+        if(it->sub_stream_index < MAX_SUBSTREAM_NUMBER){
+            it->lost_frames = lost_frames_[it->sub_stream_index];            
+        }else{
+            break;
+        }
+    }
+
 }

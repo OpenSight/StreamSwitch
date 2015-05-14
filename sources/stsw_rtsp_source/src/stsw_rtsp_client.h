@@ -89,6 +89,9 @@ public:
     // OnRtspOK() would be invoked. Normally, user would config the source
     // status in this callback.
     virtual void OnRtspOK() = 0;  
+    
+    
+    virtual void OnLostFrameUpdate(int32_t sub_stream_index, uint64_t lost_frame ) = 0;
 };
 
 
@@ -127,9 +130,6 @@ public:
     }
     virtual bool CheckMetadata();
     
-    //TODO
-    //virtual int GetStatisticData();
-    //virtual void ResetStatistic();
     
     virtual void AfterGettingFrame(int32_t sub_stream_index, 
                            stream_switch::MediaFrameType frame_type, 
@@ -141,6 +141,10 @@ public:
     {
         listener_ = listener;
     }
+    
+    
+    virtual void UpdateLostFrame(int32_t sub_stream_index, uint64_t lost_frame );
+
     
 protected:
     ////////////////////////////////////////////////////////////

@@ -60,6 +60,7 @@ H264or5OutputSink::H264or5OutputSink(UsageEnvironment& env,
 : MediaOutputSink(env, rtsp_client, subsession, sub_stream_index, sink_buf_size), 
 h_number_(h_number)
 {
+
 }
 
 
@@ -176,31 +177,40 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
     }else{
         frame_type = MEDIA_FRAME_TYPE_PARAM_FRAME;        
     }
-
-    if(rtsp_client_->IsMetaReady()){
-        //flush frame cache first
-        if(frame_queue_.size() != 0){
-            FlushQueue();
+    
+    
+    //calculate the lost frames
+    CheckLostByTime(frame_type, presentationTime); 
+    
+    
+    if(rtsp_client_ != NULL){
+        if(rtsp_client_->IsMetaReady()){
+            //flush frame cache first
+            if(frame_queue_.size() != 0){
+                FlushQueue();
+            }
+            
+            //callback the parent rtsp client frame receive interface
+            if(rtsp_client_ != NULL){
+                rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
+                                                presentationTime, frameSize, (const char *)recv_buf_);
+            }
+        }else{
+            
+            if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
+                //only buffer the param frame
+                PushOneFrame(frame_type, 
+                             presentationTime, 
+                             frameSize, (const char *)recv_buf_);
+            }
+            //drop the frame; 
         }
         
-        //callback the parent rtsp client frame receive interface
-        if(rtsp_client_ != NULL){
-            rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
-                                            presentationTime, frameSize, (const char *)recv_buf_);
-        }
-    }else{
-        
-        if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
-            //only buffer the param frame
-            PushOneFrame(frame_type, 
-                         presentationTime, 
-                         frameSize, (const char *)recv_buf_);
-        }
-        //drop the frame; 
     }
     
         
 }
+
 
 
 

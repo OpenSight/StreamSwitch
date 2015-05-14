@@ -271,7 +271,9 @@ enum MediaFrameType{
                                          //no valid media data in this message
 };    
 
-
+//
+// For H264/H265, each frame is NAL 
+// For MPEG4, each frame is a picture including VOP header
 struct MediaFrameInfo{
     
     // the sub stream index in the configured metadata
@@ -284,6 +286,8 @@ struct MediaFrameInfo{
     //pts for this frame. if the stream is live stream, this timestamp is 
     // the absolute timestamp from epoch. If replay stream, this timestamp
     // is the relative time from the stream's beginning. 
+    // For live stream, the pts should be monotone increasing for 
+    // the corresponding substream
     struct timeval timestamp; 
     
     // must match the ssrc in the metadata of source

@@ -314,6 +314,14 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
 }
 
 
+void LiveRtspClient::UpdateLostFrame(int32_t sub_stream_index, uint64_t lost_frame )
+{
+    if(listener_ != NULL){
+        listener_->OnLostFrameUpdate(sub_stream_index, lost_frame);
+    }       
+}
+
+
 ////////////////////////////////////////////////////////////
 //RTSP callback function
 
@@ -1117,6 +1125,11 @@ void LiveRtspClient::SetupMetaFromSession()
                 sub_metadata.media_param.audio.channels = 
                     subsession->numChannels();
             }
+            if(subsession->rtpTimestampFrequency() != 0){
+                sub_metadata.media_param.audio.samples_per_second = 
+                    subsession->rtpTimestampFrequency();                
+            }
+            
         }else if(strcmp(mediaName, "text") == 0){
             sub_metadata.media_type = 
                 SUB_STREAM_MEIDA_TYPE_TEXT;            

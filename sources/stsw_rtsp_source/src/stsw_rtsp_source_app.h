@@ -35,7 +35,7 @@
 #include "stsw_rtsp_client.h"
 
 
-
+#define MAX_SUBSTREAM_NUMBER 64
 ////////////////////
 
 // the RTSP Source Application class
@@ -81,17 +81,24 @@ public:
     
     void ParseArgv(int argc, char *argv[], 
                    stream_switch::ArgParser *parser);
+                   
+             
    
     ///////////////////////////////////////////////////////////
     // LiveRtspClientListener implementation
+
+    virtual void OnError(RtspClientErrCode err_code, const char * err_info);
+    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);  
+    virtual void OnRtspOK();  
     virtual void OnMediaFrame(
         const stream_switch::MediaFrameInfo &frame_info, 
         const char * frame_data, 
         size_t frame_size
-    );
-    virtual void OnError(RtspClientErrCode err_code, const char * err_info);
-    virtual void OnMetaReady(const stream_switch::StreamMetadata &metadata);  
-    virtual void OnRtspOK();  
+    );    
+    
+    virtual void OnLostFrameUpdate(int32_t sub_stream_index, 
+                                   uint64_t lost_frame );
+    
     
     ///////////////////////////////////////////////////////////
     // SourceListener implementation    
@@ -130,6 +137,9 @@ private:
     bool is_init_;
     int exit_code_;
     TaskToken logger_check_task_;
+    
+    
+    uint64_t lost_frames_[MAX_SUBSTREAM_NUMBER];
     
 };
 
