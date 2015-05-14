@@ -71,6 +71,19 @@ void ParseArgv(int argc, char *argv[],
 }
 
 
+
+static void SignalHandler (int signal_num)
+{
+    RtmpClientSource * app = NULL;
+
+    stream_switch::SetGolbalInterrupt(true);
+
+    app = RtmpClientSource::Instance();
+
+    app->SetQuit();
+}
+
+
 int main(int argc, char *argv[]) {
 
     int ret = 0;
@@ -106,9 +119,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // setup librtmp logger
+    RTMP_LogSetLevel(RTMP_LOGDEBUG);
+
     // "rtmp://192.168.1.180:1935/vod/wow.flv"
-    rtmpClient = new RtmpClientSource(std::string(parser.OptionValue("url", "")));
-    if (rtmpClient->Connect() != 0) {
+    rtmpClient = RtmpClientSource::Instance();
+
+    stream_switch::SetIntSigHandler(SignalHandler);
+
+    if (rtmpClient->Connect(std::string(parser.OptionValue("url", ""))) != 0) {
         return -1;
     }
 
