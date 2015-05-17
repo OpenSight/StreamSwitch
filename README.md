@@ -59,7 +59,7 @@ can decouple. Engineer can focus on one specific protocol processing which he
 is familiar with, and does not need to need how to convert with the other 
 protocols. 
 
-So this is StreamStream comes from. It's a stream protocol conversion framework 
+So this is StreamSwitch comes from. It's a stream protocol conversion framework 
 rather than merely a media server, and all the "source"s and "port"s in it are 
 the practical media server based on this framework. 
 
@@ -85,5 +85,75 @@ use the conversion power of StreamSwitch.
 * Recordable. StreamSwitch support recording the media stream on the modern 
   FileSystem like ext4, xfs as a mp4 fix-length file 
 
+# 2 Install
+------------------------------------
+  
+
+# 3 Usage
+------------------------------------  
   
   
+# 4 Development
+------------------------------------  
+
+StreamSwitch make use of Github to host its latest code with the following URL: 
+
+    https://github.com/OpenSight/StreamSwitch
+
+Developers should use the issue system of Github to feedback some 
+bug/requirement to StreamSwitch
+
+StreamSwitch adopt an git work-flow similar with the popular github-flow 
+(http://githubflow.github.io/). If Developers want to participate in 
+StreamSwitch's development and contribute their code to StreamSwitch repository, 
+they should make use of the Pull Request mechanism against StreamSwitch's master 
+branch as github-flow. If StreamSwitch adopt your code, we would put your name in 
+StreamSwitch author list. Thanks for your support
+
+The following give a brief description about some key principle in 
+StreamSwitch design, to help users or developers to understand StreamSwitch 
+more. 
+
+## 4.1 Architecture 
+
+The main components in StreamSwitch is called "Source" and "Port", 
+
+## 4.2 Protocol
+
+The key of StreamSwitch is "protocol". StreamSwitch Protocol is composed of 
+two layer, serialization and transport. Serialization layer is responsible 
+to pack the message, and transport layer is to transfer the data between 
+different components. 
+
+### 4.2.1 Serialization
+
+StreamSwitch make use of the Protobuf library to implements its serialization. 
+Protobuf is a famous open source library for data serialization from Google, 
+which is more efficient (i.e. producing shorter data string) and faster than 
+JSON, and compatible with the binary data type which JSON not.  Last but not 
+least, it's stable and easy to use.
+
+In StreamSwitch, the basic communication unit is called "Packet", which can be 
+divided into the following three types:
+
+1. Request
+2. Reply
+3. Message
+
+A request packet must be responded with a corresponding reply packet whit the 
+same sequence number. And a message packet is sent alone which is used for 
+broadcast. 
+
+Each packet is composed of two parts, the header and the body. The header has 
+the same format for all kinds of the packets, even though some fields of it 
+would be ineffective for some type. The content of the body depends on the 
+type and operation code fields in packet header. Different data would be 
+placed into the body for different type and operation code. 
+
+### 4.2.2 Transport
+
+StreamSwitch make use of the ZeroMQ library to send/receive the packets 
+to/from the other components. 
+ZeroMQ is known as the fastest message queue in the open source world, 
+which can support multi kinds of communication pattern, like request-reply, 
+sub-pub, pipeline, and etc., 
