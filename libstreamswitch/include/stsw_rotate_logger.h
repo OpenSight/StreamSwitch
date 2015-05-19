@@ -71,6 +71,7 @@ public:
     
     virtual void CheckRotate();
     virtual void Log(int level, const char * filename, int line, const char * fmt, ...);
+    virtual void LogV(int level, const char * filename, int line, const char * fmt, va_list args);
     
 protected:
 

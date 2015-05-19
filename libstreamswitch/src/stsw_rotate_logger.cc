@@ -240,6 +240,14 @@ void RotateLogger::CheckRotate()
 
 void RotateLogger::Log(int level, const char * filename, int line, const char * fmt, ...)
 {
+    va_list vl;
+    va_start(vl, fmt);
+    LogV(level, filename, line, fmt, vl);
+    va_end(vl);    
+}
+
+void RotateLogger::LogV(int level, const char * filename, int line, const char * fmt, va_list args)
+{
     
     if(!IsInit()){
         return;
@@ -272,13 +280,12 @@ void RotateLogger::Log(int level, const char * filename, int line, const char * 
     }
     log_str += tmp_buf;
     
-    va_list args;
-    va_start (args, fmt);
+
     ret = vsnprintf (tmp_buf, MAX_LOG_RECORD_SIZE - 1, fmt, args);
     if(ret < 0){
         goto out;
     }
-    va_end (args);   
+  
     log_str += tmp_buf;
     if(log_str[log_str.length() - 1] != '\n'){
         log_str.push_back('\n');
@@ -300,6 +307,7 @@ out:
     delete[] tmp_buf;
     
 }
+
     
 bool RotateLogger::IsTooLarge()
 {
