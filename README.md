@@ -15,15 +15,15 @@ StreamSwitch by the plug-in method, in theory, StreamSwitch can support any
 stream media protocol as long as you write an extension(plug-in) for it. 
 
 In StreamSwitch, the component implementing an input protocol is called 
-"source", which is a standalone executable program in system. Each of the 
-input media streams (i.e. source stream) based on this protocol is a 
-running instance (i.e. OS Process) of this "source" program. 
-The component implementing an output protocol is called "port", 
-which is also a standalone program in system. 
-The main process of this "port" program is usually responsible to master the 
-server of this protocol, like listening on the socket, accepting the incoming 
-connections. Each of the output stream (i.e. sink stream) to one client is 
-usually implemented as a forked child process or thread of this "port". 
+"source", which is a standalone executable program in system. A running 
+instance (i.e. OS process) of this "source" program would get a specific 
+media stream by the corresponding protocol into StreamSwitch. 
+The component implementing an output protocol is called "port", which is 
+also a standalone program in system. It usually works as a server of 
+the corresponding protocol. When a client connects to this server, 
+a child process or thread would be created, which is responsible to get 
+a speicfied media stream from the corresponding source, and transmit to the 
+client by its protcol. 
 The component to manage all the "source"s and "port"s is called "controller", 
 which is a (python) library, 
 providing API of StreamSwitch to the outside world. Also, the "controller" is 
@@ -118,7 +118,26 @@ more.
 
 ## 4.1 Architecture 
 
-The main components in StreamSwitch is called "Source" and "Port", 
+The main components in StreamSwitch is called "Source" and "Port". 
+"Source" implements the input protocol. 
+Each kind of source implements one kind of protcol for input, for example, RTSP 
+Source implements RTSP protcol, RTMP Source implements RTMP protocol. 
+Each running instance (i.e. an OS process) of the source get a specific 
+media stream from outside by its corresponding protocol, and publish it through the StreamSwitch 
+protocol. So, a running source instance can represent the media stream 
+inputted by it. A media stream in StreamSwitch also means the running source 
+instance associated with it. 
+
+Each media stream has a unique name in StreamSwitch to identify it. 
+Other component can subscribe a certain media stream through StreamSwitch 
+protocl accroding its stream name. 
+
+The "Port" in StreamSwitch is to implement an output protocol. Usually, 
+the port works as the serve of its corresponding protocol. 
+
+
+
+
 
 ## 4.2 Protocol
 
