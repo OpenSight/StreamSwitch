@@ -6,29 +6,29 @@
 StreamSwitch is an open source framework(library) of streaming media server 
 for scalable and multi-protocol network environment.
 
-Generally speaking, a live media stream as well as a 
-replay stream can be input to StreamSwitch, from a specific source like a 
-file, a device, a media server by different approach. StreamSwitch converts 
-it into the internal format, and output it to different clients by different 
-protocols. The new input or output approach (protocol) can be added to 
+Generally speaking, a live media stream as well as a replay stream can be 
+inputted to StreamSwitch, from a specific source like a file, a device, a 
+media server by different approach. StreamSwitch converts it into the internal 
+format, and output it to different clients by different protocols. 
+The new input or output approach (protocol) can be added to 
 StreamSwitch by the plug-in method, in theory, StreamSwitch can support any 
 stream media protocol as long as you write an extension(plug-in) for it. 
 
-In StreamSwitch, the component implementing an input protocol is called 
+In StreamSwitch, the component implementing the input protocol is called 
 "source", which is a standalone executable program in system. A running 
-instance (i.e. OS process) of this "source" program would get a specific 
+instance (i.e. an OS process) of this "source" program would get a specific 
 media stream by the corresponding protocol into StreamSwitch. 
 The component implementing an output protocol is called "port", which is 
 also a standalone program in system. It usually works as a server of 
 the corresponding protocol. When a client connects to this server, 
 a child process or thread would be created, which is responsible to get 
-a speicfied media stream from the corresponding source, and transmit to the 
-client by its protcol. 
+the specified media stream from the corresponding source, and transmit to the 
+client by its protocol. 
 The component to manage all the "source"s and "port"s is called "controller", 
-which is a (python) library, 
-providing API of StreamSwitch to the outside world. Also, the "controller" is 
-shipped with a web application, which provides a Web UI for demonstrating the 
-functionality of StreamSwitch to the customer. 
+which is a (python) library, providing the API of StreamSwitch to the outside 
+world. Also, the "controller" is shipped with a web application, which 
+provides a Web UI for demonstrating the functionality of StreamSwitch 
+to the customer. 
 
 From the above, it's very easy to add the new input/output protocol support to 
 StreamSwitch. And each protocol component in StreamSwitch is completely 
@@ -118,32 +118,37 @@ more.
 
 ## 4.1 Architecture 
 
+![StreamSwitch Arch](https://github.com/OpenSight/StreamSwitch/wiki/images/arch.png)
+
 The main components in StreamSwitch is called "Source" and "Port". 
 "Source" implements the input protocol. 
-Each kind of source implements one kind of protcol for input, for example, RTSP 
-Source implements RTSP protcol, RTMP Source implements RTMP protocol. 
+One kind of protocol is implemented by one kind of source, for example, RTSP 
+Source implements RTSP protocol, RTMP Source implements RTMP protocol, etc. 
 Each running instance (i.e. an OS process) of the source get a specific 
-media stream from outside by its corresponding protocol, and publish it through the StreamSwitch 
-protocol. So, a running source instance can represent the media stream 
-inputted by it. A media stream in StreamSwitch also means the running source 
-instance associated with it. 
+media stream from outside by its corresponding protocol, and publish it 
+through the StreamSwitch protocol. So, a running source instance can represent 
+the media stream inputted by it. A media stream in StreamSwitch also means the 
+running source instance associated with it. No difference between the media 
+stream and the running source instance. 
 
 Each media stream has a unique name in StreamSwitch to identify it. 
 Other component can subscribe a certain media stream through StreamSwitch 
-protocl accroding its stream name. 
+protocol according to its stream name. 
 
 The "Port" in StreamSwitch is to implement an output protocol. Usually, 
-the port works as the serve of its corresponding protocol. 
-
-
-
+the port works as the server of its corresponding protocol. When a client 
+connect to this port server, it would create a child process or thread to deal 
+with this client. This process or thread normally will subscribe one certain 
+stream according to the stream name which is often given in the request URL, 
+and transmit to the client by its protocol. Multi clients (processes) can 
+subscribe the same media stream at the same time. 
 
 
 ## 4.2 Protocol
 
 The key of StreamSwitch is "protocol". StreamSwitch Protocol is composed of 
-two layer, serialization and transport. Serialization layer is responsible 
-to pack the message, and transport layer is to transfer the data between 
+two parts, serialization and transport. Serialization part is responsible 
+to pack the message, and transport part is to transfer the data between 
 different components. 
 
 ### 4.2.1 Serialization
@@ -185,7 +190,7 @@ and Sink, and Pub-Sub socket is used to publish the packets from Source to
 sink. Moreover, StreamSwitch also make use of multi-part message feature 
 of ZeroMQ. 
 
-The content of the multi-part message carwrtkrie=-ried on the request-reply socket is 
+The content of the multi-part message on the request-reply socket is 
 defined as below: 
 
 | packet | extra blob |
