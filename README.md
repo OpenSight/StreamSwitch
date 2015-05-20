@@ -16,14 +16,16 @@ stream media protocol as long as you write an extension(plug-in) for it.
 
 In StreamSwitch, the component implementing an input protocol is called 
 "source", which is a standalone executable program in system. Each of the 
-input media streams based on this protocol is a running instance 
-(i.e. OS Process) of this "source" program. The component implementing an 
-output protocol is called "port", which is also a standalone program in system. 
+input media streams (i.e. source stream) based on this protocol is a 
+running instance (i.e. OS Process) of this "source" program. 
+The component implementing an output protocol is called "port", 
+which is also a standalone program in system. 
 The main process of this "port" program is usually responsible to master the 
 server of this protocol, like listening on the socket, accepting the incoming 
-connections. Each of the output stream to one client is usually implemented as 
-a forked child process or thread of this "port". The component to manage all 
-the "source"s and "port"s is called "controller", which is a (python) library, 
+connections. Each of the output stream (i.e. sink stream) to one client is 
+usually implemented as a forked child process or thread of this "port". 
+The component to manage all the "source"s and "port"s is called "controller", 
+which is a (python) library, 
 providing API of StreamSwitch to the outside world. Also, the "controller" is 
 shipped with a web application, which provides a Web UI for demonstrating the 
 functionality of StreamSwitch to the customer. 
