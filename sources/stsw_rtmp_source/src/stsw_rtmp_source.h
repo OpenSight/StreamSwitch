@@ -15,23 +15,49 @@
 #include <unistd.h>
 
 #include <librtmp/rtmp.h>
+#include <librtmp/log.h>
 #include <stream_switch.h>
 
 
 
-class RtmpClientSource: public stream_switch::SourceListener{
-
+class RtmpClientSource: public stream_switch::SourceListener
+{
 public:
-    RtmpClientSource(std::string rtmpUrl);
-    ~RtmpClientSource();
+    static RtmpClientSource* Instance()
+    {
+        if ( NULL == s_instance )
+        {
+            s_instance = new RtmpClientSource();
+        }
 
-    int Connect();
+        return s_instance;
+    }
+
+    static void Uninstance()
+    {
+        if ( NULL != s_instance )
+        {
+            delete s_instance;
+            s_instance = 0;
+        }
+    }
+
+    void SetQuit();
+    int Connect(std::string rtmpUrl);
+
 
     void OnKeyFrame(void) {};
     void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic) {};
 
 
+
 private:
+    RtmpClientSource();
+    virtual ~RtmpClientSource();
+
+    static RtmpClientSource * s_instance;
+
+    char quit_;
     stream_switch::StreamSource source_;
     std::string rtmpUrl_;
     RTMP*  rtmp_;
