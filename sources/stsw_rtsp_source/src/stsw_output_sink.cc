@@ -172,7 +172,7 @@ void  MediaOutputSink::CheckLostByTime(stream_switch::MediaFrameType frame_type,
                cur_gap >= last_gap_ * 1.7){
                double lost = (int)((cur_gap - last_gap_) / last_gap_);
                lost_frames_ += (int)(lost + 0.5);
-               envir() << "lost_frames_ :" << (int)lost_frames_ << "\n"; 
+               //envir() << "lost_frames_ :" << (int)lost_frames_ << "\n"; 
                if(rtsp_client_!= NULL){
                    rtsp_client_->UpdateLostFrame(sub_stream_index_, lost_frames_);
                }

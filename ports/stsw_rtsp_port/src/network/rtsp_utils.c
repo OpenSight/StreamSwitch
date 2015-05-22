@@ -1,0 +1,373 @@
+/* *
+ * This file is part of Feng
+ *
+ * Copyright (C) 2009 by LScube team <team@lscube.org>
+ * See AUTHORS for more details
+ *
+ * feng is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * feng is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with feng; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ * */
+
+/** @file
+ * @brief Contains declarations of various RTSP utility structures and functions
+ *
+ * Contains declaration of RTSP structures and constants for error management,
+ * declaration of various RTSP requests validation functions and various
+ * internal functions
+ */
+
+#include <stdbool.h>
+
+#include <liberis/headers.h>
+#include <glib.h>
+
+#include "feng.h"
+#include "rtsp.h"
+#include "rtp.h"
+#include "media/demuxer.h"
+#include "fnc_log.h"
+
+/**
+ * @defgroup rtsp_utils Utility functions
+ * @ingroup RTSP
+ *
+ * @{
+ */
+
+/**
+ * @brief Append a range to an RTSP session's editlist
+ *
+ * @param session The RTSP session to append the range to
+ * @param range The range to append
+ *
+ * This functin forms the basis used for editlist handling as defined
+ * by RFC 2326 Section 10.5.
+ */
+void rtsp_session_editlist_append(RTSP_session *session, RTSP_Range *range)
+{
+    g_queue_push_tail(session->play_requests, range);
+}
+
+/**
+ * @brief Free the single range in an editlist
+ *
+ * @param element The Range to free
+ * @param user_data Unused
+ *
+ * @internal This should only be called through g_list_foreach by @ref
+ *           rtsp_session_editlist_free.
+ */
+static void rtsp_range_free(gpointer element,
+                            gpointer user_data)
+{
+    g_slice_free(RTSP_Range, element);
+}
+
+/**
+ * @brief Free the editlist of a given session
+ *
+ * @param session The RTSP session to free the editlist of
+ */
+void rtsp_session_editlist_free(RTSP_session *session)
+{
+    g_queue_foreach(session->play_requests, rtsp_range_free, NULL);
+    g_queue_clear(session->play_requests);
+}
+
+/**
+ * @brief Allocate and initialise a new RTSP session object
+ *
+ * @param rtsp The RTSP client for which to allocate the session
+ *
+ * @return A pointer to a newly allocated RTSP session object
+ *
+ * @see rtsp_session_free();
+ */
+RTSP_session *rtsp_session_new(RTSP_Client *rtsp)
+{
+    RTSP_session *new = rtsp->session = g_slice_new0(RTSP_session);
+
+    new->srv = rtsp->srv;
+    new->session_id = g_strdup_printf("%08x%08x",
+                                      g_random_int(),
+                                      g_random_int());
+    new->play_requests = g_queue_new();
+
+
+    new->scale = 1.0;
+    new->scale_req = 1.0;
+    new->onlyKeyFrame = 0;
+    new->simpleAudioSkip = 0;
+    new->download = 0;
+    new->disableRateControl = 0;
+
+    return new;
+}
+
+/**
+ * @brief Free resources for a RTSP session object
+ *
+ * @param session Session to free resource for
+ *
+ * @see rtsp_session_new()
+ */
+void rtsp_session_free(RTSP_session *session)
+{
+    if ( !session )
+        return;
+
+    /* Release all the connected RTP sessions */
+    rtp_session_gslist_free(session->rtp_sessions);
+    g_slist_free(session->rtp_sessions);
+
+    rtsp_session_editlist_free(session);
+    g_queue_free(session->play_requests);
+
+    g_free(session->resource_uri);
+    r_close(session->resource);
+
+    g_free(session->session_id);
+    g_slice_free(RTSP_session, session);
+}
+
+
+/**
+ * RTSP Header and request parsing and validation functions
+ * @defgroup rtsp_validation Requests parsing and validation
+ * @ingroup rtsp_utils
+ *
+ * @{
+ */
+
+/**
+ * @brief Checks if the path required by the connection is inside the avroot.
+ *
+ * @param url The netembryo Url structure to validate.
+ *
+ * @retval true The URL does not contian any forbidden sequence.
+ * @retval false The URL contains forbidden sequences that might have malicious
+ *         intent.
+ *
+ * @todo This function should be moved to netembryo.
+ * @todo This function does not check properly for paths.
+ */
+static gboolean check_forbidden_path(Url *url)
+{
+    if ( strstr(url->path, "../") || strstr(url->path, "./") )
+        return false;
+
+    return true;
+}
+
+/**
+ * Validates the url requested and sets up the connection informations
+ * for the given url
+ *
+ * @param urlstr The string contianing the raw URL that has to be
+ *               validated and split.
+ * @param[out] url The netembryo Url structure to fill with the
+ *                 validate Url.
+ *
+ * @retval true The URL has been filled in url.
+ * @retval false The URL is malformed.
+ *
+ * @todo This function should be moved to netembryo.
+ */
+static gboolean validate_url(char *urlstr, Url * url)
+{
+    char *decoded_url = g_uri_unescape_string(urlstr, NULL);
+    if ( decoded_url == NULL )
+        return false;
+
+    Url_init(url, decoded_url);
+
+    g_free(decoded_url);
+
+    if ( url->path == NULL ) {
+      Url_destroy(url);
+      return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Takes care of extracting and validating an URL from the a request
+ *        structure.
+ *
+ * @param req The request structure from where to extract the URL
+ * @param[out] url The netembryo Url structure where to save the buffer
+ *
+ * This function already takes care of sending a 400 "Bad Request" response for
+ * invalid URLs or a 403 "Forbidden" reply for paths that try to exit the
+ * accessible sandbox.
+ *
+ * @retval true The URL was properly found and extracted
+ * @retval false An error was found, and a reply was already sent.
+ */
+gboolean rtsp_request_get_url(RTSP_Request *req, Url *url) {
+  if ( !validate_url(req->object, url) ) {
+      rtsp_quick_response(req, RTSP_BadRequest);
+      return false;
+  }
+
+  if ( !check_forbidden_path(url) ) {
+      rtsp_quick_response(req, RTSP_Forbidden);
+      return false;
+  }
+
+  return true;
+}
+
+/**
+ * @brief Check the URL from a request structure without saving it
+ *
+ * @param req The request structure from where to check the URL
+ *
+ * @retval true The URL is valid and allowed
+ * @retval false The URL is not not valid or forbidden
+ *
+ * @note This function will allocate and destroy the memory by itself,
+ *       it's used where the actual URL is not relevant to the code
+ */
+gboolean rtsp_request_check_url(RTSP_Request *req) {
+    Url url;
+
+    if ( !rtsp_request_get_url(req, &url) )
+        return false;
+
+    Url_destroy(&url);
+
+    return true;
+}
+
+/**
+ * @}
+ */
+
+/**
+ * @brief Writes a GString to the output buffer of an RTSP connection
+ *
+ * @param rtsp where the output buffer is saved
+ * @param buffer GString instance from which to get the data to send
+ *
+ * @note The buffer has to be considered destroyed after calling this function
+ *       (the writing thread will take care of the actual destruction).
+ */
+void rtsp_bwrite(RTSP_Client *rtsp, GString *buffer)
+{
+    /* Copy the GString into a GByteArray; we can avoid copying the
+       data since both are transparent structures with a g_malloc'd
+       data pointer.
+     */
+    GByteArray *outpkt = g_byte_array_new();
+    outpkt->data = (guint8*)buffer->str;
+    outpkt->len = buffer->len;
+
+    /* make sure you don't free the actual data pointer! */
+    g_string_free(buffer, false);
+
+    g_queue_push_head(rtsp->out_queue, outpkt);
+    ev_io_start(rtsp->srv->loop, &rtsp->ev_io_write);
+}
+
+/**
+ * @brief Check if a method has been called in an invalid state.
+ *
+ * @param req Request for the method
+ * @param invalid_state State where the method is not valid
+ *
+ * If the method was called in the given invalid state, this function responds
+ * to the client with a 455 "Method not allowed in this state" response, which
+ * contain the Allow header as specified by RFC2326 Sections 11.3.6 and 12.4.
+ */
+gboolean rtsp_check_invalid_state(const RTSP_Request *req,
+                                  RTSP_Server_State invalid_state) {
+    static const char *const valid_states[] = {
+        [RTSP_SERVER_INIT] = "OPTIONS, DESCRIBE, SETUP, TEARDOWN",
+        [RTSP_SERVER_READY] = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY",
+        [RTSP_SERVER_PLAYING] = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE"
+        /* We ignore RECORDING state since we don't support it */
+    };
+    RTSP_Response *response;
+
+    if ( req->client->session->cur_state != invalid_state )
+        return true;
+
+    response = rtsp_response_new(req, RTSP_InvalidMethodInState);
+
+    g_hash_table_insert(response->headers,
+                        g_strdup(eris_hdr_allow),
+                        g_strdup(valid_states[invalid_state]));
+
+    rtsp_response_send(response);
+
+    return false;
+}
+
+
+/**
+ * @brief Parse the Require header and eventually set it 
+ *        globally
+ *
+ * @param req The request to check and parse
+ *
+ *
+ * @retval RTSP_Ok Parsing completed correctly.
+ *
+ * @retval RTSP_NotImplemented The Require: header specifies 
+ *                             some specific feature of this
+ *                             rtsp request. for now, PS/MP2P is
+ *                             supported to indicate to
+ *                             transport PS stream on RTP
+ *
+ */
+RTSP_ResponseCode parse_require_header(RTSP_Request *req)
+{
+    const char *require_hdr = g_hash_table_lookup(req->headers, "Require");
+    unsigned short tempStreamType;
+    unsigned short *pStreamType = &tempStreamType;
+
+    /* If we have no frames header, just return OK.
+     */
+    if ( require_hdr == NULL  ) {
+        return RTSP_Ok;
+    }
+
+    fnc_log(FNC_LOG_VERBOSE, "Require header: %s\n", require_hdr);
+
+    if( req->client != NULL && req->client->srv!= NULL ) {
+        pStreamType = &(req->client->srv->srvconf.default_stream_type);
+
+    }
+    if(strstr(require_hdr,"PS") != NULL) {
+        *pStreamType = PS_STREAM;
+        
+    }else if(strstr(require_hdr,"MP2P") != NULL){
+        *pStreamType = MP2P_STREAM;
+
+    }else if(strstr(require_hdr,"RAW") != NULL){
+        *pStreamType = RAW_STREAM;
+    }else{
+        return RTSP_NotImplemented;
+
+    }
+
+    return RTSP_Ok;
+}
+
+/**
+ * @}
+ */
