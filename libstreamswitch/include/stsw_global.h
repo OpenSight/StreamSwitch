@@ -39,13 +39,23 @@ namespace stream_switch {
 // GlobalInit()
 // init stream switch core lib, and install the default SIGINT/SIGTERM signal
 // handler which simple set global interrupt flag to true.
-// User should invoke this function before any other functions of the library
+// User should invoke this function before any methods of source/sink
+// class. 
+// The stream switch core lib cannot work very well for fork(). If 
+// user invokes GlobalInit() but not yet init any source nor sink in parent 
+// before fork() ,it would be OK if user invoke GlobalUninit() in the child 
+// process after fork(). Otherwise, some errors would occurs. It's not 
+// recommand using fork() after GlobalInit() in multi-process situation.  
+// sink class in parent process
+// 
+// Note: ArgParser & RotateLogger class don't require invoking GlobalInit()
 int GlobalInit();
 
 // GlobalUninit()
 // shutdown stream switch core lib, and reset SIGINT/SIGTERM signal handler
 // to the original before GlobalInit().
-// User should invoke this fucntion after other functions of the librayry
+// User should invoke this fucntion after using source/sink
+// class
 void GlobalUninit();
 
 // check global interrupt flag, 

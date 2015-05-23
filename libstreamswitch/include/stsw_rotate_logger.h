@@ -80,6 +80,8 @@ protected:
     virtual void ShiftFile() ;
     virtual int OpenFile();  
     virtual void CloseFile();
+    virtual bool CheckFork();
+    virtual void CheckRotateInternal();
     
 private:
     std::string prog_name_;
@@ -96,7 +98,9 @@ private:
 // rotate logger flags
 #define ROTATE_LOGGER_FLAG_INIT 1
 
-    volatile uint32_t flags_;      
+    volatile uint32_t flags_;   
+
+    pid_t pid_;
 
 };
 

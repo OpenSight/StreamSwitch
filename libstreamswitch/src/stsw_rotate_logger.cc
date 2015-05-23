@@ -59,7 +59,7 @@ RotateLogger::RotateLogger()
 :file_size_(0), rotate_num_(0), stderr_redirect_(false), 
 log_level_(0), fd_(-1), redirect_fd_old_(-1), flags_(0)
 {
-    
+    pid_ = getpid();    
 }
 
 RotateLogger::~RotateLogger()
@@ -148,6 +148,9 @@ int RotateLogger::Init(std::string prog_name, std::string base_name,
         perror("Open log file failed"); 
         goto error_2;
     }        
+    
+
+    
     flags_ |= ROTATE_LOGGER_FLAG_INIT;  
    
     return 0;
@@ -220,7 +223,24 @@ int RotateLogger::log_level()
 {
     return log_level_;
 }
-        
+
+bool RotateLogger::CheckFork()
+{
+    if(pid_ == getpid()){        
+        return false;
+    }else{
+        CloseFile();
+        if(redirect_fd_old_ >= 0){
+            //restore the original stderr fd
+            dup2(redirect_fd_old_, STDERR_FD);
+            close(redirect_fd_old_);
+            redirect_fd_old_ = -1;
+        }  
+        return true;
+    }
+}
+
+
 void RotateLogger::CheckRotate()
 {
     if(!IsInit()){
@@ -228,6 +248,16 @@ void RotateLogger::CheckRotate()
     }
     
     LockGuard guard(&lock_);  
+    
+    CheckRotateInternal();
+}
+
+void RotateLogger::CheckRotateInternal()
+{
+    //pretect child process from writing to logger
+    if(CheckFork()){
+        return;
+    }
     
     if(IsTooLarge()){
         CloseFile();
@@ -294,10 +324,11 @@ void RotateLogger::LogV(int level, const char * filename, int line, const char *
     //
     //print log to log file
     {
-        //check if need rotate
-        CheckRotate();  
-      
         LockGuard guard(&lock_);  
+        
+        //check if need rotate
+        CheckRotateInternal();  
+      
         if(fd_ >= 0){
             write(fd_, log_str.c_str(), log_str.length());            
         }
