@@ -27,9 +27,13 @@
 
 #ifndef LIBERIS_UTILS_H__
 #define LIBERIS_UTILS_H__
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <glib.h>
 
 GHashTable *_eris_hdr_table_new();
-
+#ifdef __cplusplus
+}
+#endif
 #endif

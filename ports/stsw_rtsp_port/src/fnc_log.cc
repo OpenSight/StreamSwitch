@@ -32,6 +32,8 @@
 
 #include "fnc_log.h"
 
+#include <string>
+
 #undef fnc_log
 
 #define LOG_FORMAT "%d/%b/%Y:%H:%M:%S %z"
@@ -42,50 +44,74 @@ static FILE *fd = NULL;
 
 static int log_level = FNC_LOG_WARN;
 
+static const char *log_level_str[] = 
+{
+    "FATAL", 
+    "ERR", 
+    "WARN", 
+    "INFO", 
+    "CLIENT",
+    "DEBUG", 
+    "VERBOSE", 
+}; 
+
+
 /**
  * Log to file descriptor
  * @brief print on standard error or file
  */
 static void fnc_errlog(int level, char * file, int line, const char *fmt, va_list args)
 {
-    time_t now;
-    char date[MAX_LEN_DATE];
-    const struct tm *tm;
 
     if (level > log_level) return;
 
-    time(&now);
-    tm = localtime(&now);
-    strftime(date, MAX_LEN_DATE, ERR_FORMAT, tm);
-
-    switch (level) {
-        case FNC_LOG_FATAL:
-            fprintf(fd, "[%s] [fatal error] ", date);
-            break;
-        case FNC_LOG_ERR:
-            fprintf(fd, "[%s] [error] ", date);
-            break;
-        case FNC_LOG_WARN:
-            fprintf(fd, "[%s] [warning] ", date);
-            break;
-        case FNC_LOG_DEBUG:
-            fprintf(fd, "[%s] [debug] ", date);
-            break;
-        case FNC_LOG_VERBOSE:
-            fprintf(fd, "[%s] [verbose debug] ", date);
-            break;
-        case FNC_LOG_CLIENT:
-            fprintf(fd, "[%s] [client] ", date);
-            break;
-        default:
-        case FNC_LOG_INFO:
-            fprintf(fd, "[%s] ", date);
-            break;
+    ::std::string log_str;
+    int ret;
+    char time_str_buf[32];
+    time_t curtime = time (NULL);
+    char *time_str;
+    time_str = ctime_r(&curtime, time_str_buf);    
+    time_str_buf[strlen(time_str_buf) - 1] = 0; //remove the end NEWLINE char
+#define MAX_LOG_RECORD_SIZE 1024    
+    //
+    // make up the log record string
+    char * tmp_buf = new char[MAX_LOG_RECORD_SIZE];
+    tmp_buf[MAX_LOG_RECORD_SIZE - 1] = 0;
+    ret = snprintf(tmp_buf, MAX_LOG_RECORD_SIZE - 1, 
+             "[%s][%s][%s:%d]: ",
+             time_str, 
+             log_level_str[level], 
+             filename, line);
+    if(ret < 0){
+        goto out;
     }
+    log_str += tmp_buf;
+    
 
-    vfprintf(fd, fmt, args);
-    fprintf(fd, "\n");
-    fflush(fd);
+    ret = vsnprintf (tmp_buf, MAX_LOG_RECORD_SIZE - 1, fmt, args);
+    if(ret < 0){
+        goto out;
+    }
+  
+    log_str += tmp_buf;
+    if(log_str[log_str.length() - 1] != '\n'){
+        log_str.push_back('\n');
+    }
+       
+    //
+    //print log to log file
+
+ 
+      
+    if(fd){
+        fwrite(log_str.c_str(), log_str.length(), 1, fd); 
+        fflush(fd);           
+    }
+    
+    
+out:
+    delete[] tmp_buf;
+
 }
 
 
@@ -140,15 +166,15 @@ fnc_log_t fnc_log_init(char *file, int out, int level, char *name)
     log_level = level;
     switch (out) {
         case FNC_LOG_SYS:
-#if HAVE_SYSLOG_H
             openlog(name, LOG_PID /*| LOG_PERROR*/, LOG_DAEMON);
             fnc_vlog = fnc_syslog;
-#endif
             break;
         case FNC_LOG_FILE:
-            if ((fd = fopen(file, "a+")) == NULL) fd = stderr;
+            //if ((fd = fopen(file, "a+")) == NULL) fd = stderr;
             break;
         case FNC_LOG_OUT:
+            fd = stderr;
+            fnc_vlog = fnc_errlog;
             break;
     }
     return NULL;
@@ -165,18 +191,22 @@ void fnc_log_internal(int level, char * file, int line, const char *fmt, ...)
 {
     va_list vl;
     va_start(vl, fmt);
-    fnc_vlog(level, file, line, fmt, vl);
+    if(fnc_vlog != NULL){
+        fnc_vlog(level, file, line, fmt, vl);
+        
+    }
     va_end(vl);    
 }
 
 
 void fnc_log_uninit(void)
 {
+    if(fnc_vlog == fnc_syslog){
+        closelog();
+    }
     
+    fd = stderr;
+    fnc_vlog = fnc_errlog;    
 }
 
 
-void fnc_log_change_child(void){
-    
-
-}

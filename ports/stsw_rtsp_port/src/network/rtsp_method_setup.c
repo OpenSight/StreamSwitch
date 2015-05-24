@@ -35,12 +35,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef TRISOS
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#endif
+
 
 #include "feng.h"
 #include "rtp.h"
@@ -49,7 +49,7 @@
 #include "fnc_log.h"
 #include "media/demuxer.h"
 
-#ifdef TRISOS
+
 /* get the current socket buffer size */
 static unsigned get_sock_buffer_size(Sock *socket_obj, int bufOptName) {
   unsigned curSize;
@@ -89,11 +89,11 @@ static unsigned increase_sock_buffer_to(Sock *socket_obj, int bufOptName, unsign
 }
 
 #ifndef RTP_BUF_SIZE
-#define RTP_BUF_SIZE 512000
+#define RTP_BUF_SIZE (1024*1024)     /* 1 MB */
 #endif
 
 #ifndef RTPoverTCP_BUF_SIZE
-#define RTPoverTCP_BUF_SIZE (2*1024*1024) /* 2M */
+#define RTPoverTCP_BUF_SIZE (512*1024) /* 512 KB */
 #endif
 
 #if 0
@@ -141,7 +141,81 @@ static RTSP_ResponseCode parse_host_header(RTSP_Request *req, RTP_transport *tra
     return RTSP_Ok;
 }
 #endif
-#endif
+
+void free_sock(gpointer data)
+{
+    Sock_close((Sock *)data);
+}
+static int get_sock_pair(Sock * sock_pair[2])
+{
+    Sock * rtp_sock = NULL, * rtcp_sock = NULL;
+    char port_buffer[8];
+    int ret = -1;
+    int rtp_port_num = 0, rtcp_port_num = 0;
+    GHashTable *socket_hash_table = NULL; 
+    gboolean success = false;
+    int i;
+    
+    socket_hash_table = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                                         g_free, free_sock);
+    if(socket_hash_table == NULL){
+        return -1;
+    }
+    for(i=0;i<8192;i++){  // try for 8192 times
+        
+        //create a new rtp socket with a random port
+        snprintf(port_buffer, 8, "%d", 0);
+        rtp_sock = Sock_bind(NULL, port_buffer, NULL, UDP, NULL);    
+        if (rtp_sock == NULL) {
+            ret = -1;
+            break;
+        }
+        rtp_port_num = get_local_port(rtp_sock);
+
+        
+	  
+
+        // To be usable for RTP, the client port number must be even:
+        if ((rtp_port_num&1) != 0) { // it's odd
+            // Record this socket in our table, and keep trying:
+            int * key = g_new0(int, 1);
+            *key = rtp_port_num;
+            g_hash_table_insert(socket_hash_table, key, rtp_sock);
+            rtp_sock = NULL;
+            continue;
+        }
+
+        // Make sure we can use the next (i.e., odd) port number, for RTCP:
+        rtcp_port_num = rtp_port_num|1;
+        snprintf(port_buffer, 8, "%d", rtcp_port_num);
+        rtcp_sock = Sock_bind(NULL, port_buffer, NULL, UDP, NULL);    
+        if (rtcp_sock != NULL && get_local_port(rtcp_sock) >= 0) {
+            success = true;
+            ret = 0;
+            break;
+        }else{
+            if(rtcp_sock != NULL){
+                Sock_close(rtcp_sock);
+                rtcp_sock = NULL;
+            }
+            int * key = g_new0(int, 1);
+            *key = rtp_port_num;
+            g_hash_table_insert(socket_hash_table, key, rtp_sock);
+            rtp_sock = NULL;
+            continue;
+        }
+    }
+    g_hash_table_destroy(socket_hash_table);
+    
+    if(success == false){
+        return ret;
+    }
+    
+    sock_pair[0] = rtp_sock;
+    sock_pair[1] = rtcp_sock;   
+    
+    return 0;
+}
 
 
 /**
@@ -152,30 +226,37 @@ static RTSP_ResponseCode unicast_transport(RTSP_Client *rtsp,
                                            uint16_t rtp_port, uint16_t rtcp_port)
 {
     char port_buffer[8];
-    port_pair ser_ports;
-#ifdef TRISOS
+
+    Sock * sock_pair[2];
+
     unsigned buffer_size = 0;
-#endif
+/*
     if (RTP_get_port_pair(rtsp->srv, &ser_ports) != ERR_NOERROR) {
         return RTSP_InternalServerError;
     }
-    //UDP bind for outgoing RTP packets
-    snprintf(port_buffer, 8, "%d", ser_ports.RTP);
-    transport->rtp_sock = Sock_bind(NULL, port_buffer, NULL, UDP, NULL);
+*/
+    /*Jamken: Find a RTP&RTCP port pair available in system */
+    sock_pair[0] = sock_pair[1] = NULL;
+    if(get_sock_pair(sock_pair)){
+        fnc_log(FNC_LOG_ERR,"Fail to get UDP port pair for RTP session");
+        return RTSP_UnsupportedTransport;
+    }
 
-#ifdef TRISOS
+    
+
+    //UDP bind for outgoing RTP packets
+    transport->rtp_sock = sock_pair[0];
     /*increase the buffer to RTP_BUF_SIZE */
     buffer_size = increase_sock_buffer_to(transport->rtp_sock, SO_SNDBUF, RTP_BUF_SIZE);
     fnc_log(FNC_LOG_VERBOSE,"[rtsp] Set rtp data socket send buffer size to %u", buffer_size);
-#endif
+
 
     //UDP bind for outgoing RTCP packets
-    snprintf(port_buffer, 8, "%d", ser_ports.RTCP);
-    transport->rtcp_sock = Sock_bind(NULL, port_buffer, NULL, UDP, NULL);
+    transport->rtcp_sock = sock_pair[1];
+    
+    
     //UDP connection for outgoing RTP packets
     snprintf(port_buffer, 8, "%d", rtp_port);
-
-#ifdef TRISOS
     if(transport->destination[0] != '\0') {
         Sock_connect (transport->destination, port_buffer,
                       transport->rtp_sock, UDP, NULL);
@@ -183,14 +264,10 @@ static RTSP_ResponseCode unicast_transport(RTSP_Client *rtsp,
         Sock_connect (get_remote_host(rtsp->sock), port_buffer,
                       transport->rtp_sock, UDP, NULL);
     }
-#else
-    Sock_connect (get_remote_host(rtsp->sock), port_buffer,
-                  transport->rtp_sock, UDP, NULL);
-#endif
+
 
     //UDP connection for outgoing RTCP packets
     snprintf(port_buffer, 8, "%d", rtcp_port);
-#ifdef TRISOS
     if(transport->destination[0] != '\0') {
         Sock_connect (transport->destination, port_buffer,
                       transport->rtcp_sock, UDP, NULL);
@@ -199,10 +276,7 @@ static RTSP_ResponseCode unicast_transport(RTSP_Client *rtsp,
         Sock_connect (get_remote_host(rtsp->sock), port_buffer,
                       transport->rtcp_sock, UDP, NULL);
     }
-#else
-    Sock_connect (get_remote_host(rtsp->sock), port_buffer,
-                  transport->rtcp_sock, UDP, NULL);
-#endif
+
 
     if (!transport->rtp_sock)
         return RTSP_UnsupportedTransport;
@@ -220,9 +294,9 @@ static RTSP_ResponseCode unicast_transport(RTSP_Client *rtsp,
 gboolean check_parsed_transport(RTSP_Client *rtsp, RTP_transport *rtp_t,
                                 struct ParsedTransport *transport)
 {
-#ifdef TRISOS
+
     unsigned buffer_size = 0;
-#endif
+
 
     switch ( transport->protocol ) {
     case TransportUDP:
@@ -250,7 +324,7 @@ gboolean check_parsed_transport(RTSP_Client *rtsp, RTP_transport *rtp_t,
                     "Interleaved channel number already reached max\n");
             return false;
         }
-#ifdef TRISOS
+
         /*increase the buffer to RTP_BUF_SIZE */
         buffer_size = increase_sock_buffer_to(rtsp->sock, SO_SNDBUF, RTPoverTCP_BUF_SIZE);
         do {
@@ -258,30 +332,10 @@ gboolean check_parsed_transport(RTSP_Client *rtsp, RTP_transport *rtp_t,
             setsockopt(rtsp->sock->fd, IPPROTO_TCP,TCP_NODELAY,&nodelay, sizeof(nodelay));/* disable Nagle for rtp over rtsp*/
         } while (0);
         fnc_log(FNC_LOG_VERBOSE,"[rtsp] Set RTPoverTCP data tcp socket send buffer size to %u", buffer_size);
-#endif
+
         return interleaved_setup_transport(rtsp, rtp_t,
                                            transport->parameters.TCP.ich_rtp,
                                            transport->parameters.TCP.ich_rtcp);
-    case TransportSCTP:
-        if ( transport->parameters.SCTP.ch_rtp &&
-             !transport->parameters.SCTP.ch_rtcp )
-            transport->parameters.SCTP.ch_rtcp = transport->parameters.SCTP.ch_rtp + 1;
-
-        if ( !transport->parameters.SCTP.ch_rtp ) {
-            /** @todo This part was surely broken before, so needs to be
-             * written from scratch */
-        }
-
-        if ( transport->parameters.SCTP.ch_rtp > 255 &&
-             transport->parameters.SCTP.ch_rtcp > 255 ) {
-            fnc_log(FNC_LOG_ERR,
-                    "Interleaved channel number already reached max\n");
-            return false;
-        }
-
-        return interleaved_setup_transport(rtsp, rtp_t,
-                                           transport->parameters.SCTP.ch_rtp,
-                                           transport->parameters.SCTP.ch_rtcp);
 
     default:
         return false;
@@ -349,10 +403,10 @@ static Track *select_requested_track(RTSP_Request *req, RTSP_session *rtsp_s)
             rtsp_quick_response(req, RTSP_NotFound);
             return NULL;
         }
-#ifdef TRISOS
+
         /*set rtsp session into the resource*/
         rtsp_s->resource->rtsp_sess = rtsp_s;
-#endif
+
 
         g_free(path);
     } else {
@@ -413,7 +467,7 @@ static void send_setup_reply(RTSP_Client * rtsp, RTSP_Request *req, RTSP_session
                  } else */
         { // XXX handle TLS here
 
-#ifdef TRISOS
+
             if(rtp_s->transport.destination[0] != '\0') {
                 g_string_append_printf(transport,
                                        "RTP/AVP;unicast;source=%s;destination=%s;"
@@ -431,15 +485,7 @@ static void send_setup_reply(RTSP_Client * rtsp, RTSP_Request *req, RTSP_session
                                        get_remote_port(rtp_s->transport.rtp_sock),
                                        get_remote_port(rtp_s->transport.rtcp_sock));
             }
-#else
 
-            g_string_append_printf(transport,
-                    "RTP/AVP;unicast;source=%s;"
-                    "client_port=%d-%d;server_port=",
-                    get_local_host(rtsp->sock),
-                    get_remote_port(rtp_s->transport.rtp_sock),
-                    get_remote_port(rtp_s->transport.rtcp_sock));
-#endif
         }
 
         g_string_append_printf(transport, "%d-%d",
@@ -454,12 +500,7 @@ static void send_setup_reply(RTSP_Client * rtsp, RTSP_Request *req, RTSP_session
                                    rtp_s->transport.rtp_ch,
                                    rtp_s->transport.rtcp_ch);
         }
-        else if (Sock_type(rtsp->sock) == SCTP) {
-            g_string_append_printf(transport,
-                                   "RTP/AVP/SCTP;server_streams=%d-%d",
-                                   rtp_s->transport.rtp_ch,
-                                   rtp_s->transport.rtcp_ch);
-        }
+
         break;
     default:
         break;
@@ -503,22 +544,17 @@ void RTSP_setup(RTSP_Client * rtsp, RTSP_Request *req)
         return;
 
 
-#ifdef TRISOS
+
     do{
         RTSP_ResponseCode error;
         if ( (error = parse_require_header(req)) != RTSP_Ok ){
             rtsp_quick_response(req, error);
             return;
         }
-#if 0
-        if ( (error = parse_host_header(req, &transport)) != RTSP_Ok ){
-            rtsp_quick_response(req, error);
-            return;
-        }
-#endif
+
     }while (0);
 
-#endif
+
 
     /* Parse the transport header through Ragel-generated state machine.
      *

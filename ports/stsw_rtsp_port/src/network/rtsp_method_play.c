@@ -56,7 +56,7 @@ static RTSP_ResponseCode do_play(RTSP_session * rtsp_sess)
      * resource is not seekable we only have the “0-” range selected.
      */
     /* For seekable resource, if client not give a Range header, 
-     * don't seek before play to make it play from the last position
+     * we don't seek so that it play from the last position
      */
     if ( rtsp_sess->resource->info->seekable && range->seek){
         if(r_seek(rtsp_sess->resource, range->begin_time) ){
@@ -290,7 +290,7 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
         range->seek = FALSE;
     }
 
-    if(session->resource->info->seekable){
+    if(!session->resource->info->seekable){
         /* Jamken: For a live stream,  no end time is given, 
          * begin time is fix to 0
          */        
@@ -383,6 +383,12 @@ static RTSP_ResponseCode parse_scale_header(RTSP_Request *req)
         }
         if( scaleTable[i] == 0 ) {
             return RTSP_NotImplemented;
+        }
+        
+        /* Jamken: for live stream, scale must be 1 */
+        if(!session->resource->info->seekable && 
+           scaleValue != 1.0){
+              return RTSP_NotImplemented; 
         }
 
         session->scale = scaleValue;    

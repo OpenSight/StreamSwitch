@@ -31,7 +31,8 @@
 #include "media/demuxer.h"
 #include "media/mediaparser.h"
 
-
+static void rtp_session_free(gpointer session_gen,
+                             gpointer unused);
 
 #ifdef TRISOS
 
@@ -57,7 +58,7 @@ static void rtp_transport_close(RTP_session * session)
 
     switch (session->transport.rtp_sock->socktype) {
         case UDP:
-            RTP_release_port_pair(session->srv, &pair);
+            //RTP_release_port_pair(session->srv, &pair);
         default:
             break;
     }
@@ -66,7 +67,6 @@ static void rtp_transport_close(RTP_session * session)
 }
 
 
-#ifdef TRISOS
 double rtp_scaler(RTP_session *session, double sourceTime)
 {
     if(sourceTime < 0) {
@@ -82,7 +82,7 @@ double rtp_scaler(RTP_session *session, double sourceTime)
         return sourceTime;
     }
 }
-#endif
+
 
 /*
  * Make sure all the threads get collected
@@ -92,6 +92,7 @@ double rtp_scaler(RTP_session *session, double sourceTime)
 
 static void rtp_fill_pool_free(RTP_session *session)
 {
+ #if 0   
     Resource *resource = session->track->parent;
     g_mutex_lock(resource->lock);
     resource->eor = true;
@@ -99,39 +100,11 @@ static void rtp_fill_pool_free(RTP_session *session)
     g_thread_pool_free(session->fill_pool, true, true);
     session->fill_pool = NULL;
     resource->eor = false;
+#endif    
+    
 }
 
-/**
- * Deallocates an RTP session, closing its tracks and transports
- *
- * @param session_gen The RTP session to free
- *
- * @see rtp_session_new
- *
- * @internal This function should only be called from g_slist_foreach.
- */
-static void rtp_session_free(gpointer session_gen,
-                             ATTR_UNUSED gpointer unused)
-{
-    RTP_session *session = (RTP_session*)session_gen;
 
-    /* Call this first, so that all the reading thread will stop
-     * before continuing to free resources; another way should be to
-     * ensure that we're paused before doing this but doesn't matter
-     * now.
-     */
-    rtp_transport_close(session);
-
-    if (session->fill_pool)
-        rtp_fill_pool_free(session);
-
-    /* Remove the consumer */
-    bq_consumer_free(session->consumer);
-
-    /* Deallocate memory */
-    g_free(session->uri);
-    g_slice_free(RTP_session, session);
-}
 
 /**
  * @brief Free a GSList of RTP_sessions
@@ -163,14 +136,10 @@ static void rtp_session_fill_cb(ATTR_UNUSED gpointer unused_data,
     BufferQueue_Consumer *consumer = session->consumer;
     gulong unseen;
     const gulong buffered_frames = resource->srv->srvconf.buffered_frames;
-#ifdef TRISOS
     const double buffered_ms = ((double)resource->srv->srvconf.buffered_ms) / 1000.0;
-
     while ( (unseen = bq_consumer_unseen(consumer)) < buffered_frames &&
             (resource->lastTimestamp - session->last_timestamp ) < buffered_ms ) {
-#else
-    while ( (unseen = bq_consumer_unseen(consumer)) < buffered_frames  ) {
-#endif
+
 #if 0
         fprintf(stderr, "calling read_packet from %p for %p[%s] (f:%lu/%lu) (t:last(%lf),current(%lf) %lf/%lf)\n",
                 session,
@@ -205,7 +174,7 @@ static void rtp_session_fill_cb(ATTR_UNUSED gpointer unused_data,
  */
 static void rtp_session_fill(RTP_session *session)
 {
-#ifdef TRISOS
+#if 0
 #define MAX_FILL_TASK 10
     if ( !session->track->parent->eor ){
         if(g_thread_pool_unprocessed(session->fill_pool) < MAX_FILL_TASK) {
@@ -213,16 +182,12 @@ static void rtp_session_fill(RTP_session *session)
                                GINT_TO_POINTER(-1), NULL);
         }
     }
-#else
-    if ( !session->track->parent->eor )
-        g_thread_pool_push(session->fill_pool,
-                           GINT_TO_POINTER(-1), NULL);
 
 #endif
 
 }
 
-#ifdef TRISOS
+
 static void rtp_session_end(gpointer session_gen, gpointer notEnd_gen) {
     RTP_session *session = (RTP_session*)session_gen;
     int *notEnd = (int*)notEnd_gen;
@@ -244,7 +209,7 @@ int all_rtp_session_end(RTSP_session *session) {
     }
 
 }
-#endif
+
 /**
  * @brief Resume (or start) an RTP session
  *
@@ -272,23 +237,24 @@ static void rtp_session_resume(gpointer session_gen, gpointer range_gen) {
 
     session->range = range;
     session->start_seq = 1 + session->seq_no;
-#ifdef TRISOS
+
+
     /* work around for VLC 1.1.11 seek problem, the slider would loose its control*/
     session->start_rtptime = session->last_rtptimestamp;/*g_random_int();*/
     session->isBye = 0;
     session->last_timestamp = range->begin_time;
 
-#else
-    session->start_rtptime = g_random_int();
-#endif
+
     session->send_time = 0.0;
     session->last_packet_send_time = time(NULL);
 
 
     /* Create the new thread pool for the read requests */
+    /* Jamken: fill_pool has been moved to rtsp session */
+/*
     session->fill_pool = g_thread_pool_new(rtp_session_fill_cb, session,
                                            1, true, NULL);
-
+*/
     /* Prefetch frames */
     rtp_session_fill(session);
 
@@ -329,8 +295,11 @@ static void rtp_session_pause(gpointer session_gen,
 
     /* We should assert its presence, we cannot pause a non-running
      * session! */
+    /* Jamken: fill_pool has been moved to rtsp session */
+/*     
     if (session->fill_pool)
         rtp_fill_pool_free(session);
+*/
 
     ev_periodic_stop(session->srv->loop, &session->transport.rtp_writer);
 }
@@ -360,11 +329,8 @@ static inline uint32_t RTP_calc_rtptime(RTP_session *session,
                                         MParserBuffer *buffer)
 {
     uint32_t calc_rtptime =
-#ifdef TRISOS
         rtp_scaler(session, buffer->timestamp - session->range->begin_time) * clock_rate;
-#else
-        (buffer->timestamp - session->range->begin_time) * clock_rate;
-#endif
+
     return session->start_rtptime + calc_rtptime;
 }
 
@@ -415,9 +381,9 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     const size_t packet_size = sizeof(RTP_packet) + buffer->data_size;
     RTP_packet *packet = g_malloc0(packet_size);
     Track *tr = session->track;
-#ifdef TRISOS
+
     int flag = 0;
-#endif
+
     const uint32_t timestamp = RTP_calc_rtptime(session,
                                                 tr->properties.clock_rate,
                                                 buffer);
@@ -437,7 +403,7 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     memcpy(packet->data, buffer->data, buffer->data_size);
 
 
-#ifdef TRISOS
+
     if(session->transport.rtp_sock->socktype == UDP) {
         flag = MSG_EOR;
     }else{
@@ -447,17 +413,13 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     /* make the socket write blocking to avoid packet loss */
     if (Sock_write(session->transport.rtp_sock, packet,
                    packet_size, NULL, flag) < 0) {
-#else
-    if (Sock_write(session->transport.rtp_sock, packet,
-                   packet_size, NULL, MSG_DONTWAIT
-                   | MSG_EOR) < 0) {
-#endif
+
         fnc_log(FNC_LOG_DEBUG, "RTP Packet Lost\n");
     } else {
         session->last_timestamp = buffer->timestamp;
-#ifdef TRISOS
+
         session->last_rtptimestamp = timestamp;
-#endif
+
         session->pkt_count++;
         session->octet_count += buffer->data_size;
 
@@ -465,7 +427,7 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     }
     g_free(packet);
 }
-#ifdef TRISOS
+
 #define CAL_DELTA_NEXT(session, duration) \
 ({         \
     double deltaNext = 0;  \
@@ -477,9 +439,9 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     }                                               \
     deltaNext;                                      \
 })
-#endif
 
-#ifdef TRISOS
+
+
 /**
  * Send pending RTP packets to a session.
  *
@@ -500,10 +462,6 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
 
     now = ev_now(loop);
 
-#ifdef HAVE_METADATA
-    if (session->metadata)
-        cpd_send(session, now);
-#endif
     /* If there is no buffer, it means that either the producer
      * has been stopped (as we reached the end of stream) or that
      * there is no data for the consumer to read. If that's the
@@ -515,7 +473,6 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
          */
         fnc_log(FNC_LOG_INFO, "[rtp] Stream Finished");
         rtcp_send_sr(session, BYE);
-        session->client->session->started = 0;
         return;
     }
 
@@ -523,11 +480,13 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
      * no extra frames we have a problem, since we're going to send
      * one packet at least.
      */
-    if (resource->eor)
+    if (resource->eor){
         fnc_log(FNC_LOG_VERBOSE,
             "[%s] end of resource %d packets to be fetched",
             session->track->properties.encoding_name,
             bq_consumer_unseen(session->consumer));
+            
+    }
 
     
 
@@ -545,7 +504,6 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
 
                 fnc_log(FNC_LOG_INFO, "[rtp] Stream Finished");
                 rtcp_send_sr(session, BYE);
-                session->client->session->started = 0;
                 return;
 
             }else{
@@ -553,8 +511,16 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
             }
 
                 
+        }else{
+            if(session->track->properties.media_source != MS_live){
+                next_time += CAL_DELTA_NEXT(session,session->track->properties.frame_duration);
+                
+            }else{
+                //for live media
+                next_time += 0.01;
+            
+            }
         }
-        next_time += CAL_DELTA_NEXT(session,session->track->properties.frame_duration);
 
     } else {
         MParserBuffer *next;
@@ -577,7 +543,6 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
             if(timestamp >  session->range->end_time + 0.001 ) {
                 fnc_log(FNC_LOG_INFO, "[rtp] Stream get over the range, send BYE");
                 rtcp_send_sr(session, BYE);
-                session->client->session->started = 0;
                 return;
             }
         
@@ -657,118 +622,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
     rtp_session_fill(session);
 }
 
-#else
 
-/**
- * Send pending RTP packets to a session.
- *
- * @param loop eventloop
- * @param w contains the session the RTP session for which to send the packets
- * @todo implement a saner ratecontrol
- */
-static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
-                         ATTR_UNUSED int revents)
-{
-    RTP_session *session = w->data;
-    Resource *resource = session->track->parent;
-    MParserBuffer *buffer = NULL;
-    ev_tstamp next_time = w->offset;
-
-#ifdef HAVE_METADATA
-    if (session->metadata)
-        cpd_send(session, now);
-#endif
-    /* If there is no buffer, it means that either the producer
-     * has been stopped (as we reached the end of stream) or that
-     * there is no data for the consumer to read. If that's the
-     * case we just give control back to the main loop for now.
-     */
-    if ( bq_consumer_stopped(session->consumer) ) {
-        /* If the producer has been stopped, we send the
-         * finishing packets and go away.
-         */
-        fnc_log(FNC_LOG_INFO, "[rtp] Stream Finished");
-        rtcp_send_sr(session, BYE);
-        return;
-    }
-
-    /* Check whether we have enough extra frames to send. If we have
-     * no extra frames we have a problem, since we're going to send
-     * one packet at least.
-     */
-    if (resource->eor)
-        fnc_log(FNC_LOG_VERBOSE,
-            "[%s] end of resource %d packets to be fetched",
-            session->track->properties.encoding_name,
-            bq_consumer_unseen(session->consumer));
-
-    
-
-    /* Get the current buffer, if there is enough data */
-    if ( !(buffer = bq_consumer_get(session->consumer)) ) {
-        /* We wait a bit of time to get the data but before it is
-         * expired.
-         */
-
-        if (resource->eor) {
-
-                fnc_log(FNC_LOG_INFO, "[rtp] Stream Finished");
-                rtcp_send_sr(session, BYE);
-                return;
-                
-        }
-
-        next_time += 0.01; // delay 1 ms 
-    } else {
-        MParserBuffer *next;
-        double delivery  = buffer->delivery;
-        double timestamp = buffer->timestamp;
-        double duration  = buffer->duration;
-        gboolean marker  = buffer->marker;
-        
-
-            rtp_packet_send(session, buffer);
-
-            if (session->pkt_count % 29 == 1)
-                rtcp_send_sr(session, SDES);
-
-            if (bq_consumer_move(session->consumer)) {
-                next = bq_consumer_get(session->consumer);
-                if(delivery != next->delivery) {
-                    if (session->track->properties.media_source == MS_live){
-                        next_time += next->delivery - delivery;
-                    } else {
-
-                        next_time = (session->range->playback_time -
-                                     session->range->begin_time +
-                                     next->delivery) ;
-
-                    }
-                }
-            } else {
-                if (marker)
-                    next_time += duration;
-            }
-
-            fnc_log(FNC_LOG_VERBOSE,
-                    "[%s] Now: %5.4f, cur %5.4f[%5.4f][%5.4f], next %5.4f %s\n",
-                    session->track->properties.encoding_name,
-                    ev_now(loop) - session->range->playback_time,
-                    delivery,
-                    timestamp,
-                    duration,
-                    next_time - session->range->playback_time,
-                    marker? "M" : " ");
-
-    }
-
-    ev_periodic_set(w, next_time, 0, NULL);
-    ev_periodic_again(loop, w);
-
-    rtp_session_fill(session);
-}
-
-#endif
 
 
 
@@ -781,17 +635,13 @@ static void rtcp_read_cb(ATTR_UNUSED struct ev_loop *loop,
 {
     char buffer[RTP_DEFAULT_MTU*2] = { 0, }; //FIXME just a quick hack...
     RTP_session *session = w->data;
-#ifdef TRISOS
+
     int n = Sock_read(session->transport.rtcp_sock, buffer,
                       RTP_DEFAULT_MTU*2, NULL, MSG_DONTWAIT);
     if(n >= 0 ) {
         session->last_rtcp_read_time = time(NULL);
     }
-#else
 
-    int n = Sock_read(session->transport.rtcp_sock, buffer,
-                      RTP_DEFAULT_MTU*2, NULL, 0);
-#endif
 
     fnc_log(FNC_LOG_VERBOSE, "[RTCP] Read %d byte", n);
 }
@@ -823,11 +673,10 @@ RTP_session *rtp_session_new(RTSP_Client *rtsp, RTSP_session *rtsp_s,
     rtp_s->uri = g_strdup(uri);
 
     memcpy(&rtp_s->transport, transport, sizeof(RTP_transport));
-    rtp_s->start_rtptime = g_random_int();
-#ifdef TRISOS
-    rtp_s->last_rtptimestamp = g_random_int();
-    rtp_s->last_rtcp_read_time = time(NULL);
-#endif
+
+    rtp_s->last_rtptimestamp = rtp_s->start_rtptime = g_random_int();
+    rtp_s->last_rtcp_read_time = 0;
+
     rtp_s->start_seq = g_random_int_range(0, G_MAXUINT16);
     rtp_s->seq_no = rtp_s->start_seq - 1;
 
@@ -839,9 +688,7 @@ RTP_session *rtp_session_new(RTSP_Client *rtsp, RTSP_session *rtsp_s,
     rtp_s->ssrc = g_random_int();
     rtp_s->client = rtsp;
 
-#ifdef HAVE_METADATA
-	rtp_s->metadata = rtsp_s->resource->metadata;
-#endif
+
     periodic->data = rtp_s;
     ev_periodic_init(periodic, rtp_write_cb, 0, 0, NULL);
     io->data = rtp_s;
@@ -851,4 +698,38 @@ RTP_session *rtp_session_new(RTSP_Client *rtsp, RTSP_session *rtsp_s,
     rtsp_s->rtp_sessions = g_slist_append(rtsp_s->rtp_sessions, rtp_s);
 
     return rtp_s;
+}
+
+
+/**
+ * Deallocates an RTP session, closing its tracks and transports
+ *
+ * @param session_gen The RTP session to free
+ *
+ * @see rtp_session_new
+ *
+ * @internal This function should only be called from g_slist_foreach.
+ */
+static void rtp_session_free(gpointer session_gen,
+                             ATTR_UNUSED gpointer unused)
+{
+    RTP_session *session = (RTP_session*)session_gen;
+
+    /* Call this first, so that all the reading thread will stop
+     * before continuing to free resources; another way should be to
+     * ensure that we're paused before doing this but doesn't matter
+     * now.
+     */
+    rtp_transport_close(session);
+
+/*
+    if (session->fill_pool)
+        rtp_fill_pool_free(session);
+*/
+    /* Remove the consumer */
+    bq_consumer_free(session->consumer);
+
+    /* Deallocate memory */
+    g_free(session->uri);
+    g_slice_free(RTP_session, session);
 }

@@ -109,8 +109,9 @@ static void feng_drop_privs(feng *srv)
  * block PIPE signal
  */
 
-static ev_signal signal_watcher_int;
-static ev_signal signal_watcher_term;
+ev_signal signal_watcher_int;
+ev_signal signal_watcher_term;
+
 
 static void feng_handle_signals(feng *srv)
 {
@@ -150,7 +151,6 @@ static gboolean show_version( const gchar *option_name,
 static gboolean command_environment(feng *srv, int argc, char **argv)
 {
     gboolean syslog = FALSE, filelog = FALSE;
-    int view_log;
     fnc_log_t fn;
     gchar *progname;
     
@@ -177,18 +177,18 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
  
     
     //log 
-    view_log = FNC_LOG_OUT;
+    srv->srvconf.log_type = FNC_LOG_OUT;
     
     if ( syslog )
-        view_log = FNC_LOG_SYS;
+        srv->srvconf.log_type = FNC_LOG_SYS;
     else if (filelog)
-        view_log = FNC_LOG_FILE;
+        srv->srvconf.log_type = FNC_LOG_FILE;
 
     fn = fnc_log_init(srv->srvconf.errorlog_file->ptr,
-                      view_log,
+                      srv->srvconf.log_type,
                         srv->srvconf.loglevel,
                           progname);
-    if(view_log != FNC_LOG_FILE){
+    if(srv->srvconf.log_type != FNC_LOG_FILE){
         Sock_init(fn);           
     }else{
         Sock_init(NULL);
@@ -288,7 +288,8 @@ static feng *feng_alloc(void)
     srv->x = array_init();
     CLEAN(srvconf.modules);
 #undef CLEAN
-
+    src->pid = getpid();
+    
     bq_init();
 
     return srv;
@@ -347,16 +348,20 @@ int main(int argc, char **argv)
 
     if (!g_thread_supported ()) g_thread_init (NULL);
 
+
+
     if (! (srv = feng_alloc()) ) {
         res = 1;
-        goto end;
+        goto end_1;
     }
 
     /* parses the command line and initializes the log*/
     if ( !command_environment(srv, argc, argv) ) {
         res = 1;
-        goto end;
+        goto end_2;
     }
+    
+    init_client_list();
 
     //config_set_defaults(srv);
 
@@ -364,27 +369,38 @@ int main(int argc, char **argv)
     srv->loop = ev_default_loop(0);
 
     feng_handle_signals(srv);
+    
+    feng_start_child_watcher(srv);
 
     if (!feng_bind_ports(srv)) {
-        res = 1;
-        goto end;
+        res = 3;
+        goto end_3;
     }
-
-    //loop_timer_init(srv);
 
     feng_drop_privs(srv);
 
 
 
-    /* puts in the global variable port_pool[MAX_SESSION] all the RTP usable
-     * ports from RTP_DEFAULT_PORT = 5004 to 5004 + MAX_SESSION */
-
-    //RTP_port_pool_init(srv, srv->srvconf.first_udp_port);
-
     ev_loop (srv->loop, 0);
 
- end:
-    feng_free(srv);
+    
+    
 
+end_4:
+    
+    feng_ports_cleanup(srv);
+ 
+end_3: 
+    feng_stop_child_watcher(srv);
+
+    free_client_list();
+
+    
+    fnc_log_uninit();
+    
+
+end_2: 
+    feng_free(srv);
+end_1:
     return res;
 }

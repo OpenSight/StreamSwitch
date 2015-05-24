@@ -134,7 +134,8 @@ typedef struct RTP_session {
      * rtp_session_free), so that we don't have reading threads to go
      * around during seeks.
      */
-    GThreadPool *fill_pool;
+     /* Jamken: this thread pool is moved to rtsp session */
+     //GThreadPool *fill_pool;
 
     /**
      * @brief Consumer for the track buffer queue
@@ -164,24 +165,16 @@ typedef struct RTP_session {
  * @{
  */
 
-void RTP_port_pool_init(struct feng *srv, int port);
-int RTP_get_port_pair(struct feng *srv, port_pair * pair);
-int RTP_release_port_pair(struct feng *srv, port_pair * pair);
-
-
 void add_client_list(client_port_pair* client);
 client_port_pair* get_client_list_item(pid_t pid);
 void reduce_client_list(client_port_pair* client);
+void init_client_list();
 void free_client_list();
 
-int  get_child_port(struct feng *srv);
-void release_child_port(struct feng *srv,int RTP_port);
+
 client_port_pair* new_child_port(struct feng *srv);
 void free_child_port(client_port_pair *client);
 
-
-void  feng_ports_cleanup(struct feng * srv);
-void  loop_timer_init(struct feng * srv);
 
 /**
  * @}
@@ -203,9 +196,9 @@ void rtp_session_gslist_free(GSList *);
 void rtp_session_handle_sending(RTP_session *session);
 
 
-#ifdef TRISOS
+
 double rtp_scaler(RTP_session *session, double sourceTime);
-#endif
+
 /**
  * @}
  */

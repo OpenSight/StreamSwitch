@@ -24,9 +24,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <netinet/in.h>
-#ifdef TRISOS
 #include <math.h>
-#endif
+
 
 #include "rtp.h"
 #include "rtsp.h"
@@ -180,20 +179,17 @@ static void rtcp_set_sr(RTP_session *session, RTCP_SR_Compound *outpkt)
 
     outpkt->sr_pkt.ssrc = htonl(session->ssrc);
 
-#ifdef TRISOS
+
     if(session->last_timestamp >= session->range->begin_time) {
         now = rtp_scaler(session,session ->last_timestamp - session->range->begin_time) +
               session->range->playback_time + 0.1;/* + 0.1 for vlc, vlc must used a timestamp over the current frame*/
-        ntp_time.tv_sec = (typeof(ntp_time.tv_sec)) now;
-        ntp_time.tv_nsec = (typeof(ntp_time.tv_nsec))((now - floor(now)) * 1000000000); 
+
     }else{
-
-        now = gettimeinseconds(&ntp_time);
+        now = session->range->playback_time + 0.1; 
     }
+    ntp_time.tv_sec = (typeof(ntp_time.tv_sec)) now;
+    ntp_time.tv_nsec = (typeof(ntp_time.tv_nsec))((now - floor(now)) * 1000000000); 
 
-#else
-    now = gettimeinseconds(&ntp_time);
-#endif
 
     outpkt->sr_pkt.ntp_timestampH =
         htonl((unsigned int) ntp_time.tv_sec + 2208988800u);

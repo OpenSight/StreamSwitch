@@ -35,6 +35,7 @@ extern "C" {
 #include <glib/glib.h>
 #include <netembryo/wsocket.h>
 #include <ev.h>
+#include <unistd.h>
 #ifndef __WIN32__  
 #include <pwd.h>
 #endif
@@ -69,6 +70,8 @@ typedef struct feng {
     size_t connection_count;
 
     GMutex *lock;        //!< lock to access live_mq
+    
+    pid_t pid;
 } feng;
 
 typedef feng server;

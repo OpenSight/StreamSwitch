@@ -127,7 +127,12 @@ void rtsp_session_free(RTSP_session *session)
 {
     if ( !session )
         return;
-
+    if(session->started){      
+        session->started = 0;
+    }
+    
+    /* free the fill pool */
+    
     /* Release all the connected RTP sessions */
     rtp_session_gslist_free(session->rtp_sessions);
     g_slist_free(session->rtp_sessions);

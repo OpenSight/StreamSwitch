@@ -61,7 +61,7 @@ typedef struct {
 	conf_buffer *bindhost;
 
 	conf_buffer *errorlog_file;
-	int errorlog_use_syslog;
+	int log_type;
 
     /* FIXME feng specific stuff */
         short first_udp_port;

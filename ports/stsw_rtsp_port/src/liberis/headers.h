@@ -29,6 +29,10 @@
 #ifndef LIBERIS_HEADERS_H__
 #define LIBERIS_HEADERS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <glib.h>
 
 /**
@@ -105,5 +109,7 @@ void eris_flatten_headers(GHashTable *hdrs, GString *str);
 /**
  * @}
  */
-
+#ifdef __cplusplus
+}
+#endif
 #endif

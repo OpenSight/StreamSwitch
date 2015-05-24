@@ -91,8 +91,16 @@ static void check_if_any_rtp_session_timedout(gpointer element,
                                               gpointer user_data)
 {
     RTP_session *session = (RTP_session *)element;
+    time_t *last_packet_send_time = (time_t *)user_data;
     time_t now = time(NULL);
-
+    
+    /* Jamken: get the last packet send time in all the session*/
+    if( last_packet_send_time != NULL &&
+        (session->last_packet_send_time > *last_packet_send_time){
+        *last_packet_send_time = session->last_packet_send_time;
+    }
+    
+#if 0
     /* Check if we didn't send any data for more then STREAM_BYE_TIMEOUT seconds
      * this will happen if we are not receiving any more from live producer or
      * if the stored stream ended.
@@ -111,6 +119,7 @@ static void check_if_any_rtp_session_timedout(gpointer element,
         fnc_log(FNC_LOG_INFO, "[client] Stream Timeout, client kicked off!");
         ev_async_send(session->srv->loop, &session->client->ev_sig_disconnect);
     }else{
+#endif        
         /* send RTCP SDE */
         rtcp_send_sr(session, SDES);
 
@@ -119,25 +128,73 @@ static void check_if_any_rtp_session_timedout(gpointer element,
         */
 
         if(session->srv->srvconf.rtcp_heartbeat != 0 &&
+           session->last_rtcp_read_time != 0 &&
            (now - session->last_rtcp_read_time)>=60)
         {
             fnc_log(FNC_LOG_INFO, "[client] Client Lost Connection\n");
             ev_async_send(session->srv->loop, &session->client->ev_sig_disconnect);
         }
- 
+#if 0
     }
-
+#endif
 }
 
 static void client_ev_timeout(struct ev_loop *loop, ev_timer *w,
                                int revents)
 {
     RTSP_Client *rtsp = w->data;
-    if(rtsp->session->rtp_sessions)
+    time_t last_packet_send_time = 0;
+    time_t now; = time(NULL);
+    if(rtsp->session->rtp_sessions){
         g_slist_foreach(rtsp->session->rtp_sessions,
-                        check_if_any_rtp_session_timedout, NULL);
+                        check_if_any_rtp_session_timedout, 
+                        &last_packet_send_time);
+                        
+    }
+    
+    //check stream timeout
+    now = time(NULL);
+    if((now - last_packet_send_time) >= STREAM_TIMEOUT){
+        fnc_log(FNC_LOG_ERR, "Stream Timeout, client kicked off!");
+        ev_async_send(rtsp->srv->loop, &rtsp->ev_sig_disconnect);        
+    }
+    
     ev_timer_again (loop, w);
 }
+
+static void child_terminate_cb (struct ev_loop *loop, ev_child *w, int revents)
+{
+     //ev_child_stop (EV_A_ w);
+    printf ("process %d exited with status %x\n", w->rpid, w->rstatus);
+    
+    pid_t pid = w->rpid;
+    client=get_client_list_item(pid);
+    if(client)
+    {
+        reduce_client_list(client);
+
+        srv->connection_count--;
+
+        free_child_port(client);
+
+    }    
+    
+}
+
+ev_child cw;
+
+void feng_start_child_watcher(feng *srv)
+{
+    ev_child_init (&cw, child_terminate_cb, 0, 0);
+    ev_child_start (srv->loop, &cw);    
+}
+
+void feng_stop_child_watcher(feng *srv)
+{
+    ev_child_sop (srv->loop, &cw);    
+}
+
+#if 0
 
 static void timer_watcher_cb(struct ev_loop *loop, ev_timer *w,
                                int revents)
@@ -185,7 +242,7 @@ void loop_timer_uninit(feng* srv)
     ev_timer_stop(srv->loop, &srv->loop_timer);
 }
 
-
+#endif
 
 /**
  * @brief Handle an incoming RTSP connection
@@ -243,9 +300,19 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
         
         /*clean the context of parent*/
         free_child_port(clients);
-        loop_timer_uninit(srv);
+
+
         feng_ports_cleanup(srv);
-        void fnc_log_change_child();
+        
+        feng_stop_child_watcher(srv);
+        
+
+        //void fnc_log_change_child();
+        if(srv->srvconf.log_type == FNC_LOG_FILE){
+            //child process can't write to parent log file
+            fnc_log_uninit();            
+        }
+        
 
 
         rtsp = g_slice_new0(RTSP_Client);
