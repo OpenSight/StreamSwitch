@@ -28,7 +28,7 @@
 #include "feng.h"
 #include "feng_utils.h"
 #include "rtp.h"
-
+#include "config.h"
 
 GList *child_head=NULL;
 int reach_play=0;
@@ -66,19 +66,15 @@ void free_client_list()
 
 client_port_pair* new_child_port(feng *srv)
 {
-	int i=0;
+
 	client_port_pair *client_port = g_new0(client_port_pair,1);
 	client_port->srv = srv;
 	return client_port;
-error:	
-	free_child_port(client_port);
-	client_port = NULL;
-	return NULL;	
 }
 
 void free_child_port(client_port_pair *client)
 {
-	int i=0;
+
 	if(client)
 	{
 		g_free(client);

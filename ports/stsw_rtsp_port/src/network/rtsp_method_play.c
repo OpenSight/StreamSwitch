@@ -71,17 +71,25 @@ static RTSP_ResponseCode do_play(RTSP_session * rtsp_sess)
          ((RTP_session*)(rtsp_sess->rtp_sessions->data))->multicast )
         return RTSP_Ok;
 
+
+
     rtsp_sess->started = 1;
+
+    //start the resource
+    //TODO
 
     fnc_log(FNC_LOG_VERBOSE, "[%f] resuming with parameters %f %f %f\n",
             ev_now(rtsp_sess->srv->loop),
             range->begin_time, range->end_time, range->playback_time);
-            
+    
+    //create the fill pool
+    if(rtsp_sess->resource->info->model == MM_PULL){
+        rtsp_sess->fill_pool = g_thread_pool_new(rtp_session_fill_cb, rtsp_sess,
+                                           1, true, NULL);        
+    }    
+        
     //resume all rtp session
     rtp_session_gslist_resume(rtsp_sess->rtp_sessions, range);
-    //start the resource
-    //TODO
-    
     
     return RTSP_Ok;
 }
@@ -291,7 +299,7 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
     }
 
     if(!session->resource->info->seekable){
-        /* Jamken: For a live stream,  no end time is given, 
+        /* Jamken: For a non-seekable stream,  no end time is given, 
          * begin time is fix to 0
          */        
         range->begin_time = 0;
@@ -386,7 +394,7 @@ static RTSP_ResponseCode parse_scale_header(RTSP_Request *req)
         }
         
         /* Jamken: for live stream, scale must be 1 */
-        if(!session->resource->info->seekable && 
+        if(session->resource->info->media_source == MS_live && 
            scaleValue != 1.0){
               return RTSP_NotImplemented; 
         }
@@ -570,7 +578,7 @@ void RTSP_play(RTSP_Client * rtsp, RTSP_Request *req)
 {
     RTSP_session *rtsp_sess = rtsp->session;
     RTSP_ResponseCode error;
-    const char *user_agent;
+    const char *user_agent = NULL;
 
     if ( !rtsp_check_invalid_state(req, RTSP_SERVER_INIT) )
         return;

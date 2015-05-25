@@ -24,11 +24,13 @@
  * @brief Contains PAUSE method and reply handlers
  */
 
+
 #include "feng.h"
 #include "rtsp.h"
 #include "rtp.h"
 #include "media/demuxer.h"
 
+#include <stdbool.h>
 
 static void rtp_session_last_timestamp(gpointer session_gen, gpointer last_timestamp_gen) {
     RTP_session *session = (RTP_session*)session_gen;
@@ -65,20 +67,31 @@ void rtsp_do_pause(RTSP_Client *rtsp)
     RTSP_Range *range = g_queue_peek_head(rtsp_sess->play_requests) ; 
 
     if(rtsp_sess->resource->info->seekable){
+        /* Jamken: if seekable, store the last position */
         range->begin_time = rtsp_session_last_timestamp(rtsp_sess); /* next 1ms to continue */ 
     }
 
     range->playback_time = -0.1;
     
-    
     rtp_session_gslist_pause(rtsp_sess->rtp_sessions);
-    //Stop resource
+    
+    
+    rtsp_sess->started = 0;    
+    if(rtsp_sess->fill_pool){
+        g_thread_pool_free(rtsp_sess->fill_pool, true, true);
+        rtsp_sess->fill_pool = NULL;
+    }
+
+ 
+    
+    //pause resource
     //????TODO????
 
     ev_timer_stop(rtsp->srv->loop, &rtsp->ev_timeout);
 
     rtsp_sess->cur_state = RTSP_SERVER_READY;
-    rtsp_sess->started = 0;
+
+    
 }
 
 /**

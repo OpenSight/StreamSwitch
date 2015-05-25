@@ -130,8 +130,11 @@ void rtsp_session_free(RTSP_session *session)
     if(session->started){      
         session->started = 0;
     }
-    
     /* free the fill pool */
+    if(rtsp_sess->fill_pool){
+        g_thread_pool_free(rtsp_sess->fill_pool, true, true);
+        rtsp_sess->fill_pool = NULL;
+    }
     
     /* Release all the connected RTP sessions */
     rtp_session_gslist_free(session->rtp_sessions);

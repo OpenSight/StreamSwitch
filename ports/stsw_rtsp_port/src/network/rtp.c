@@ -30,17 +30,25 @@
 #include "fnc_log.h"
 #include "media/demuxer.h"
 #include "media/mediaparser.h"
+#include "config.h"
 
 static void rtp_session_free(gpointer session_gen,
                              gpointer unused);
 
-#ifdef TRISOS
 
 #include <math.h>
 
 #define BW_TIMESLOT_UNIT         0.01
 #define BW_TIME_TIMESLOT(x)      (floor((x)/BW_TIMESLOT_UNIT)*BW_TIMESLOT_UNIT)
 #define BW_TIMESLOT_BITS_LIMIT(x) ((uint32_t)(((double)(x)) * 1000 * 1000 * BW_TIMESLOT_UNIT))
+
+
+#ifndef MSG_DONTWAIT 
+#define MSG_DONTWAIT 0x40
+#endif
+
+#ifndef MSG_EOR
+#define MSG_EOR 0x80
 #endif
 
 /**
@@ -49,9 +57,9 @@ static void rtp_session_free(gpointer session_gen,
  */
 static void rtp_transport_close(RTP_session * session)
 {
-    port_pair pair;
-    pair.RTP = get_local_port(session->transport.rtp_sock);
-    pair.RTCP = get_local_port(session->transport.rtcp_sock);
+    //port_pair pair;
+    //pair.RTP = get_local_port(session->transport.rtp_sock);
+    //pair.RTCP = get_local_port(session->transport.rtcp_sock);
 
     ev_periodic_stop(session->srv->loop, &session->transport.rtp_writer);
     ev_io_stop(session->srv->loop, &session->transport.rtcp_reader);
@@ -83,7 +91,7 @@ double rtp_scaler(RTP_session *session, double sourceTime)
     }
 }
 
-
+ #if 0 
 /*
  * Make sure all the threads get collected
  *
@@ -92,7 +100,7 @@ double rtp_scaler(RTP_session *session, double sourceTime)
 
 static void rtp_fill_pool_free(RTP_session *session)
 {
- #if 0   
+  
     Resource *resource = session->track->parent;
     g_mutex_lock(resource->lock);
     resource->eor = true;
@@ -100,10 +108,10 @@ static void rtp_fill_pool_free(RTP_session *session)
     g_thread_pool_free(session->fill_pool, true, true);
     session->fill_pool = NULL;
     resource->eor = false;
-#endif    
+   
     
 }
-
+#endif 
 
 
 /**
@@ -128,10 +136,11 @@ void rtp_session_gslist_free(GSList *sessions_list) {
  * @internal This function is used to initialize @ref
  *           RTP_session::fill_pool.
  */
-static void rtp_session_fill_cb(ATTR_UNUSED gpointer unused_data,
-                                gpointer session_p)
+void rtp_session_fill_cb( gpointer session_p, 
+                         gpointer user_data)
 {
     RTP_session *session = (RTP_session*)session_p;
+    RTSP_session *rtsp_s = (RTSP_session *)user_data;
     Resource *resource = session->track->parent;
     BufferQueue_Consumer *consumer = session->consumer;
     gulong unseen;
@@ -149,9 +158,14 @@ static void rtp_session_fill_cb(ATTR_UNUSED gpointer unused_data,
                 (resource->lastTimestamp - session->last_timestamp ),  
                 buffered_ms);
 #endif
+        if(rtsp_s->started == 0){
+            /* jamken: rtsp session has been pause */
+            break;
+        }
 
         if ( r_read(resource) != RESOURCE_OK )
             break;
+
     }
 }
 
@@ -175,15 +189,30 @@ static void rtp_session_fill_cb(ATTR_UNUSED gpointer unused_data,
 static void rtp_session_fill(RTP_session *session)
 {
 #if 0
-#define MAX_FILL_TASK 10
+
     if ( !session->track->parent->eor ){
         if(g_thread_pool_unprocessed(session->fill_pool) < MAX_FILL_TASK) {
             g_thread_pool_push(session->fill_pool,
-                               GINT_TO_POINTER(-1), NULL);
+                               session, NULL);
         }
     }
 
 #endif
+
+#define MAX_FILL_TASK 10
+    RTSP_session * rtsp_s = session->client->session;
+    if(rtsp_s == NULL){
+        return;
+    }
+    if(rtsp_s->fill_pool){
+        if ( !session->track->parent->eor ){
+            if(g_thread_pool_unprocessed(rtsp_s->fill_pool) < MAX_FILL_TASK) {
+                g_thread_pool_push(rtsp_s->fill_pool,
+                                   session, NULL);
+            }
+        }        
+    }
+    
 
 }
 
@@ -553,21 +582,35 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
                 rtcp_send_sr(session, SDES);
 
             if (bq_consumer_move(session->consumer)) {
+                //get the next packet delivery time
                 next = bq_consumer_get(session->consumer);
                 if(delivery != next->delivery) {
-                    if (session->track->properties.media_source == MS_live){
-                        next_time += next->delivery - delivery;
-                    } else {
+   
 
-                        next_time = (session->range->playback_time +
-                                     rtp_scaler(session, next->delivery -
-                                     session->range->begin_time) ) ;
+                    next_time = (session->range->playback_time +
+                                 rtp_scaler(session, next->delivery -
+                                 session->range->begin_time) ) ;
 
-                    }
+
                 }
             } else {
-                if (marker)
-                    next_time += CAL_DELTA_NEXT(session,duration);
+                /* no more packets in the queue */ 
+                /* Jamken: if this packet is end of a frame, 
+                 * just wait for a frame duration
+                 * if this packet is not end of a frame, next packet should be 
+                 * of the same frame, just delay a short time 
+                 */
+                
+                if (marker){
+                    if(session->track->properties.media_source != MS_live){
+                        next_time += CAL_DELTA_NEXT(session,duration);
+                    }else{
+                        //for live media
+                        next_time += 0.01;
+                    }
+                }else{
+                    next_time += 0.001;
+                }
 
             }
 
@@ -722,10 +765,6 @@ static void rtp_session_free(gpointer session_gen,
      */
     rtp_transport_close(session);
 
-/*
-    if (session->fill_pool)
-        rtp_fill_pool_free(session);
-*/
     /* Remove the consumer */
     bq_consumer_free(session->consumer);
 

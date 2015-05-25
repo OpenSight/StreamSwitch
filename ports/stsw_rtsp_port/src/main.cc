@@ -46,6 +46,7 @@ extern "C" {
 #include "fnc_log.h"
 #include "incoming.h"
 #include "network/rtp.h"
+#include "network/rtsp.h"
 #include <glib.h>
 #include <netembryo/wsocket.h>
 
@@ -162,7 +163,7 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     
     srv->srvconf.port = 554;
     buffer_copy_string(srv->srvconf.errorlog_file, "error.log");
-    srv->srvconf.errorlog_use_syslog = 0;
+    srv->srvconf.log_type = FNC_LOG_OUT;
     srv->srvconf.first_udp_port = 0;
     srv->srvconf.buffered_frames = 2048;
     srv->srvconf.buffered_ms = 0;
@@ -172,7 +173,7 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     srv->srvconf.max_rate = 16;
     srv->srvconf.max_mbps = 100;
     srv->srvconf.rtcp_heartbeat = 0;
-    srv->srvconf.bindhost.ptr = NULL;
+    srv->srvconf.bindhost->ptr = NULL;
     
  
     
@@ -288,7 +289,7 @@ static feng *feng_alloc(void)
     srv->x = array_init();
     CLEAN(srvconf.modules);
 #undef CLEAN
-    src->pid = getpid();
+    srv->pid = getpid();
     
     bq_init();
 
@@ -312,7 +313,7 @@ static feng *feng_alloc(void)
 static void feng_free(feng* srv)
 {
 #ifndef NDEBUG
-    unsigned int i;
+    //unsigned int i;
 
 #define CLEAN(x) \
     buffer_free(srv->srvconf.x)

@@ -54,6 +54,11 @@ typedef enum {
     MS_live
 } MediaSource;
 
+typedef enum {
+    MM_PULL=0,
+    MM_PUSH
+} MediaReadModel;
+
 //! typedefs that give convenient names to GLists used
 typedef GList *TrackList;
 typedef GList *SelList;
@@ -94,6 +99,10 @@ typedef struct ResourceInfo_s {
      * seekable) resource.
      */
     gboolean seekable;
+    
+    
+    MediaReadModel model;
+    
 } ResourceInfo;
 
 typedef struct Resource {
@@ -101,9 +110,7 @@ typedef struct Resource {
     const struct Demuxer *demuxer;
     ResourceInfo *info;
     // Metadata begin
-#ifdef HAVE_METADATA
-    void *metadata;
-#endif
+
     // Metadata end
 
     /* Timescale fixer callback function for meta-demuxers */
@@ -116,10 +123,10 @@ typedef struct Resource {
     gboolean eor;
     void *private_data; /* Demuxer private data */
     struct feng *srv;
-#ifdef TRISOS
+
     void * rtsp_sess;
     double lastTimestamp;
-#endif
+
 
 } Resource;
 

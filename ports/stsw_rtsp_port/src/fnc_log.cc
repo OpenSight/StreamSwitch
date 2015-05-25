@@ -81,7 +81,7 @@ static void fnc_errlog(int level, char * file, int line, const char *fmt, va_lis
              "[%s][%s][%s:%d]: ",
              time_str, 
              log_level_str[level], 
-             filename, line);
+             file, line);
     if(ret < 0){
         goto out;
     }
@@ -166,8 +166,10 @@ fnc_log_t fnc_log_init(char *file, int out, int level, char *name)
     log_level = level;
     switch (out) {
         case FNC_LOG_SYS:
+#ifndef __WIN32__        
             openlog(name, LOG_PID /*| LOG_PERROR*/, LOG_DAEMON);
             fnc_vlog = fnc_syslog;
+#endif            
             break;
         case FNC_LOG_FILE:
             //if ((fd = fopen(file, "a+")) == NULL) fd = stderr;
@@ -201,10 +203,11 @@ void fnc_log_internal(int level, char * file, int line, const char *fmt, ...)
 
 void fnc_log_uninit(void)
 {
+#ifndef __WIN32__    
     if(fnc_vlog == fnc_syslog){
         closelog();
     }
-    
+#endif    
     fd = stderr;
     fnc_vlog = fnc_errlog;    
 }

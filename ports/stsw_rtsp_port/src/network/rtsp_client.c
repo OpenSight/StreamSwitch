@@ -25,12 +25,13 @@
 #include "network/rtp.h"
 #include "fnc_log.h"
 #include "media/demuxer.h"
+#include "incoming.h"
 
-#ifdef TRISOS
-#include <sys/wait.h>
-#include <sys/signal.h>
 
-#endif
+//#include <sys/wait.h>
+//#include <sys/signal.h>
+
+
 #include <sys/time.h>
 #include <stdbool.h>
 #include <ev.h>
@@ -96,7 +97,7 @@ static void check_if_any_rtp_session_timedout(gpointer element,
     
     /* Jamken: get the last packet send time in all the session*/
     if( last_packet_send_time != NULL &&
-        (session->last_packet_send_time > *last_packet_send_time){
+        (session->last_packet_send_time > *last_packet_send_time)){
         *last_packet_send_time = session->last_packet_send_time;
     }
     
@@ -144,7 +145,7 @@ static void client_ev_timeout(struct ev_loop *loop, ev_timer *w,
 {
     RTSP_Client *rtsp = w->data;
     time_t last_packet_send_time = 0;
-    time_t now; = time(NULL);
+    time_t now; 
     if(rtsp->session->rtp_sessions){
         g_slist_foreach(rtsp->session->rtp_sessions,
                         check_if_any_rtp_session_timedout, 
@@ -164,10 +165,16 @@ static void client_ev_timeout(struct ev_loop *loop, ev_timer *w,
 
 static void child_terminate_cb (struct ev_loop *loop, ev_child *w, int revents)
 {
+    client_port_pair *client=NULL;
+	pid_t pid;
+	feng *srv=w->data;
+
+    
      //ev_child_stop (EV_A_ w);
     printf ("process %d exited with status %x\n", w->rpid, w->rstatus);
     
-    pid_t pid = w->rpid;
+    
+    pid = w->rpid;
     client=get_client_list_item(pid);
     if(client)
     {

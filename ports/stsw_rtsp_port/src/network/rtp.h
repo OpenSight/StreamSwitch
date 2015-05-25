@@ -76,7 +76,8 @@ typedef struct RTP_transport {
     struct sockaddr_storage last_stg;
     int rtp_ch, rtcp_ch;
     ev_periodic rtp_writer;
-
+    ev_io rtcp_reader;
+    
     char destination[64];
 
 } RTP_transport;
@@ -198,6 +199,9 @@ void rtp_session_handle_sending(RTP_session *session);
 
 
 double rtp_scaler(RTP_session *session, double sourceTime);
+
+void rtp_session_fill_cb( gpointer session_p, 
+                         gpointer user_data);
 
 /**
  * @}

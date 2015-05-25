@@ -84,6 +84,13 @@ static void feng_bound_socket_close(gpointer element,
     Sock_close((Sock*)element);
 }
 
+static void listeners_stop(feng *srv,ev_io* listener)
+{
+	ev_io_stop(srv->loop,listener);
+}
+
+
+
 /**
  * @brief Cleanup function for the @ref listeners array
  *
@@ -101,7 +108,7 @@ static void feng_bound_socket_close(gpointer element,
  */
 void  feng_ports_cleanup(feng *srv)
 {
-    int i=0;
+    //int i=0;
     g_ptr_array_foreach(listening_sockets, feng_bound_socket_close, NULL);
     g_ptr_array_free(listening_sockets, true);
     listeners_stop(srv,listeners);
@@ -110,10 +117,7 @@ void  feng_ports_cleanup(feng *srv)
 }
 
 
-void listeners_stop(feng *srv,ev_io* listener)
-{
-	ev_io_stop(srv->loop,listener);
-}
+
 
 
 
@@ -219,7 +223,7 @@ static gboolean feng_bind_port(feng *srv, const char *host, const char *port,
 
 gboolean feng_bind_ports(feng *srv)
 {
-    size_t i;
+    //size_t i;
     char *host = srv->srvconf.bindhost->ptr;
     char port[6] = { 0, };
 
