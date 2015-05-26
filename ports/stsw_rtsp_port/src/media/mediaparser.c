@@ -42,6 +42,7 @@ extern MediaParser fnc_mediaparser_amr;
 extern MediaParser fnc_mediaparser_pcma;
 extern MediaParser fnc_mediaparser_pcmu;
 extern MediaParser fnc_mediaparser_mp2p;
+extern MediaParser fnc_mediaparser_simple;
 // static array containing all the available media parsers:
 static MediaParser *media_parsers[] = {
     &fnc_mediaparser_mpv,
@@ -61,6 +62,8 @@ static MediaParser *media_parsers[] = {
     NULL
 };
 
+
+
 MediaParser *mparser_find(const char *encoding_name)
 {
     int i;
@@ -73,10 +76,12 @@ MediaParser *mparser_find(const char *encoding_name)
             return media_parsers[i];
         }
     }
+    /* Jamken: if no find, use the default simple parser */
 
-    fnc_log(FNC_LOG_DEBUG, "[MT] Media Parser for %s not found\n",
+    fnc_log(FNC_LOG_DEBUG, "[MT] Media Parser for %s not found, use simple parser\n",
             encoding_name);
-    return NULL;
+    return &fnc_mediaparser_simple;
+
 }
 
 /**
@@ -99,10 +104,10 @@ void mparser_buffer_write(Track *tr,
                           gboolean marker,
                           uint8_t *data, size_t data_size)
 {
-#ifdef TRISOS
+
     if(tr != NULL && tr->producer != NULL &&
        bq_producer_consumer_num(tr->producer) > 0) {
-#endif    
+ 
 
     MParserBuffer *buffer = g_malloc(sizeof(MParserBuffer) + data_size);
 
@@ -116,8 +121,8 @@ void mparser_buffer_write(Track *tr,
 
     bq_producer_put(tr->producer, buffer);
 
-#ifdef TRISOS
+
     tr->parent->lastTimestamp = presentation;
     }
-#endif
+
 }

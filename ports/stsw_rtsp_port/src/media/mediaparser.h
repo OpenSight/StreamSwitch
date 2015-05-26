@@ -22,6 +22,10 @@
 #ifndef FN_MEDIAPARSER_H
 #define FN_MEDIAPARSER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <glib.h>
 #include <stdint.h>
 
@@ -33,6 +37,9 @@ struct Track;
 // return errors
 #define MP_PKT_TOO_SMALL -101
 #define MP_NOT_FULL_FRAME -102
+
+
+
 
 typedef struct {
     const char *encoding_name; /*i.e. MPV, MPA ...*/
@@ -66,9 +73,9 @@ MediaParser *mparser_find(const char *);
 
 char *extradata2config(MediaProperties *properties);
 
-#ifdef TRISOS
+
 int getProfileLevelIdFromextradata(MediaProperties *properties);
-#endif
+
 
 
 
@@ -95,5 +102,11 @@ void mparser_buffer_write(struct Track *tr,
 
 
 #define DEFAULT_MTU 1440
+
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FN_MEDIAPARSER_H

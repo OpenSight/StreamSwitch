@@ -26,6 +26,10 @@
 #include "demuxer.h"
 #include "mediaparser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FNC_LIB_DEMUXER(x) const Demuxer fnc_demuxer_##x =\
 {\
 	&info, \
@@ -33,8 +37,14 @@
 	x##_init, \
 	x##_read_packet, \
 	x##_seek, \
-	x##_uninit \
+	x##_uninit, \
+    x##_start, \
+    x##_pause \
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FN_DEMUXER_MODULE_H
 

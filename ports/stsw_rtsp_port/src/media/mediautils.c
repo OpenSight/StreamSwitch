@@ -62,7 +62,7 @@ char *extradata2config(MediaProperties *properties)
 
     return config;
 }
-#ifdef TRISOS
+
 int getProfileLevelIdFromextradata(MediaProperties *properties)
 {
     size_t i;
@@ -86,4 +86,4 @@ int getProfileLevelIdFromextradata(MediaProperties *properties)
     return (int)properties->extradata[i+1]; 
 
 }
-#endif
+

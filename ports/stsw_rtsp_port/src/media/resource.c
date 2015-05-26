@@ -29,14 +29,9 @@
 #include "fnc_log.h"
 
 // global demuxer modules:
-#ifdef LIVE_STREAMING
-extern Demuxer fnc_demuxer_sd;
-#endif
-extern Demuxer fnc_demuxer_ds;
-#ifdef TRISOS
-extern Demuxer fnc_demuxer_agg;
-#endif
 extern Demuxer fnc_demuxer_avf;
+
+
 
 /**
  * @defgroup resources
@@ -63,18 +58,18 @@ extern Demuxer fnc_demuxer_avf;
  *       interface for the closing thread pool.
  */
 static void r_free_cb(gpointer resource_p,
-                      ATTR_UNUSED gpointer user_data)
+                      gpointer user_data)
 {
     Resource *resource = (Resource *)resource_p;
     if (!resource)
         return;
 
-    if (resource->lock)
-        g_mutex_free(resource->lock);
 
-#ifdef TRISOS
-    fnc_log(FNC_LOG_DEBUG, "close item %s:",resource->info->name);
-#endif
+    g_mutex_clear(&resource->lock);
+
+
+    fnc_log(FNC_LOG_DEBUG, "close resource %s:",resource->info->name);
+
     g_free(resource->info->mrl);
     g_free(resource->info->name);
     g_slice_free(ResourceInfo, resource->info);
@@ -105,13 +100,6 @@ static void r_free_cb(gpointer resource_p,
 static const Demuxer *r_find_demuxer(const char *filename)
 {
     static const Demuxer *const demuxers[] = {
-#ifdef LIVE_STREAMING
-        &fnc_demuxer_sd,
-#endif
-        &fnc_demuxer_ds,
-#ifdef TRISOS
-        &fnc_demuxer_agg,
-#endif
         &fnc_demuxer_avf,
         NULL
     };
@@ -163,25 +151,16 @@ static const Demuxer *r_find_demuxer(const char *filename)
 Resource *r_open(struct feng *srv, const char *inner_path)
 {
     Resource *r;
-#ifdef TRISOS
-    int agg_mark = 0;
-#endif
+
     const Demuxer *dmx;
     gchar *mrl = g_strjoin ("/",
-                            srv->config_storage[0].document_root->ptr,
+                            srv->config_storage.document_root->ptr,
                             inner_path,
                             NULL);
-	struct stat filestat;
+	//struct stat filestat;
 
-#ifdef TRISOS
-   if ( strstr(inner_path, ".db") != NULL)
-   {
-   		dmx = &fnc_demuxer_agg;	
-		agg_mark = 1;
-   }
-   else
-   {
-#endif
+    /* Jamken: don't check if mrl is a file */
+#if 0
 	if (stat(mrl, &filestat) == -1 ) {
 		switch(errno) {
         case ENOENT:
@@ -198,6 +177,7 @@ Resource *r_open(struct feng *srv, const char *inner_path)
 		fnc_log(FNC_LOG_ERR, "%s: not a file\n");
         goto error;
     }
+#endif
 
     if ( (dmx = r_find_demuxer(mrl)) == NULL ) {
         fnc_log(FNC_LOG_DEBUG,
@@ -206,34 +186,30 @@ Resource *r_open(struct feng *srv, const char *inner_path)
         goto error;
     }
 
-#ifdef TRISOS
-   }
-#endif
+
     fnc_log(FNC_LOG_DEBUG, "[MT] registrered demuxer \"%s\" for resource"
                                "\"%s\"\n", dmx->info->name, mrl);
 
     r = g_slice_new0(Resource);
-
+    
+    
     r->info = g_slice_new0(ResourceInfo);
 
+    /* init some field of ResourceInfo, 
+     * but demuxer->init method may change it 
+     */
     r->info->mrl = mrl;
-#ifdef TRISOS
-    if(agg_mark != 1){
-#endif
-    r->info->mtime = filestat.st_mtime;
-#ifdef TRISOS
-    }
-#endif
-    r->info->name = g_path_get_basename(inner_path);
+    r->info->mtime = 0;
+    r->info->name = g_strdup(inner_path);
     r->info->seekable = (dmx->seek != NULL);
 
+
     r->demuxer = dmx;
-    r->srv = srv;
-
-
-#ifdef TRISOS    
+    r->srv = srv; 
     r->rtsp_sess = NULL;
-#endif
+    
+    g_mutex_init(&r->lock);
+
     
         
     if (r->demuxer->init(r)) {
@@ -243,12 +219,6 @@ Resource *r_open(struct feng *srv, const char *inner_path)
 
     /* Now that we have opened the actual resource we can proceed with
      * the extras */
-
-    r->lock = g_mutex_new();
-
-#ifdef HAVE_METADATA
-    cpd_find_request(srv, r, filename);
-#endif
 
     return r;
  error:
@@ -310,7 +280,7 @@ Track *r_find_track(Resource *resource, const char *track_name) {
  * @see bq_producer_reset_queue
  */
 static void r_track_producer_reset_queue(gpointer element,
-                                         ATTR_UNUSED gpointer user_data) {
+                                         gpointer user_data) {
     Track *t = (Track*)element;
 
     bq_producer_reset_queue(t->producer);
@@ -329,13 +299,13 @@ static void r_track_producer_reset_queue(gpointer element,
 int r_seek(Resource *resource, double time) {
     int res;
 
-    g_mutex_lock(resource->lock);
+    g_mutex_lock(&resource->lock);
 
     res = resource->demuxer->seek(resource, time);
 
     g_list_foreach(resource->tracks, r_track_producer_reset_queue, NULL);
 
-    g_mutex_unlock(resource->lock);
+    g_mutex_unlock(&resource->lock);
 
     return res;
 }
@@ -351,7 +321,7 @@ int r_read(Resource *resource)
 {
     int ret = RESOURCE_EOF;
 
-    g_mutex_lock(resource->lock);
+    g_mutex_lock(&resource->lock);
     if (!resource->eor)
         switch( (ret = resource->demuxer->read_packet(resource)) ) {
         case RESOURCE_OK:
@@ -369,7 +339,7 @@ int r_read(Resource *resource)
             break;
         }
 
-    g_mutex_unlock(resource->lock);
+    g_mutex_unlock(&resource->lock);
 
     return ret;
 }
@@ -379,31 +349,59 @@ int r_read(Resource *resource)
  *
  * @param resource The resource to close
  *
- * This function only pushes a close request on the resource closing
- * pool; the actual closing will happen asynchronously.
  *
  * @see r_free_cb
  */
 void r_close(Resource *resource)
 {
-    /* This will never be freed but we don't care since we're going to
-     * need it till the very end of the process.
-     */
-#ifndef TRISOS
-    static GThreadPool *closing_pool;
+    r_free_cb(resource,NULL);
 
-    static gsize created_pool = false;
-    if ( g_once_init_enter(&created_pool) ) {
-        closing_pool = g_thread_pool_new(r_free_cb, NULL,
-                                         -1, false, NULL);
+}
 
-        g_once_init_leave(&created_pool, true);
+
+/**
+ * @brief start a resource for reading
+ *
+ * @param resouce The resource to start
+ *
+ * @return The same return value as demuxer->start
+ */
+int r_start(Resource *resource)
+{
+    int ret = RESOURCE_OK;
+    
+    g_mutex_lock(&resource->lock);
+    if(resource->demuxer->pause){
+        ret = resource->demuxer->start(resource);
+    }
+    if(ret == RESOURCE_OK){
+        resource->eor = false;
+    }else if(ret == RESOURCE_EOF){
+        resource->eor = true;
     }
 
-    g_thread_pool_push(closing_pool, resource, NULL);
-#else
-    r_free_cb(resource,NULL);
-#endif
+    g_mutex_unlock(&resource->lock);    
+    
+    return ret;
+}
+
+
+
+/**
+ * @brief Request pause of a resource
+ *
+ * @param resource The resource to pause
+ *
+ *
+ */
+void r_pause(Resource *resource)
+{
+    g_mutex_lock(&resource->lock);
+    if(resource->demuxer->pause){
+        resource->demuxer->pause(resource);
+    }
+
+    g_mutex_unlock(&resource->lock);
 }
 
 /**

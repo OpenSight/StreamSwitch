@@ -33,7 +33,7 @@
 
 
 static void free_sdp_field(sdp_field *sdp,
-                           ATTR_UNUSED void *unused)
+                           void *unused)
 {
     if (!sdp)
         return;
@@ -58,24 +58,24 @@ static void sdp_fields_free(GSList *fields)
  * @param user_data Unused, for compatibility with g_list_foreach().
  */
 void free_track(gpointer element,
-                ATTR_UNUSED gpointer user_data)
+                gpointer user_data)
 {
     Track *track = (Track*)element;
 
     if (!track)
         return;
 
-    g_mutex_free(track->lock);
 
-#ifdef TRISOS
-if((track->producer)&&(track->producer_freed == 0))
-{
-#endif
-    bq_producer_unref(track->producer);
-#ifdef TRISOS
-}
-track->producer = NULL;
-#endif
+
+
+    if((track->producer)&&(track->producer_freed == 0))
+    {
+
+        bq_producer_unref(track->producer);
+    
+    }
+    track->producer = NULL;
+
 
     g_free(track->info->mrl);
     g_slice_free(TrackInfo, track->info);
@@ -112,10 +112,8 @@ Track *add_track(Resource *r, TrackInfo *info, MediaProperties *prop_hints)
 
     t = g_slice_new0(Track);
 
-    t->lock = g_mutex_new();
-#ifdef TRISOS
     t->packetTotalNum = 0;
-#endif
+
     t->parent = r;
 
     t->info = g_slice_new0(TrackInfo);
@@ -124,6 +122,7 @@ Track *add_track(Resource *r, TrackInfo *info, MediaProperties *prop_hints)
     memcpy(&t->properties, prop_hints, sizeof(MediaProperties));
 
     switch (t->properties.media_source) {
+    case MS_live:    
     case MS_stored:
         if( !(t->producer = bq_producer_new(g_free, NULL)) )
             ADD_TRACK_ERROR(FNC_LOG_FATAL, "Memory allocation problems\n");
@@ -133,13 +132,17 @@ Track *add_track(Resource *r, TrackInfo *info, MediaProperties *prop_hints)
             ADD_TRACK_ERROR(FNC_LOG_FATAL, "Could not initialize parser for %s\n",
                             t->properties.encoding_name);
 
-        t->properties.media_type = t->parser->info->media_type;
+        //t->properties.media_type = t->parser->info->media_type;
         break;
-
+    /* Jamken: rtsp port use fork() model, so that it's impossible to share 
+     * producer queue
+     */ 
+#if 0
     case MS_live:
         if( !(t->producer = bq_producer_new(g_free, t->info->mrl)) )
             ADD_TRACK_ERROR(FNC_LOG_FATAL, "Memory allocation problems\n");
         break;
+#endif
 
     default:
         ADD_TRACK_ERROR(FNC_LOG_FATAL, "Media source not supported!");

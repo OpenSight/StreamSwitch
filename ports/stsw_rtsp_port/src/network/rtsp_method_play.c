@@ -83,7 +83,7 @@ static RTSP_ResponseCode do_play(RTSP_session * rtsp_sess)
             range->begin_time, range->end_time, range->playback_time);
     
     //create the fill pool
-    if(rtsp_sess->resource->info->model == MM_PULL){
+    if(rtsp_sess->resource->model == MM_PULL){
         rtsp_sess->fill_pool = g_thread_pool_new(rtp_session_fill_cb, rtsp_sess,
                                            1, true, NULL);        
     }    

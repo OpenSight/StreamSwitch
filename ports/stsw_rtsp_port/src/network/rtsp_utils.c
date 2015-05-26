@@ -125,15 +125,22 @@ RTSP_session *rtsp_session_new(RTSP_Client *rtsp)
  */
 void rtsp_session_free(RTSP_session *session)
 {
+    int started;
+    
     if ( !session )
         return;
-    if(session->started){      
-        session->started = 0;
-    }
+    started = session->started;
+     
+    session->started = 0;
     /* free the fill pool */
     if(rtsp_sess->fill_pool){
         g_thread_pool_free(rtsp_sess->fill_pool, true, true);
         rtsp_sess->fill_pool = NULL;
+    }
+    
+    if(started){
+        /* if started, pause the resource first */
+        r_pause(session->resource);
     }
     
     /* Release all the connected RTP sessions */

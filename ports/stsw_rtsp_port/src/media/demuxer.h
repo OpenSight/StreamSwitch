@@ -23,6 +23,10 @@
 #ifndef FN_DEMUXER_H
 #define FN_DEMUXER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <glib.h>
 #include <stdint.h>
 
@@ -58,6 +62,13 @@ typedef enum {
     MM_PULL=0,
     MM_PUSH
 } MediaReadModel;
+
+typedef enum {
+    FT_UNKONW = 0,
+    FT_KEY_FRAME = 1,
+    FT_DATA_FRAME = 2,
+    FT_PARAM_FRAME = 3,
+} FrameType;
 
 //! typedefs that give convenient names to GLists used
 typedef GList *TrackList;
@@ -101,12 +112,12 @@ typedef struct ResourceInfo_s {
     gboolean seekable;
     
     
-    MediaReadModel model;
+
     
 } ResourceInfo;
 
 typedef struct Resource {
-    GMutex *lock;
+    GMutex lock;
     const struct Demuxer *demuxer;
     ResourceInfo *info;
     // Metadata begin
@@ -127,7 +138,7 @@ typedef struct Resource {
     void * rtsp_sess;
     double lastTimestamp;
 
-
+    MediaReadModel model;
 } Resource;
 
 typedef struct Trackinfo_s {
@@ -155,6 +166,7 @@ typedef struct MediaProperties {
     double pts;             //time is in seconds
     double dts;             //time is in seconds
     double frame_duration;  //time is in seconds
+    FrameType frame_type;   //the type of the current frame
     float sample_rate;/*!< SamplingFrequency*/
     float OutputSamplingFrequency;
     int audio_channels;
@@ -174,17 +186,16 @@ typedef struct MediaProperties {
 } MediaProperties;
 
 typedef struct Track {
-    GMutex *lock;
     TrackInfo *info;
     double start_time;
     struct MediaParser *parser;
     /*feng*/
     BufferQueue_Producer *producer;
     Resource *parent;
-#ifdef TRISOS
+
     uint32_t packetTotalNum;
     int producer_freed;
-#endif
+
     void *private_data; /* private data of media parser */
 
     GSList *sdp_fields;
@@ -212,6 +223,8 @@ typedef struct Demuxer {
     int (*read_packet)(Resource *);
     int (*seek)(Resource *, double time_sec);
     GDestroyNotify uninit;
+    int (*start)(Resource *);
+    void (*pause)(Resource *);
     //...
 } Demuxer;
 
@@ -231,6 +244,10 @@ int r_seek(Resource *resource, double time);
 
 void r_close(Resource *resource);
 
+int r_start(Resource *resource);
+void r_pause(Resource *resource);
+
+
 Track *r_find_track(Resource *, const char *);
 
 // Tracks
@@ -238,5 +255,10 @@ Track *add_track(Resource *, TrackInfo *, MediaProperties *);
 void free_track(gpointer element, gpointer user_data);
 
 void track_add_sdp_field(Track *track, sdp_field_type type, char *value);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // FN_DEMUXER_H

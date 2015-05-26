@@ -224,6 +224,7 @@ static int avf_init(Resource * r)
             props.media_type   = MP_video;
             props.bit_rate     = codec->bit_rate;
             props.frame_rate   = av_q2d(st->r_frame_rate);
+            props.frame_type = FT_UNKONW;
             props.frame_duration     = (double)1 / props.frame_rate;
             props.AspectRatio  = codec->width *
                 codec->sample_aspect_ratio.num /
@@ -252,6 +253,7 @@ static int avf_init(Resource * r)
                 props.codec_id = codec->codec_id;
                 props.codec_sub_id = codec->codec_id;
                 props.payload_type = pt_from_id(codec->codec_id);
+                props.frame_type = FT_UNKONW;
                 if (props.payload_type == 96){
                     
                     props.payload_type = pt++;

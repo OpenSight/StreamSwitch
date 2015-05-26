@@ -22,6 +22,9 @@
 
 #ifndef FN_MEDIAPARSER_MODULE_H
 #define FN_MEDIAPARSER_MODULE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "mediaparser.h"
 
@@ -32,6 +35,11 @@
         x##_parse, \
 	x##_uninit \
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FN_MEDIAPARSER_MODULE_H
 
