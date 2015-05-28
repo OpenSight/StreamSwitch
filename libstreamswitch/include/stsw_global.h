@@ -49,7 +49,11 @@ namespace stream_switch {
 // sink class in parent process
 // 
 // Note: ArgParser & RotateLogger class don't require invoking GlobalInit()
-int GlobalInit();
+// 
+// Params: 
+//        default_signal_handler - whether install the default SIGINT/SIGTERM 
+//                                 signal handler or not 
+int GlobalInit(bool default_signal_handler = true);
 
 // GlobalUninit()
 // shutdown stream switch core lib, and reset SIGINT/SIGTERM signal handler
