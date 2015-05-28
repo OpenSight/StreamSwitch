@@ -790,6 +790,10 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+glib_LIBS
+glib_CFLAGS
+libnetembryo_LIBS
+libnetembryo_CFLAGS
 librtmp_LIBS
 librtmp_CFLAGS
 protobuf_LIBS
@@ -804,6 +808,8 @@ CXXDEPMODE
 ac_ct_CXX
 CXXFLAGS
 CXX
+INCLUDE_RTSP_PORT_FALSE
+INCLUDE_RTSP_PORT_TRUE
 INCLUDE_RTMP_SOURCE_FALSE
 INCLUDE_RTMP_SOURCE_TRUE
 INCLUDE_RTSP_SOURCE_FALSE
@@ -931,6 +937,7 @@ with_gnu_ld
 enable_libtool_lock
 with_rtsp_source
 with_rtmp_source
+with_rtsp_port
 '
       ac_precious_vars='build_alias
 host_alias
@@ -951,7 +958,11 @@ zeromq_LIBS
 protobuf_CFLAGS
 protobuf_LIBS
 librtmp_CFLAGS
-librtmp_LIBS'
+librtmp_LIBS
+libnetembryo_CFLAGS
+libnetembryo_LIBS
+glib_CFLAGS
+glib_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1604,6 +1615,8 @@ Optional Packages:
                           [default=yes]
   --with-rtmp-source      would contains the stsw_rtmp_source program
                           [default=yes]
+  --with-rtsp-port        would contains the stsw_rtsp_port program
+                          [default=yes]
 
 Some influential environment variables:
   CC          C compiler command
@@ -1629,6 +1642,12 @@ Some influential environment variables:
               C compiler flags for librtmp, overriding pkg-config
   librtmp_LIBS
               linker flags for librtmp, overriding pkg-config
+  libnetembryo_CFLAGS
+              C compiler flags for libnetembryo, overriding pkg-config
+  libnetembryo_LIBS
+              linker flags for libnetembryo, overriding pkg-config
+  glib_CFLAGS C compiler flags for glib, overriding pkg-config
+  glib_LIBS   linker flags for glib, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -4546,13 +4565,13 @@ if test "${lt_cv_nm_interface+set}" = set; then
 else
   lt_cv_nm_interface="BSD nm"
   echo "int some_variable = 0;" > conftest.$ac_ext
-  (eval echo "\"\$as_me:4549: $ac_compile\"" >&5)
+  (eval echo "\"\$as_me:4568: $ac_compile\"" >&5)
   (eval "$ac_compile" 2>conftest.err)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4552: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
+  (eval echo "\"\$as_me:4571: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
   (eval "$NM \"conftest.$ac_objext\"" 2>conftest.err > conftest.out)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4555: output\"" >&5)
+  (eval echo "\"\$as_me:4574: output\"" >&5)
   cat conftest.out >&5
   if $GREP 'External.*some_variable' conftest.out > /dev/null; then
     lt_cv_nm_interface="MS dumpbin"
@@ -5758,7 +5777,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 5761 "configure"' > conftest.$ac_ext
+  echo '#line 5780 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7615,11 +7634,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7618: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7637: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7622: \$? = $ac_status" >&5
+   echo "$as_me:7641: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7954,11 +7973,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7957: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7976: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7961: \$? = $ac_status" >&5
+   echo "$as_me:7980: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8059,11 +8078,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8062: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8081: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8066: \$? = $ac_status" >&5
+   echo "$as_me:8085: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8114,11 +8133,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8117: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8136: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8121: \$? = $ac_status" >&5
+   echo "$as_me:8140: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10917,7 +10936,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10920 "configure"
+#line 10939 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11013,7 +11032,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11016 "configure"
+#line 11035 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11273,6 +11292,7 @@ else
 fi
 
 
+
  if test "x$rtmp_source" = xyes; then
   INCLUDE_RTMP_SOURCE_TRUE=
   INCLUDE_RTMP_SOURCE_FALSE='#'
@@ -11280,6 +11300,26 @@ else
   INCLUDE_RTMP_SOURCE_TRUE='#'
   INCLUDE_RTMP_SOURCE_FALSE=
 fi
+
+
+
+# Check whether --with-rtsp-port was given.
+if test "${with_rtsp_port+set}" = set; then
+  withval=$with_rtsp_port; rtsp_port=${withval}
+else
+  rtsp_port=yes
+fi
+
+
+ if test "x$rtsp_port" = xyes; then
+  INCLUDE_RTSP_PORT_TRUE=
+  INCLUDE_RTSP_PORT_FALSE='#'
+else
+  INCLUDE_RTSP_PORT_TRUE='#'
+  INCLUDE_RTSP_PORT_FALSE=
+fi
+
+
 
 
 
@@ -14333,11 +14373,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14336: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14376: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:14340: \$? = $ac_status" >&5
+   echo "$as_me:14380: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14432,11 +14472,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14435: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14475: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14439: \$? = $ac_status" >&5
+   echo "$as_me:14479: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14484,11 +14524,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14487: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14527: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14491: \$? = $ac_status" >&5
+   echo "$as_me:14531: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16852,6 +16892,7 @@ fi
 
 
 
+# Checks for stsw_rtmp_source
 if test "x$rtmp_source" = xyes; then
 
 pkg_failed=no
@@ -16963,6 +17004,503 @@ $as_echo "yes" >&6; }
 	:
 fi
 fi
+
+
+
+
+# Checks for stsw_rtsp_port
+if test "x$rtsp_port" = xyes; then
+
+for ac_header in ev.h
+do
+as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  { $as_echo "$as_me:$LINENO: checking for $ac_header" >&5
+$as_echo_n "checking for $ac_header... " >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  $as_echo_n "(cached) " >&6
+fi
+ac_res=`eval 'as_val=${'$as_ac_Header'}
+		 $as_echo "$as_val"'`
+	       { $as_echo "$as_me:$LINENO: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+else
+  # Is the header compilable?
+{ $as_echo "$as_me:$LINENO: checking $ac_header usability" >&5
+$as_echo_n "checking $ac_header usability... " >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <$ac_header>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
+$as_echo "$ac_try_echo") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ $as_echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+$as_echo "$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ $as_echo "$as_me:$LINENO: checking $ac_header presence" >&5
+$as_echo_n "checking $ac_header presence... " >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <$ac_header>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
+$as_echo "$ac_try_echo") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ $as_echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+$as_echo "$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&5
+$as_echo "$as_me: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the compiler's result" >&5
+$as_echo "$as_me: WARNING: $ac_header: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: present but cannot be compiled" >&5
+$as_echo "$as_me: WARNING: $ac_header: present but cannot be compiled" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header:     check for missing prerequisite headers?" >&5
+$as_echo "$as_me: WARNING: $ac_header:     check for missing prerequisite headers?" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: see the Autoconf documentation" >&5
+$as_echo "$as_me: WARNING: $ac_header: see the Autoconf documentation" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&5
+$as_echo "$as_me: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
+$as_echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
+    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: in the future, the compiler will take precedence" >&5
+$as_echo "$as_me: WARNING: $ac_header: in the future, the compiler will take precedence" >&2;}
+    ( cat <<\_ASBOX
+## -------------------------------- ##
+## Report this to zqwangjk@sina.com ##
+## -------------------------------- ##
+_ASBOX
+     ) | sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+{ $as_echo "$as_me:$LINENO: checking for $ac_header" >&5
+$as_echo_n "checking for $ac_header... " >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  $as_echo_n "(cached) " >&6
+else
+  eval "$as_ac_Header=\$ac_header_preproc"
+fi
+ac_res=`eval 'as_val=${'$as_ac_Header'}
+		 $as_echo "$as_val"'`
+	       { $as_echo "$as_me:$LINENO: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+
+fi
+as_val=`eval 'as_val=${'$as_ac_Header'}
+		 $as_echo "$as_val"'`
+   if test "x$as_val" = x""yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+ have_libev=yes
+else
+  have_libev=no
+fi
+
+done
+
+  if test "x$have_libev" = "xno"; then
+  { { $as_echo "$as_me:$LINENO: error: libev not found, stsw_rtsp_port requires libev" >&5
+$as_echo "$as_me: error: libev not found, stsw_rtsp_port requires libev" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+
+pkg_failed=no
+{ $as_echo "$as_me:$LINENO: checking for librtmp" >&5
+$as_echo_n "checking for librtmp... " >&6; }
+
+if test -n "$librtmp_CFLAGS"; then
+    pkg_cv_librtmp_CFLAGS="$librtmp_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"librtmp >= v2.3\"") >&5
+  ($PKG_CONFIG --exists --print-errors "librtmp >= v2.3") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_librtmp_CFLAGS=`$PKG_CONFIG --cflags "librtmp >= v2.3" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$librtmp_LIBS"; then
+    pkg_cv_librtmp_LIBS="$librtmp_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"librtmp >= v2.3\"") >&5
+  ($PKG_CONFIG --exists --print-errors "librtmp >= v2.3") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_librtmp_LIBS=`$PKG_CONFIG --libs "librtmp >= v2.3" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        librtmp_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "librtmp >= v2.3" 2>&1`
+        else
+	        librtmp_PKG_ERRORS=`$PKG_CONFIG --print-errors "librtmp >= v2.3" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$librtmp_PKG_ERRORS" >&5
+
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (librtmp >= v2.3) were not met:
+
+$librtmp_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables librtmp_CFLAGS
+and librtmp_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&5
+$as_echo "$as_me: error: Package requirements (librtmp >= v2.3) were not met:
+
+$librtmp_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables librtmp_CFLAGS
+and librtmp_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&2;}
+   { (exit 1); exit 1; }; }
+elif test $pkg_failed = untried; then
+	{ { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+{ { $as_echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables librtmp_CFLAGS
+and librtmp_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&5
+$as_echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables librtmp_CFLAGS
+and librtmp_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&2;}
+   { (exit 1); exit 1; }; }; }
+else
+	librtmp_CFLAGS=$pkg_cv_librtmp_CFLAGS
+	librtmp_LIBS=$pkg_cv_librtmp_LIBS
+        { $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	:
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:$LINENO: checking for libnetembryo" >&5
+$as_echo_n "checking for libnetembryo... " >&6; }
+
+if test -n "$libnetembryo_CFLAGS"; then
+    pkg_cv_libnetembryo_CFLAGS="$libnetembryo_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnetembryo >= 0.1.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnetembryo >= 0.1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnetembryo_CFLAGS=`$PKG_CONFIG --cflags "libnetembryo >= 0.1.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnetembryo_LIBS"; then
+    pkg_cv_libnetembryo_LIBS="$libnetembryo_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnetembryo >= 0.1.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnetembryo >= 0.1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnetembryo_LIBS=`$PKG_CONFIG --libs "libnetembryo >= 0.1.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnetembryo_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnetembryo >= 0.1.0" 2>&1`
+        else
+	        libnetembryo_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnetembryo >= 0.1.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnetembryo_PKG_ERRORS" >&5
+
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libnetembryo >= 0.1.0) were not met:
+
+$libnetembryo_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables libnetembryo_CFLAGS
+and libnetembryo_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&5
+$as_echo "$as_me: error: Package requirements (libnetembryo >= 0.1.0) were not met:
+
+$libnetembryo_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables libnetembryo_CFLAGS
+and libnetembryo_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&2;}
+   { (exit 1); exit 1; }; }
+elif test $pkg_failed = untried; then
+	{ { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+{ { $as_echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables libnetembryo_CFLAGS
+and libnetembryo_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&5
+$as_echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables libnetembryo_CFLAGS
+and libnetembryo_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&2;}
+   { (exit 1); exit 1; }; }; }
+else
+	libnetembryo_CFLAGS=$pkg_cv_libnetembryo_CFLAGS
+	libnetembryo_LIBS=$pkg_cv_libnetembryo_LIBS
+        { $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	:
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:$LINENO: checking for glib" >&5
+$as_echo_n "checking for glib... " >&6; }
+
+if test -n "$glib_CFLAGS"; then
+    pkg_cv_glib_CFLAGS="$glib_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= 2.16 gthread-2.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= 2.16 gthread-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_glib_CFLAGS=`$PKG_CONFIG --cflags "glib-2.0 >= 2.16 gthread-2.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$glib_LIBS"; then
+    pkg_cv_glib_LIBS="$glib_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= 2.16 gthread-2.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= 2.16 gthread-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_glib_LIBS=`$PKG_CONFIG --libs "glib-2.0 >= 2.16 gthread-2.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        glib_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "glib-2.0 >= 2.16 gthread-2.0" 2>&1`
+        else
+	        glib_PKG_ERRORS=`$PKG_CONFIG --print-errors "glib-2.0 >= 2.16 gthread-2.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$glib_PKG_ERRORS" >&5
+
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (glib-2.0 >= 2.16 gthread-2.0) were not met:
+
+$glib_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables glib_CFLAGS
+and glib_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&5
+$as_echo "$as_me: error: Package requirements (glib-2.0 >= 2.16 gthread-2.0) were not met:
+
+$glib_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables glib_CFLAGS
+and glib_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+" >&2;}
+   { (exit 1); exit 1; }; }
+elif test $pkg_failed = untried; then
+	{ { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+{ { $as_echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables glib_CFLAGS
+and glib_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&5
+$as_echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables glib_CFLAGS
+and glib_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details." >&2;}
+   { (exit 1); exit 1; }; }; }
+else
+	glib_CFLAGS=$pkg_cv_glib_CFLAGS
+	glib_LIBS=$pkg_cv_glib_LIBS
+        { $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	:
+fi
+fi
+
+
+
 
 
 
@@ -18131,7 +18669,7 @@ done
 
 
 # generate Makefiles
-ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile"
+ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile ports/stsw_rtsp_port/Makefile"
 
 
 # Generate other makefiles
@@ -18316,6 +18854,13 @@ if test -z "${INCLUDE_RTMP_SOURCE_TRUE}" && test -z "${INCLUDE_RTMP_SOURCE_FALSE
   { { $as_echo "$as_me:$LINENO: error: conditional \"INCLUDE_RTMP_SOURCE\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
 $as_echo "$as_me: error: conditional \"INCLUDE_RTMP_SOURCE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${INCLUDE_RTSP_PORT_TRUE}" && test -z "${INCLUDE_RTSP_PORT_FALSE}"; then
+  { { $as_echo "$as_me:$LINENO: error: conditional \"INCLUDE_RTSP_PORT\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+$as_echo "$as_me: error: conditional \"INCLUDE_RTSP_PORT\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi
@@ -19186,6 +19731,7 @@ do
     "libstreamswitch/libstreamswitch.pc") CONFIG_FILES="$CONFIG_FILES libstreamswitch/libstreamswitch.pc" ;;
     "sources/stsw_rtsp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtsp_source/Makefile" ;;
     "sources/stsw_rtmp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtmp_source/Makefile" ;;
+    "ports/stsw_rtsp_port/Makefile") CONFIG_FILES="$CONFIG_FILES ports/stsw_rtsp_port/Makefile" ;;
 
   *) { { $as_echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 $as_echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
