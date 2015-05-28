@@ -24,9 +24,9 @@
 #include "media/demuxer.h"
 #include "media/mediaparser.h"
 #include "media/mediaparser_module.h"
-#ifdef TRISOS
+
 #include "network/rtsp.h"
-#endif
+
 
 static const MediaParserInfo info = {
     "H264",
@@ -108,11 +108,8 @@ static char *encode_avc1_header(uint8_t *p, unsigned int len, int packet_mode)
         if (i == 0) {
             gchar *out = g_strdup_printf("profile-level-id=%02x%02x%02x; "
                                   "packetization-mode=%d; ",
-#ifdef TRISOS
                                   p[1], p[2], p[3], packet_mode);
-#else
-                                  p[0], p[1], p[2], packet_mode);
-#endif
+
 	    gchar *buf = g_base64_encode(p, nalsize);
             sprop = g_strdup_printf("%ssprop-parameter-sets=%s", out, buf);
 	    g_free(buf);
@@ -158,29 +155,33 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
     uint8_t *q, *end = p + len;
     char *sprop = NULL, *out, *buf = NULL;
 
-    for (q = p; q < end - 3; q++) {
-        if (q[0] == 0 && q[1] == 0 && q[2] == 1) {
+    for (q = p; q < end - 4; q++) {
+        if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
             break;
         }
     }
 
-    if (q >= end - 3)
+    if (q >= end - 4)
         return NULL;
 
     p = q; // sps start;
 
-    for (; q < end - 3; q++) {
-        if (q[0] == 0 && q[1] == 0 && q[2] == 1) {
-            // sps end;
+    for (; q < end - 4; q++) {
+        if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
+            /* sps end */
             break;
         }
+        
+    }
+    if(q >= end - 4){
+        q = end; /* last one */
     }
 
-    //FIXME I'm abusing memory
-    // profile-level-id aka the first 3 bytes from sps
+
+    p += 4;
     out = g_strdup_printf("profile-level-id=%02x%02x%02x; "
                           "packetization-mode=%d; ",
-                            p[0], p[1], p[2], packet_mode);
+                            p[1], p[2], p[3], packet_mode);
 
     buf = g_base64_encode(p, q-p);
 
@@ -189,17 +190,23 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
     g_free(buf);
     p = q;
 
-    while (p < end - 3) {
+    while (p < end - 4) {
         //seek to the next startcode [0 0 1]
-        for (q = p; q < end; q++)
-            if (end - q <= 3) continue; // last nal
-            if (q[0] == 0 && q[1] == 0 && q[2] == 1) {
+        for (q = (p + 4); q < end - 4; q++) {
+            if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
+                /* sps end */
                 break;
             }
+            
+        }
+        if(q >= end - 4){
+            q = end; /* last one */
+        }
+        p += 4;
         buf = g_base64_encode(p, q - p);
         out = g_strdup_printf("%s,%s",sprop, buf);
         g_free(sprop);
-	g_free(buf);
+        g_free(buf);
         sprop = out;
         p = q;
     }
@@ -220,7 +227,7 @@ static int h264_init(Track *track)
         return ERR_UNSUPPORTED_PT;
     }
 
-    priv = g_slice_new(h264_priv);
+    priv = g_slice_new0(h264_priv);
 
     if(track->properties.extradata[0] == 1) {
         if (track->properties.extradata_len < 7) goto err_alloc;
@@ -248,6 +255,64 @@ static int h264_init(Track *track)
     g_slice_free(h264_priv, priv);
     return err;
 }
+/* send a h264 nal to bufferqueue */
+/* data - contains a h264 nal */
+static void h264_send_nal(Track *tr, uint8_t *data, size_t len)
+{
+    uint8_t nal_unit_type;
+    unsigned int scale = 1;
+    int onlyKeyFrame = 0;    
+    
+    tr->packetTotalNum++;
+
+
+    if(tr->parent != NULL && tr->parent->rtsp_sess != NULL) {
+        scale =  (((RTSP_session *)tr->parent->rtsp_sess)->scale <= 1.0)?
+                    ((unsigned int)1): ((unsigned int)((RTSP_session *)tr->parent->rtsp_sess)->scale);
+        onlyKeyFrame = ((RTSP_session *)tr->parent->rtsp_sess)->onlyKeyFrame;
+    }
+    
+    
+    nal_unit_type = data[0] & 0x1F;
+    
+    if(onlyKeyFrame == 0 ||
+       /*    tr->packetTotalNum % scale == 0 || */
+       nal_unit_type >= 5) {
+                
+          
+        if (DEFAULT_MTU >= len) {
+                mparser_buffer_write(tr,
+                                     tr->properties.pts,
+                                     tr->properties.dts,
+                                     tr->properties.frame_duration,
+                                     1,
+                                     data, len);
+                fnc_log(FNC_LOG_VERBOSE, "[h264] single NAL");
+        } else {
+                // single NAL, to be fragmented, FU-A;
+                frag_fu_a(data, len, DEFAULT_MTU, tr);
+        } 
+
+
+    }else if ( tr->packetTotalNum % scale == 0  ){
+        /* Jamken: send a empty nal to feed the player, 
+          VLC need get a frame to continue */
+                    uint8_t  fakeNal[] = {0x09, 0x30};
+                    size_t fakeNalLen = sizeof(fakeNal);
+                    
+                    
+
+
+            mparser_buffer_write(tr,
+                                 tr->properties.pts,
+                                 tr->properties.dts,
+                                 tr->properties.frame_duration,
+                                 1,
+                                 fakeNal, fakeNalLen);
+            fnc_log(FNC_LOG_VERBOSE, "[h264] single NAL");
+    }
+ 
+}
 
 // h264 has provisions for
 //  - collating NALS
@@ -261,22 +326,14 @@ static int h264_parse(Track *tr, uint8_t *data, size_t len)
     size_t nalsize = 0, index = 0;
     uint8_t *p, *q;
 
-
-
     if (priv->is_avc) {
         while (1) {
             unsigned int i;
-#ifdef TRISOS
-            uint8_t nal_unit_type;
-            unsigned int scale = 1;
-            int onlyKeyFrame = 0;
-#endif
+
             if(index >= len) break;
             //get the nal size
 
-#ifdef TRISOS
-            tr->packetTotalNum++;
-#endif
+
             nalsize = 0;
             for(i = 0; i < priv->nal_length_size; i++)
                 nalsize = (nalsize << 8) | data[index++];
@@ -289,107 +346,41 @@ static int h264_parse(Track *tr, uint8_t *data, size_t len)
                     break;
                 }
             }
-#ifdef TRISOS
-
-            if(tr->parent != NULL && tr->parent->rtsp_sess != NULL) {
-                scale =  (((RTSP_session *)tr->parent->rtsp_sess)->scale <= 1.0)?
-                    ((unsigned int)1): ((unsigned int)((RTSP_session *)tr->parent->rtsp_sess)->scale);
-                onlyKeyFrame = ((RTSP_session *)tr->parent->rtsp_sess)->onlyKeyFrame;
-            }
-            nal_unit_type = data[index] & 0x1F;
-            if(onlyKeyFrame == 0 ||
-           /*    tr->packetTotalNum % scale == 0 || */
-               nal_unit_type == 5 ||
-               nal_unit_type == 6 ||
-               nal_unit_type == 7 ||
-               nal_unit_type == 8 ||
-               nal_unit_type == 9) {
-
-#endif            
-
-                if (DEFAULT_MTU >= nalsize) {
-                    mparser_buffer_write(tr,
-                                         tr->properties.pts,
-                                         tr->properties.dts,
-                                         tr->properties.frame_duration,
-                                         1,
-                                         data + index, nalsize);
-                    fnc_log(FNC_LOG_VERBOSE, "[h264] single NAL");
-                } else {
-                    // single NAL, to be fragmented, FU-A;
-                    frag_fu_a(data + index, nalsize, DEFAULT_MTU, tr);
-                }
-#ifdef TRISOS
-            }else if ( tr->packetTotalNum % scale == 0  ){
-
-                    uint8_t  fakeNal[] = {0x09, 0x30};
-                    size_t fakeNalLen = sizeof(fakeNal);
-
-                    mparser_buffer_write(tr,
-                                         tr->properties.pts,
-                                         tr->properties.dts,
-                                         tr->properties.frame_duration,
-                                         1,
-                                         fakeNal, fakeNalLen);
-                    fnc_log(FNC_LOG_VERBOSE, "[h264] single NAL");
-
-
-            }
-#endif
+           
+            h264_send_nal(tr, data + index, nalsize);
 
             index += nalsize;
         }
     } else {
-        //seek to the first startcode
-        for (p = data; p<data + len - 3; p++) {
-            if (p[0] == 0 && p[1] == 0 && p[2] == 1) {
-                break;
-            }
-        }
-        if (p >= data + len) return ERR_PARSE;
+        p = data;
+        if(p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3]  == 1){
+            /*it's a ES stream of h264 */
+            while (1) {
+               //seek to the next startcode [0 0 0 1]
+                for (q = (p+4); q<(data+len-4);q++) {
+                    if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
+                        break;
+                    }
+                }
 
-        while (1) {
-        //seek to the next startcode [0 0 1]
-            for (q = p; q<data+len-3;q++) {
-                if (q[0] == 0 && q[1] == 0 && q[2] == 1) {
+                if (q >= data + len - 4) {
+                    /* no next start_code, this is the last nal */
                     break;
                 }
+                
+                h264_send_nal(tr,  p + 4, (q - p - 4));
+                p = q;
+
             }
-
-            if (q >= data + len) break;
-
-            if (DEFAULT_MTU >= q - p) {
-                fnc_log(FNC_LOG_VERBOSE, "[h264] Sending NAL %d",p[0]&0x1f);
-                mparser_buffer_write(tr,
-                                     tr->properties.pts,
-                                     tr->properties.dts,
-                                     tr->properties.frame_duration,
-                                     1,
-                                     p, q - p);
-                fnc_log(FNC_LOG_VERBOSE, "[h264] single NAL");
-            } else {
-                //FU-A
-                fnc_log(FNC_LOG_VERBOSE, "[h264] frags");
-                frag_fu_a(p, q - p, DEFAULT_MTU, tr);
-            }
-
-            p = q;
-
-        }
-        // last NAL
-        fnc_log(FNC_LOG_VERBOSE, "[h264] last NAL %d",p[0]&0x1f);
-        if (DEFAULT_MTU >= len - (p - data)) {
-            fnc_log(FNC_LOG_VERBOSE, "[h264] no frags");
-            mparser_buffer_write(tr,
-                                 tr->properties.pts,
-                                 tr->properties.dts,
-                                 tr->properties.frame_duration,
-                                 1,
-                                 p, len - (p - data));
-        } else {
-            //FU-A
-            fnc_log(FNC_LOG_VERBOSE, "[h264] frags");
-            frag_fu_a(p, len - (p - data), DEFAULT_MTU, tr);
+            // last NAL
+            fnc_log(FNC_LOG_VERBOSE, "[h264] last NAL %d",p[0]&0x1f);
+            
+            h264_send_nal(tr,  p + 4, (data + len - p - 4));
+            
+        }else{
+            /* this is directry a nal */      
+            h264_send_nal(tr, data, len);
+            
         }
     }
 

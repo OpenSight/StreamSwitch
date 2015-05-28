@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * */
-#ifdef TRISOS
+
 #include "fnc_log.h"
 #include "media/demuxer.h"
 #include "media/mediaparser.h"
@@ -848,7 +848,7 @@ static int mp2p_init(Track *track)
     int bitrate, i, mpa_id, mpv_id;
     int ret;
     int streamType = MP2P_STREAM;
-
+    
     if(track!=NULL && track->parent!=NULL && track->parent->private_data != NULL &&
        ((lavf_priv_t *)track->parent->private_data)->avfc != NULL) {
         avfc = ((lavf_priv_t *)track->parent->private_data)->avfc;
@@ -1128,5 +1128,3 @@ static void mp2p_uninit(Track *tr)
 
 FNC_LIB_MEDIAPARSER(mp2p);
 
-
-#endif

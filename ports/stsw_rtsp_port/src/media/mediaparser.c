@@ -28,37 +28,37 @@
 #include "fnc_log.h"
 
 // global media parsers modules:
-extern MediaParser fnc_mediaparser_mpv;
-extern MediaParser fnc_mediaparser_mpa;
+//extern MediaParser fnc_mediaparser_mpv;
+//extern MediaParser fnc_mediaparser_mpa;
 extern MediaParser fnc_mediaparser_h264;
 extern MediaParser fnc_mediaparser_aac;
 extern MediaParser fnc_mediaparser_mp4ves;
 extern MediaParser fnc_mediaparser_vorbis;
 extern MediaParser fnc_mediaparser_theora;
 extern MediaParser fnc_mediaparser_speex;
-extern MediaParser fnc_mediaparser_mp2t;
-extern MediaParser fnc_mediaparser_h263;
+//extern MediaParser fnc_mediaparser_mp2t;
+//extern MediaParser fnc_mediaparser_h263;
 extern MediaParser fnc_mediaparser_amr;
 extern MediaParser fnc_mediaparser_pcma;
 extern MediaParser fnc_mediaparser_pcmu;
-extern MediaParser fnc_mediaparser_mp2p;
+//extern MediaParser fnc_mediaparser_mp2p;
 extern MediaParser fnc_mediaparser_simple;
 // static array containing all the available media parsers:
 static MediaParser *media_parsers[] = {
-    &fnc_mediaparser_mpv,
-    &fnc_mediaparser_mpa,
+    //&fnc_mediaparser_mpv,
+    //&fnc_mediaparser_mpa,
     &fnc_mediaparser_h264,
     &fnc_mediaparser_aac,
     &fnc_mediaparser_mp4ves,
     &fnc_mediaparser_vorbis,
     &fnc_mediaparser_theora,
     &fnc_mediaparser_speex,
-    &fnc_mediaparser_mp2t,
-    &fnc_mediaparser_h263,
+    //&fnc_mediaparser_mp2t,
+    //&fnc_mediaparser_h263,
     &fnc_mediaparser_amr,
     &fnc_mediaparser_pcma,
     &fnc_mediaparser_pcmu,
-    &fnc_mediaparser_mp2p,
+    //&fnc_mediaparser_mp2p,
     NULL
 };
 

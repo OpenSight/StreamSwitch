@@ -51,11 +51,11 @@ enum {
 
 typedef void (*fnc_log_t)(int, const char*, va_list);
 
-void fnc_log_internal(int level, char * file, int line, const char *fmt, ...);
+void fnc_log_internal(int level, const char * file, int line, const char *fmt, ...);
 
 
-#define fnc_log(level, fmt, string...) \
-    fnc_log_internal(level, __FILE__, __LINE__, fmt, __FILE__, __LINE__ , ## string)
+#define fnc_log(level, fmt, str...) \
+    fnc_log_internal(level, __FILE__, __LINE__, fmt, __FILE__, __LINE__ , ## str)
 
 
 fnc_log_t fnc_log_init(char *file, int out, int level, char *name);

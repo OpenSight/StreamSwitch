@@ -100,7 +100,7 @@ static void r_free_cb(gpointer resource_p,
 static const Demuxer *r_find_demuxer(const char *filename)
 {
     static const Demuxer *const demuxers[] = {
-        &fnc_demuxer_avf,
+        &fnc_demuxer_stsw,
         NULL
     };
 
@@ -116,8 +116,15 @@ static const Demuxer *r_find_demuxer(const char *filename)
                                    * served by probing demuxer.
                                    */
             strncpy(exts, demuxers[i]->info->extensions, sizeof(exts)-1);
+            
+            if(demuxers[i]->info->fake_path || strlen(exts) == 0){
+                /* no file extension for this demuxer */
+                continue;
+            }
+            
 
             for (tkn=strtok(exts, ","); tkn; tkn=strtok(NULL, ",")) {
+                
                 if (strcmp(tkn, res_ext) == 0)
                     continue;
 
@@ -131,9 +138,23 @@ static const Demuxer *r_find_demuxer(const char *filename)
         }
     }
 
-    for (i=0; demuxers[i]; i++)
-        if ((demuxers[i]->probe(filename) == RESOURCE_OK))
-            return demuxers[i];
+    /* try fake path demuxer first */
+
+    for (i=0; demuxers[i]; i++){
+        if(demuxers[i]->info->fake_path != 0){
+
+            if ((demuxers[i]->probe(filename) == RESOURCE_OK))
+                return demuxers[i];
+        }
+    }
+
+    for (i=0; demuxers[i]; i++){
+        if(demuxers[i]->info->fake_path == 0){
+
+            if ((demuxers[i]->probe(filename) == RESOURCE_OK))
+                return demuxers[i];
+        }
+    }
 
     return NULL;
 }
@@ -207,6 +228,7 @@ Resource *r_open(struct feng *srv, const char *inner_path)
     r->demuxer = dmx;
     r->srv = srv; 
     r->rtsp_sess = NULL;
+    r->model = MM_PULL;
     
     g_mutex_init(&r->lock);
 

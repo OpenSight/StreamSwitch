@@ -214,6 +214,8 @@ typedef struct {
     const char *comment;
     /* served file extensions */
     const char *extensions; // coma separated list of extensions (w/o '.')
+    
+    const int fake_path;   // use a fake pattern path instead of a real filesytem path for mrl
 } DemuxerInfo;
 
 typedef struct Demuxer {
