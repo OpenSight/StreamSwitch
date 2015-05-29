@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * */
-#ifdef TRISOS
+
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
@@ -37,7 +37,7 @@ static const MediaParserInfo info = {
     MP_audio
 };
 
-static int pcmu_init(ATTR_UNUSED Track *track)
+static int pcmu_init(Track *track)
 {
     track->properties.clock_rate = 8000;
 	 track_add_sdp_field(track, rtpmap,
@@ -113,4 +113,4 @@ static int pcmu_parse(Track *tr, uint8_t *data, size_t len)
 #define pcmu_uninit NULL
 
 FNC_LIB_MEDIAPARSER(pcmu);
-#endif
+

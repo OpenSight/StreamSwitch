@@ -37,7 +37,7 @@ static const MediaParserInfo info = {
     MP_audio
 };
 
-static int pcma_init(ATTR_UNUSED Track *track)
+static int pcma_init(Track *track)
 {
     track->properties.clock_rate = 8000;
     track_add_sdp_field(track, rtpmap,

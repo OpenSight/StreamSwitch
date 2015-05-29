@@ -133,9 +133,9 @@ void rtsp_session_free(RTSP_session *session)
      
     session->started = 0;
     /* free the fill pool */
-    if(rtsp_sess->fill_pool){
-        g_thread_pool_free(rtsp_sess->fill_pool, true, true);
-        rtsp_sess->fill_pool = NULL;
+    if(session->fill_pool){
+        g_thread_pool_free(session->fill_pool, true, true);
+        session->fill_pool = NULL;
     }
     
     if(started){

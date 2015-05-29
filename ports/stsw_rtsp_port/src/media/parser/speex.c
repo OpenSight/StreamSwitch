@@ -32,7 +32,7 @@ static const MediaParserInfo info = {
     MP_audio
 };
 
-static int speex_init(ATTR_UNUSED Track *track)
+static int speex_init(Track *track)
 {
     return ERR_NOERROR;
 }

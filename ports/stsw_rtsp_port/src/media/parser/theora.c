@@ -26,7 +26,9 @@
 #include "fnc_log.h"
 #include "feng_utils.h"
 
-#include <libavutil/md5.h>
+//#include <libavutil/md5.h>
+
+#include <glib.h>
 
 #if 1
 #define AV_RB16(x)  ((((uint8_t*)(x))[0] << 8) | ((uint8_t*)(x))[1])
@@ -95,6 +97,8 @@ static int encode_header(uint8_t *data, int len, theora_priv *priv)
     uint8_t *header_start[3];
     int header_len[3];
     int hash[4];
+    gsize hash_size;
+    GChecksum *checksum;    
     uint8_t comment[] =
         /*quite minimal comment */
     { 0x81,'t','h','e','o','r','a',
@@ -111,7 +115,13 @@ static int encode_header(uint8_t *data, int len, theora_priv *priv)
         return -1;
     }
 
-    av_md5_sum((uint8_t *)hash, data, len);
+    //av_md5_sum((uint8_t *)hash, data, len);
+    hash_size = 4;
+    checksum = g_checksum_new (G_CHECKSUM_MD5);
+    g_checksum_update (checksum, data, len);
+    g_checksum_get_digest (checksum, (guint8 *)hash, &hash_size);
+    g_checksum_free (checksum);    
+    
     priv->ident = hash[0]^hash[1]^hash[2]^hash[3];
 
     // Envelope size

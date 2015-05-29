@@ -28,7 +28,7 @@ extern "C" {
 
 #include "mediaparser.h"
 
-#define FNC_LIB_MEDIAPARSER(x) const MediaParser fnc_mediaparser_##x =\
+#define FNC_LIB_MEDIAPARSER(x) MediaParser fnc_mediaparser_##x =\
 {\
 	&info, \
 	x##_init, \

@@ -1,5 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
+version = 0.1.0
 
 AC_PREREQ([2.63])
 AC_INIT([streamswitch], [0.1.0], [zqwangjk@sina.com])
@@ -85,7 +86,6 @@ if test "x$rtsp_port" = xyes; then
   AC_CHECK_HEADERS([ev.h], [have_libev=yes], [have_libev=no])
   AS_IF([test "x$have_libev" = "xno"], [AC_MSG_ERROR([libev not found, stsw_rtsp_port requires libev])])
   
-  PKG_CHECK_MODULES(librtmp, [librtmp >= v2.3])
   PKG_CHECK_MODULES(libnetembryo, [libnetembryo >= 0.1.0])  
   PKG_CHECK_MODULES(glib, [glib-2.0 >= 2.16 gthread-2.0])  
 fi
@@ -131,3 +131,23 @@ if test "x$rtsp_source" = xyes; then
 fi
 
 AC_OUTPUT
+
+
+
+AC_MSG_NOTICE([Configure successfully!
+
+StreamSwitch version ................. : $PACKAGE_VERSION
+StreamSwitch Install prefix .......... : $prefix
+StreamSwitch exec prefix ............. : $exec_prefix
+StreamSwitch library path ............ : $libdir
+StreamSwitch include path ............ : $includedir
+StreamSwitch program path ............ : $bindir
+
+stsw_rtsp_source included............. : $rtsp_source
+stsw_rtmp_source included ............ : $rtmp_source
+stsw_rtsp_port included .............. : $rtsp_port
+
+
+ 'make' will now compile StreamSwitch and 'su -c make install' will install it.
+ Note: On non-Linux systems you might need to use 'gmake' instead of 'make'.
+])

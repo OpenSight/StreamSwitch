@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#define FNC_LIB_DEMUXER(x) const Demuxer fnc_demuxer_##x =\
+#define FNC_LIB_DEMUXER(x) Demuxer fnc_demuxer_##x =\
 {\
 	&info, \
 	x##_probe, \

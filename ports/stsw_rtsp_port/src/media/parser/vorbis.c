@@ -26,7 +26,8 @@
 #include "fnc_log.h"
 #include "feng_utils.h"
 
-#include <libavutil/md5.h>
+//#include <libavutil/md5.h>
+#include <glib.h>
 
 static const MediaParserInfo info = {
     "vorbis",
@@ -57,6 +58,8 @@ static int encode_header(uint8_t *data, int len, vorbis_priv *priv)
     uint8_t *header_start[3];
     int header_len[3];
     int hash[4];
+    gsize hash_size;
+    GChecksum *checksum;
     uint8_t comment[26] =
         /*quite minimal comment */
     { 3, 'v', 'o', 'r', 'b', 'i', 's',
@@ -100,8 +103,12 @@ static int encode_header(uint8_t *data, int len, vorbis_priv *priv)
     if (header_len[2] + header_len[0]>UINT16_MAX) {
         return -1;
     }
-
-    av_md5_sum((uint8_t *)hash, data, len);
+    hash_size = 4;
+    checksum = g_checksum_new (G_CHECKSUM_MD5);
+    g_checksum_update (checksum, data, len);
+    g_checksum_get_digest (checksum, (guint8 *)hash, &hash_size);
+    g_checksum_free (checksum);
+    //av_md5_sum((uint8_t *)hash, data, len);
     priv->ident = hash[0]^hash[1]^hash[2]^hash[3];
 
     // Envelope size

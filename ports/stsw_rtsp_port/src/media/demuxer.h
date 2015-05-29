@@ -29,7 +29,6 @@ extern "C" {
 
 #include <glib.h>
 #include <stdint.h>
-
 #include "bufferqueue.h"
 
 struct feng;
@@ -117,7 +116,7 @@ typedef struct ResourceInfo_s {
 } ResourceInfo;
 
 typedef struct Resource {
-    GMutex lock;
+    GMutex *lock;
     const struct Demuxer *demuxer;
     ResourceInfo *info;
     // Metadata begin
