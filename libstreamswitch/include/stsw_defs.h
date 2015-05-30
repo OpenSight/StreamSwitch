@@ -359,6 +359,7 @@ enum ErrorCode{
     ERROR_CODE_BUSY = -7,      //system is busy now, retry later  
     ERROR_CODE_PARSE = -8,     //protocol parse error
     ERROR_CODE_OPTIONS = -9,   //option parse error
+    ERROR_CODE_METADATA_MISMATCH = -10, //the received frame mismatch the metadata
     
 };
 

@@ -713,12 +713,13 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg,
         LockGuard guard(&lock());  
         
         // check ssrc
-        if(stream_meta_.ssrc == 0 || stream_meta_.ssrc != frame_info.ssrc){
+        if(stream_meta_.ssrc != frame_info.ssrc){
             //ssrc mismatch, just ignore this frame
             return 0;
         }
         
-        if(frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
+        if(frame_info.sub_stream_index < 0 ||
+           frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
             //sub stream index mismatch, just ignore this frame
             return 0;
         }        

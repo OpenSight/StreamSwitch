@@ -58,7 +58,7 @@ public:
                                  );    
        
   
-        
+    virtual void OnError(int err_code, std::string err_info);    
 };
 
 
@@ -78,6 +78,13 @@ void ApiTestSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
                                            size_t frame_size)
 {
     //just ignore the receive frame
+}
+
+
+void ApiTestSinkListener::OnError(int err_code, std::string err_info)
+{
+    fprintf(stderr, "ApiTestSinkListener::OnError() is called with %d(%s)", 
+            err_code, err_info.c_str());
 }
 
 void ParseArgv(int argc, char *argv[], 

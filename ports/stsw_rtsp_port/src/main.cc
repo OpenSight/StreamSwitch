@@ -166,7 +166,7 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     srv->srvconf.log_type = FNC_LOG_OUT;
     srv->srvconf.first_udp_port = 0;
     srv->srvconf.buffered_frames = 2048;
-    srv->srvconf.buffered_ms = 0;
+    srv->srvconf.buffered_ms = DEFAULT_BUFFERED_MS;
     srv->srvconf.loglevel = 0;
     srv->srvconf.max_conns = 1000;
     srv->srvconf.max_fds = 100;

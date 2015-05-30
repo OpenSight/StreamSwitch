@@ -55,7 +55,7 @@ struct RTSP_session;
 
 
 #define DEFAULT_MAX_RATE 16
-#define DEFAULT_BUFFERED_MS 500
+#define DEFAULT_BUFFERED_MS 2000
 
 
 typedef struct {

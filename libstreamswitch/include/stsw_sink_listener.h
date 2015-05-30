@@ -45,7 +45,8 @@ namespace stream_switch {
 // When some event happens, the stream receiver would 
 // invokes the specific method of its listener in its 
 // internal thread context. 
-    
+// Note: User cannot invoke Init/Uninit/Start/Stop method of the associated stream
+// sink in callbacks. Otherwie, a deadlock would occurs. 
 class SinkListener{
 public:    
     // OnLiveMediaFrame
@@ -54,6 +55,19 @@ public:
     virtual void OnLiveMediaFrame(const MediaFrameInfo &frame_info, 
                                   const char * frame_data, 
                                   size_t frame_size) = 0;    
+    
+    // OnError()
+    // When a un-recover error is met, this method would be invoke d
+    // by the internal thread. 
+    // Note: never call Stop/Uninit methods of the associated stream sink. 
+    // params: 
+    //    err_code: the error code of the corresponding err. 
+    //              now, the following error code supported:
+    //              ERROR_CODE_GENERAL
+    //              ERROR_CODE_METADATA_MISMATCH
+    // 
+    //    err_info: the text with the error
+    virtual void OnError(int err_code, std::string err_info) = 0;                                      
  
 };
 

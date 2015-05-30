@@ -74,6 +74,8 @@ public:
     virtual void OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
                                   const char * frame_data, 
                                   size_t frame_size);    
+                                  
+    virtual void OnError(int err_code, std::string err_info);    
        
 private: 
     stream_switch::StreamSink sink_;
