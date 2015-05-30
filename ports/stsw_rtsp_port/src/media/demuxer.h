@@ -29,7 +29,6 @@ extern "C" {
 
 #include <glib.h>
 #include <stdint.h>
-
 #include "bufferqueue.h"
 
 struct feng;
@@ -117,7 +116,7 @@ typedef struct ResourceInfo_s {
 } ResourceInfo;
 
 typedef struct Resource {
-    GMutex lock;
+    GMutex *lock;
     const struct Demuxer *demuxer;
     ResourceInfo *info;
     // Metadata begin
@@ -214,6 +213,8 @@ typedef struct {
     const char *comment;
     /* served file extensions */
     const char *extensions; // coma separated list of extensions (w/o '.')
+    
+    const int fake_path;   // use a fake pattern path instead of a real filesytem path for mrl
 } DemuxerInfo;
 
 typedef struct Demuxer {

@@ -34,7 +34,6 @@
 
 #include <string>
 
-#undef fnc_log
 
 #define LOG_FORMAT "%d/%b/%Y:%H:%M:%S %z"
 #define ERR_FORMAT "%a %b %d %H:%M:%S %Y"
@@ -60,7 +59,7 @@ static const char *log_level_str[] =
  * Log to file descriptor
  * @brief print on standard error or file
  */
-static void fnc_errlog(int level, char * file, int line, const char *fmt, va_list args)
+static void fnc_errlog(int level, const char * file, int line, const char *fmt, va_list args)
 {
 
     if (level > log_level) return;
@@ -115,7 +114,7 @@ out:
 }
 
 
-static void fnc_syslog(int level, char * file, int line, const char *fmt, va_list args)
+static void fnc_syslog(int level, const char * file, int line, const char *fmt, va_list args)
 {
 #ifndef __WIN32__    
     int l = LOG_ERR;
@@ -150,7 +149,7 @@ static void fnc_syslog(int level, char * file, int line, const char *fmt, va_lis
 }
 
 
-static void (*fnc_vlog)(int, char * , int , const char*, va_list) = fnc_errlog;
+static void (*fnc_vlog)(int, const char * , int , const char*, va_list) = fnc_errlog;
 
 /**
  * Set the logger and returns the function pointer to be feed to the
@@ -189,7 +188,7 @@ fnc_log_t fnc_log_init(char *file, int out, int level, char *name)
  * @param fmt as printf format string
  * @param ... as printf variable argument
  */
-void fnc_log_internal(int level, char * file, int line, const char *fmt, ...)
+void fnc_log_internal(int level, const char * file, int line, const char *fmt, ...)
 {
     va_list vl;
     va_start(vl, fmt);

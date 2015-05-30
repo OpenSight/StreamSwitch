@@ -28,13 +28,13 @@
 #include <stsw_global.h>
 #include <google/protobuf/stubs/common.h>
 #include <czmq.h>
-
+#include <stdlib.h>
 
 
 namespace stream_switch {
 
     
-int GlobalInit()
+int GlobalInit(bool default_signal_handler)
 {
     
     // Verify that the version of the library that we linked against is
@@ -42,7 +42,13 @@ int GlobalInit()
     GOOGLE_PROTOBUF_VERIFY_VERSION;
     
     //init zeromq, and install default signal handler
+    if(!default_signal_handler){
+        setenv("ZSYS_SIGHANDLER", "false", 1);
+    }else{
+        setenv("ZSYS_SIGHANDLER", "true", 1);
+    }
     zsys_init();
+
     
     return 0;
 }    

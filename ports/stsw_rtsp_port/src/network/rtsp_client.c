@@ -190,15 +190,15 @@ static void child_terminate_cb (struct ev_loop *loop, ev_child *w, int revents)
 
 ev_child cw;
 
-void feng_start_child_watcher(feng *srv)
+void feng_start_child_watcher(struct feng  *srv)
 {
     ev_child_init (&cw, child_terminate_cb, 0, 0);
     ev_child_start (srv->loop, &cw);    
 }
 
-void feng_stop_child_watcher(feng *srv)
+void feng_stop_child_watcher(struct feng  *srv)
 {
-    ev_child_sop (srv->loop, &cw);    
+    ev_child_stop (srv->loop, &cw);    
 }
 
 #if 0

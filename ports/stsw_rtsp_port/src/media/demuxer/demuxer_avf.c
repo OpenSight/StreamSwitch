@@ -37,7 +37,8 @@ static const DemuxerInfo info = {
 	"avf",
 	"LScube Team",
 	"",
-	"mov, nut, mkv, mxf"
+	"mov, nut, mkv, mxf", 
+    0, 
 };
 
 typedef struct id_tag {
@@ -186,6 +187,7 @@ static int avf_init(Resource * r)
     strncpy(trackinfo.author, "TriNet NVR", 80);
 
     r->info->duration = (double)avfc->duration /AV_TIME_BASE;
+    r->model = MM_PULL;
 
 
     if(streamType != RAW_STREAM) {
@@ -483,6 +485,11 @@ static void avf_uninit(gpointer rgen)
         r->private_data = NULL;
     }
 }
+
+#define avf_start NULL
+#define avf_pause NULL;
+
+
 
 FNC_LIB_DEMUXER(avf);
 

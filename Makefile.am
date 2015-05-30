@@ -12,3 +12,7 @@ endif
 if INCLUDE_RTMP_SOURCE
 SUBDIRS += sources/stsw_rtmp_source
 endif 
+
+if INCLUDE_RTSP_PORT
+SUBDIRS += ports/stsw_rtsp_port
+endif 

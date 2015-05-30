@@ -37,7 +37,7 @@ static const MediaParserInfo info = {
     MP_audio
 };
 
-static int simple_init(ATTR_UNUSED Track *track)
+static int simple_init(Track *track)
 {
     char encodingParamsPart[21];
     memset(encodingParamsPart, 0, sizeof(encodingParamsPart));
@@ -92,5 +92,5 @@ static int simple_parse(Track *tr, uint8_t *data, size_t len)
 #define simple_uninit NULL
 
 FNC_LIB_MEDIAPARSER(simple);
-#endif
+
 

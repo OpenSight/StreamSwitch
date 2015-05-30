@@ -24,7 +24,6 @@
 #define FN_RTSP_H
 
 #include <time.h>
-#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -381,9 +380,8 @@ void rtsp_do_pause(RTSP_Client *rtsp);
 RTSP_ResponseCode parse_require_header(RTSP_Request *req);
 
 struct feng;
-typedef struct feng feng;
-void feng_start_child_watcher(feng *srv);
-void feng_stop_child_watcher(feng *srv);
+void feng_start_child_watcher(struct feng *srv);
+void feng_stop_child_watcher(struct feng *srv);
 
 
 

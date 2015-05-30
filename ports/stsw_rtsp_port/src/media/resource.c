@@ -29,7 +29,7 @@
 #include "fnc_log.h"
 
 // global demuxer modules:
-extern Demuxer fnc_demuxer_avf;
+extern Demuxer fnc_demuxer_stsw;
 
 
 
@@ -65,7 +65,8 @@ static void r_free_cb(gpointer resource_p,
         return;
 
 
-    g_mutex_clear(&resource->lock);
+    if (resource->lock)
+        g_mutex_free(resource->lock);
 
 
     fnc_log(FNC_LOG_DEBUG, "close resource %s:",resource->info->name);
@@ -100,7 +101,7 @@ static void r_free_cb(gpointer resource_p,
 static const Demuxer *r_find_demuxer(const char *filename)
 {
     static const Demuxer *const demuxers[] = {
-        &fnc_demuxer_avf,
+        &fnc_demuxer_stsw,
         NULL
     };
 
@@ -116,8 +117,15 @@ static const Demuxer *r_find_demuxer(const char *filename)
                                    * served by probing demuxer.
                                    */
             strncpy(exts, demuxers[i]->info->extensions, sizeof(exts)-1);
+            
+            if(demuxers[i]->info->fake_path || strlen(exts) == 0){
+                /* no file extension for this demuxer */
+                continue;
+            }
+            
 
             for (tkn=strtok(exts, ","); tkn; tkn=strtok(NULL, ",")) {
+                
                 if (strcmp(tkn, res_ext) == 0)
                     continue;
 
@@ -131,9 +139,23 @@ static const Demuxer *r_find_demuxer(const char *filename)
         }
     }
 
-    for (i=0; demuxers[i]; i++)
-        if ((demuxers[i]->probe(filename) == RESOURCE_OK))
-            return demuxers[i];
+    /* try fake path demuxer first */
+
+    for (i=0; demuxers[i]; i++){
+        if(demuxers[i]->info->fake_path != 0){
+
+            if ((demuxers[i]->probe(filename) == RESOURCE_OK))
+                return demuxers[i];
+        }
+    }
+
+    for (i=0; demuxers[i]; i++){
+        if(demuxers[i]->info->fake_path == 0){
+
+            if ((demuxers[i]->probe(filename) == RESOURCE_OK))
+                return demuxers[i];
+        }
+    }
 
     return NULL;
 }
@@ -207,8 +229,9 @@ Resource *r_open(struct feng *srv, const char *inner_path)
     r->demuxer = dmx;
     r->srv = srv; 
     r->rtsp_sess = NULL;
+    r->model = MM_PULL;
     
-    g_mutex_init(&r->lock);
+    r->lock = g_mutex_new();
 
     
         
@@ -299,13 +322,13 @@ static void r_track_producer_reset_queue(gpointer element,
 int r_seek(Resource *resource, double time) {
     int res;
 
-    g_mutex_lock(&resource->lock);
+    g_mutex_lock(resource->lock);
 
     res = resource->demuxer->seek(resource, time);
 
     g_list_foreach(resource->tracks, r_track_producer_reset_queue, NULL);
 
-    g_mutex_unlock(&resource->lock);
+    g_mutex_unlock(resource->lock);
 
     return res;
 }
@@ -321,7 +344,7 @@ int r_read(Resource *resource)
 {
     int ret = RESOURCE_EOF;
 
-    g_mutex_lock(&resource->lock);
+    g_mutex_lock(resource->lock);
     if (!resource->eor)
         switch( (ret = resource->demuxer->read_packet(resource)) ) {
         case RESOURCE_OK:
@@ -339,7 +362,7 @@ int r_read(Resource *resource)
             break;
         }
 
-    g_mutex_unlock(&resource->lock);
+    g_mutex_unlock(resource->lock);
 
     return ret;
 }
@@ -370,7 +393,7 @@ int r_start(Resource *resource)
 {
     int ret = RESOURCE_OK;
     
-    g_mutex_lock(&resource->lock);
+    g_mutex_lock(resource->lock);
     if(resource->demuxer->pause){
         ret = resource->demuxer->start(resource);
     }
@@ -380,7 +403,7 @@ int r_start(Resource *resource)
         resource->eor = true;
     }
 
-    g_mutex_unlock(&resource->lock);    
+    g_mutex_unlock(resource->lock);    
     
     return ret;
 }
@@ -396,12 +419,12 @@ int r_start(Resource *resource)
  */
 void r_pause(Resource *resource)
 {
-    g_mutex_lock(&resource->lock);
+    g_mutex_lock(resource->lock);
     if(resource->demuxer->pause){
         resource->demuxer->pause(resource);
     }
 
-    g_mutex_unlock(&resource->lock);
+    g_mutex_unlock(resource->lock);
 }
 
 /**

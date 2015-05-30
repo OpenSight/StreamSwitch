@@ -33,7 +33,9 @@ extern "C" {
 
 #include <stdlib.h>
 #include <errno.h>
-//#include <grp.h>
+#ifndef __WIN32__
+#include <grp.h>
+#endif
 #include <string.h>
 #include <stdbool.h>
 

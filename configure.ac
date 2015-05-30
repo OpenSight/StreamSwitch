@@ -1,5 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
+version = 0.1.0
 
 AC_PREREQ([2.63])
 AC_INIT([streamswitch], [0.1.0], [zqwangjk@sina.com])
@@ -28,12 +29,22 @@ AC_ARG_WITH([rtsp-source],
 AM_CONDITIONAL([INCLUDE_RTSP_SOURCE], [test "x$rtsp_source" = xyes])
 
 
-AC_ARG_WITH([rtmp-source],
-[AS_HELP_STRING([--with-rtmp-source],
-[would contains the stsw_rtmp_source program @<:@default=yes@:>@])],
-[rtmp_source=${withval}], [rtmp_source=yes])
+AC_ARG_WITH([rtmp-source], 
+[AS_HELP_STRING([--with-rtmp-source], 
+[would contains the stsw_rtmp_source program @<:@default=yes@:>@])], 
+[rtmp_source=${withval}], [rtmp_source=yes]) 
+
 
 AM_CONDITIONAL([INCLUDE_RTMP_SOURCE], [test "x$rtmp_source" = xyes])
+
+AC_ARG_WITH([rtsp-port], 
+[AS_HELP_STRING([--with-rtsp-port], 
+[would contains the stsw_rtsp_port program @<:@default=yes@:>@])], 
+[rtsp_port=${withval}], [rtsp_port=yes])
+
+AM_CONDITIONAL([INCLUDE_RTSP_PORT], [test "x$rtsp_port" = xyes])
+
+
 
 
 # Checks for programs.
@@ -62,11 +73,27 @@ PKG_CHECK_MODULES(protobuf, [protobuf >= 2.0.0])
 AC_SUBST(protobuf_LIBS)
 AC_SUBST(protobuf_CFLAGS)
 
+# Checks for stsw_rtmp_source
 if test "x$rtmp_source" = xyes; then
   PKG_CHECK_MODULES(librtmp, [librtmp >= v2.3])
 fi
 AC_SUBST(librtmp_LIBS)
 AC_SUBST(librtmp_CFLAGS)
+
+
+# Checks for stsw_rtsp_port
+if test "x$rtsp_port" = xyes; then
+  AC_CHECK_HEADERS([ev.h], [have_libev=yes], [have_libev=no])
+  AS_IF([test "x$have_libev" = "xno"], [AC_MSG_ERROR([libev not found, stsw_rtsp_port requires libev])])
+  
+  PKG_CHECK_MODULES(libnetembryo, [libnetembryo >= 0.1.0])  
+  PKG_CHECK_MODULES(glib, [glib-2.0 >= 2.16 gthread-2.0])  
+fi
+AC_SUBST(libnetembryo_LIBS)
+AC_SUBST(libnetembryo_CFLAGS)
+AC_SUBST(glib_LIBS)
+AC_SUBST(glib_CFLAGS)
+
 
 
 # Checks for header files.
@@ -92,7 +119,8 @@ AC_CONFIG_FILES([Makefile \
                  libstreamswitch/samples/Makefile \
                  libstreamswitch/libstreamswitch.pc \
                  sources/stsw_rtsp_source/Makefile \
-                 sources/stsw_rtmp_source/Makefile])
+                 sources/stsw_rtmp_source/Makefile \
+                 ports/stsw_rtsp_port/Makefile])
 
 # Generate other makefiles
 
@@ -103,3 +131,23 @@ if test "x$rtsp_source" = xyes; then
 fi
 
 AC_OUTPUT
+
+
+
+AC_MSG_NOTICE([Configure successfully!
+
+StreamSwitch version ................. : $PACKAGE_VERSION
+StreamSwitch Install prefix .......... : $prefix
+StreamSwitch exec prefix ............. : $exec_prefix
+StreamSwitch library path ............ : $libdir
+StreamSwitch include path ............ : $includedir
+StreamSwitch program path ............ : $bindir
+
+stsw_rtsp_source included............. : $rtsp_source
+stsw_rtmp_source included ............ : $rtmp_source
+stsw_rtsp_port included .............. : $rtsp_port
+
+
+ 'make' will now compile StreamSwitch and 'su -c make install' will install it.
+ Note: On non-Linux systems you might need to use 'gmake' instead of 'make'.
+])

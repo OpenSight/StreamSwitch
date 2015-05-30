@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#include <glib/glib.h>
+#include <glib.h>
 #include <netembryo/wsocket.h>
 #include <ev.h>
 #include <unistd.h>
