@@ -56,18 +56,15 @@ public:
                                   const char * frame_data, 
                                   size_t frame_size) = 0;    
     
-    // OnError()
-    // When a un-recover error is met, this method would be invoke d
-    // by the internal thread. 
-    // Note: never call Stop/Uninit methods of the associated stream sink. 
-    // params: 
-    //    err_code: the error code of the corresponding err. 
-    //              now, the following error code supported:
-    //              ERROR_CODE_GENERAL
-    //              ERROR_CODE_METADATA_MISMATCH
-    // 
-    //    err_info: the text with the error
-    virtual void OnError(int err_code, std::string err_info) = 0;                                      
+
+    
+    // OnMetadataMismatch()
+    // When the received live media frame does not match with
+    // the sink's metadata, this method would be invoked
+    // by the internal thread
+    // Params:
+    //    mismatch_ssrc - The ssrc in the received frame which is mismatch
+    virtual void OnMetadataMismatch(uint32_t mismatch_ssrc) = 0;                                      
  
 };
 

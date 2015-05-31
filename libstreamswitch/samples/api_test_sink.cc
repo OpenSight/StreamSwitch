@@ -58,7 +58,7 @@ public:
                                  );    
        
   
-    virtual void OnError(int err_code, std::string err_info);    
+    virtual void OnMetadataMismatch(uint32_t mismatch_ssrc);    
 };
 
 
@@ -81,10 +81,10 @@ void ApiTestSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
 }
 
 
-void ApiTestSinkListener::OnError(int err_code, std::string err_info)
+void ApiTestSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
 {
-    fprintf(stderr, "ApiTestSinkListener::OnError() is called with %d(%s)", 
-            err_code, err_info.c_str());
+    fprintf(stderr, "ApiTestSinkListener::OnMetadataMismatch() is called with mismatch_ssrc(%x)", 
+            mismatch_ssrc);
 }
 
 void ParseArgv(int argc, char *argv[], 

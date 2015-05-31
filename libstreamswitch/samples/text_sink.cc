@@ -75,7 +75,12 @@ public:
                                   const char * frame_data, 
                                   size_t frame_size);    
                                   
-    virtual void OnError(int err_code, std::string err_info);    
+    virtual void OnMetadataMismatch(uint32_t mismatch_ssrc);    
+    
+    bool is_err()
+    {
+        return is_err_;
+    }
        
 private: 
     stream_switch::StreamSink sink_;
@@ -83,6 +88,7 @@ private:
     FILE * text_file_;
     int64_t last_frame_rec_sec_;   
     stream_switch::StreamClientInfo client_info;
+    bool is_err_;
   
         
 };
@@ -105,7 +111,7 @@ static int str2int(std::string str_value)
 
 
 TextStreamSink::TextStreamSink()
-:text_file_(NULL), last_frame_rec_sec_(0)
+:text_file_(NULL), last_frame_rec_sec_(0), is_err_(false)
 {
     client_info.client_protocol = "text_dump";
     client_info.client_text = "text_sink which dumps media frames to a text file";
@@ -152,6 +158,8 @@ int TextStreamSink::InitRemote(std::string text_file,
         return -1;
     }
     
+    is_err_ = false;
+    
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "TextStreamSink Init successful (file:%s, source: %s:%d)", 
               text_file.c_str(), source_ip.c_str(), source_tcp_port);
@@ -193,6 +201,7 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
     }
     
     last_frame_rec_sec_ = 0;
+    is_err_ = false;
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
               "TextStreamSink Init successful (file:%s, source:%s)", 
@@ -233,7 +242,8 @@ int TextStreamSink::Start(int timeout)
     //do something with the new metadata
     //
     
-    last_frame_rec_sec_ = time(NULL);   
+    last_frame_rec_sec_ = time(NULL); 
+    is_err_ = false;
     
     
     // start to receive the media frames
@@ -299,6 +309,13 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame
     
     last_frame_rec_sec_ = time(NULL);    
  
+}
+
+void TextStreamSink::OnMetadataMismatch(uint32_t mismatch_ssrc)
+{
+    fprintf(stderr, "TextStreamSink::OnMetadataMismatch() is called with mismatch_ssrc(%x)", 
+            mismatch_ssrc);    
+    is_err_ = true;
 }
 
 
@@ -498,6 +515,13 @@ int main(int argc, char *argv[])
                       "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);  
             ret = -1;
             break;
+        }
+        if(text_sink.is_err()){
+            fprintf(stderr, "text_sink is error, exit\n");
+            ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
+                       "text_sink is error, exit\n");  
+            ret = -1;
+            break;            
         }
       
         if(isGlobalInterrupt()){

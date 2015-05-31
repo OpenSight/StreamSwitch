@@ -154,7 +154,8 @@ worker_thread_id_(0), next_seq_(1), debug_flags_(0), flags_(0),
 last_heartbeat_time_(0), 
 last_send_client_heartbeat_msec_(0),
 next_send_client_heartbeat_msec_(0), 
-listener_(NULL), sub_queue_size_(STSW_SUBSCRIBE_SOCKET_HWM)
+listener_(NULL), sub_queue_size_(STSW_SUBSCRIBE_SOCKET_HWM), 
+last_frame_ssrc_(0)
 {
     
 }
@@ -543,6 +544,7 @@ int StreamSink::Start(std::string *err_info)
 
     last_send_client_heartbeat_msec_ = 0;
     next_send_client_heartbeat_msec_ = 0;
+    last_frame_ssrc_ = stream_meta_.ssrc;
     
     //start the internal thread
     ret = pthread_create(&worker_thread_id_, NULL, StreamSink::StaticThreadRoutine, this);
@@ -709,57 +711,75 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg,
 
     //
     // update statistic_
-    {
-        LockGuard guard(&lock());  
-        
-        // check ssrc
-        if(stream_meta_.ssrc != frame_info.ssrc){
-            //ssrc mismatch, just ignore this frame
-            return 0;
+ 
+    pthread_mutex_lock(&lock());
+    
+    // check ssrc
+    if(stream_meta_.ssrc != frame_info.ssrc){
+        //ssrc mismatch, just ignore this frame
+        if(frame_info.ssrc != last_frame_ssrc_){ //Jamken: avoid repeatly callback the same error
+            last_frame_ssrc_ = frame_info.ssrc;
+            SinkListener *plistener = listener();
+    
+            pthread_mutex_unlock(&lock());   
+ 
+            if(plistener != NULL){
+                plistener->OnMetadataMismatch(frame_info.ssrc);
+            }
+        }else{
+            //Jamken: this error has already callback.
+            pthread_mutex_unlock(&lock()); 
         }
         
-        if(frame_info.sub_stream_index < 0 ||
-           frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
-            //sub stream index mismatch, just ignore this frame
-            return 0;
-        }        
+        
+        return 0;
+    }
+        
+    if(frame_info.sub_stream_index < 0 ||
+        frame_info.sub_stream_index >= (int32_t)stream_meta_.sub_streams.size()){
+        //sub stream index mismatch, just ignore this frame
+        pthread_mutex_unlock(&lock());
+        return 0;
+    }        
     
-        int sub_stream_index = frame_info.sub_stream_index;
+    int sub_stream_index = frame_info.sub_stream_index;
     
-        if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
-            frame_info.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
-            //the frames contains media data   
-            statistic_[sub_stream_index].data_frames++;
-            statistic_[sub_stream_index].data_bytes += frame_size;
-            if( (statistic_[sub_stream_index].last_seq != 0) 
-                && (seq > (statistic_[sub_stream_index].last_seq + 1))){
-                statistic_[sub_stream_index].lost_frames +=  
-                    (seq - (statistic_[sub_stream_index].last_seq + 1));
-            }
-            statistic_[sub_stream_index].last_seq = seq;
+    if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||
+        frame_info.frame_type == MEDIA_FRAME_TYPE_DATA_FRAME){
+        //the frames contains media data   
+        statistic_[sub_stream_index].data_frames++;
+        statistic_[sub_stream_index].data_bytes += frame_size;
+        if( (statistic_[sub_stream_index].last_seq != 0) 
+            && (seq > (statistic_[sub_stream_index].last_seq + 1))){
+            statistic_[sub_stream_index].lost_frames +=  
+                (seq - (statistic_[sub_stream_index].last_seq + 1));
+        }
+        statistic_[sub_stream_index].last_seq = seq;
 
      
-            if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
-                statistic_[sub_stream_index].key_frames ++;
-                statistic_[sub_stream_index].key_bytes += frame_size;
+        if(frame_info.frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+            statistic_[sub_stream_index].key_frames ++;
+            statistic_[sub_stream_index].key_bytes += frame_size;
                     
                 //start a new gov
-                statistic_[sub_stream_index].last_gov = 
-                    statistic_[sub_stream_index].cur_gov;
-                statistic_[sub_stream_index].cur_gov = 0;            
-            }
-            statistic_[sub_stream_index].cur_gov ++;
+            statistic_[sub_stream_index].last_gov = 
+                statistic_[sub_stream_index].cur_gov;
+            statistic_[sub_stream_index].cur_gov = 0;            
+        }
+        statistic_[sub_stream_index].cur_gov ++;
             
             
-        }else{ 
+    }else{ 
             //not contain media data, so that not update last_seq
 
-        }//if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||          
+    }//if(frame_type == MEDIA_FRAME_TYPE_KEY_FRAME ||          
             
-        
-    }//release the lock    
+    
 
     SinkListener *plistener = listener();
+    
+    pthread_mutex_unlock(&lock());   
+ 
     if(plistener != NULL){
         plistener->OnLiveMediaFrame(frame_info, frame_data, frame_size);
     }    

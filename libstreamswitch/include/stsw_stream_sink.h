@@ -208,6 +208,8 @@ private:
     SinkListener *listener_;
     
     uint32_t sub_queue_size_;
+    
+    uint32_t last_frame_ssrc_;
                              
 };
 
