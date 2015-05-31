@@ -146,6 +146,8 @@ void rtp_session_fill_cb( gpointer session_p,
     gulong unseen;
     const gulong buffered_frames = resource->srv->srvconf.buffered_frames;
     const double buffered_ms = ((double)resource->srv->srvconf.buffered_ms) / 1000.0;
+
+    
     while ( (unseen = bq_consumer_unseen(consumer)) < buffered_frames &&
             (resource->lastTimestamp - session->last_timestamp ) < buffered_ms ) {
 
@@ -569,10 +571,12 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
         }else{
             
             /* send BYE if packet's timestamp get over the range */
-            if(timestamp >  session->range->end_time + 0.001 ) {
-                fnc_log(FNC_LOG_INFO, "[rtp] Stream get over the range, send BYE");
-                rtcp_send_sr(session, BYE);
-                return;
+            if(session->range->end_time > 0){
+                if(timestamp >  session->range->end_time + 0.001 ) {
+                    fnc_log(FNC_LOG_INFO, "[rtp] Stream get over the range, send BYE");
+                    rtcp_send_sr(session, BYE);
+                    return;
+                }
             }
         
 
@@ -586,10 +590,22 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
                 next = bq_consumer_get(session->consumer);
                 if(delivery != next->delivery) {
    
-
+/*
                     next_time = (session->range->playback_time +
                                  rtp_scaler(session, next->delivery -
                                  session->range->begin_time) ) ;
+*/
+                    if (session->track->properties.media_source == MS_live){
+                        /* Jamken: for live stream ,deliver as soon as possible */
+
+                        next_time += 0.001; 
+                    } else {
+
+                        next_time = (session->range->playback_time +
+                                     rtp_scaler(session, next->delivery -
+                                     session->range->begin_time) ) ;
+
+                    }                    
 
 
                 }

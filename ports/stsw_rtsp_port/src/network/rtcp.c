@@ -181,7 +181,7 @@ static void rtcp_set_sr(RTP_session *session, RTCP_SR_Compound *outpkt)
 
 
     if(session->last_timestamp >= session->range->begin_time) {
-        now = rtp_scaler(session,session ->last_timestamp - session->range->begin_time) +
+        now = rtp_scaler(session,session->last_timestamp - session->range->begin_time) +
               session->range->playback_time + 0.1;/* + 0.1 for vlc, vlc must used a timestamp over the current frame*/
 
     }else{

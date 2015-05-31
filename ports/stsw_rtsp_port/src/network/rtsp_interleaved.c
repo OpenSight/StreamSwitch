@@ -149,6 +149,7 @@ gboolean interleaved_setup_transport(RTSP_Client *rtsp, RTP_transport *transport
                                      int rtp_ch, int rtcp_ch) {
     RTSP_interleaved *intlvd = NULL;
     Sock *sock_pair[2][2];
+    //unsigned buffer_size = 0;
 
     // RTP local sockpair
     if ( Sock_socketpair(sock_pair[0]) < 0) {
@@ -170,7 +171,14 @@ gboolean interleaved_setup_transport(RTSP_Client *rtsp, RTP_transport *transport
 
     transport->rtp_sock = sock_pair[0][0];
     intlvd->rtp.local = sock_pair[0][1];
-
+    
+    /* Jamken: Not necessary to increase the buffer for socketpair, 
+     * because we send a 1.4 Kbytes packet each time
+     */
+/*
+    buffer_size = increase_sock_buffer_to(transport->rtp_sock, SO_SNDBUF, RTP_BUF_SIZE);
+    fnc_log(FNC_LOG_VERBOSE,"[rtsp] Set rtp data socket send buffer size to %u", buffer_size);
+*/
     transport->rtcp_sock = sock_pair[1][0];
     intlvd->rtcp.local = sock_pair[1][1];
 
