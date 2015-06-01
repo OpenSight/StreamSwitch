@@ -29,6 +29,7 @@
 #include "feng_utils.h"
 #include "rtp.h"
 #include "config.h"
+#include "fnc_log.h"
 
 GList *child_head=NULL;
 int reach_play=0;
@@ -38,7 +39,9 @@ int reach_play=0;
 
 static void destroy_client_item(gpointer elem,
                               ATTR_UNUSED gpointer unused) {
+    if(elem != NULL){
 		free_child_port((client_port_pair*)elem);
+    }
 }
 
 void add_client_list(client_port_pair* client)
@@ -52,7 +55,7 @@ void reduce_client_list(client_port_pair* client)
 }
 void init_client_list()
 {
-    child_head = g_list_alloc();
+    child_head = NULL;
 }
 void free_client_list()
 {
@@ -64,11 +67,16 @@ void free_client_list()
     }
 }
 
-client_port_pair* new_child_port(feng *srv)
+client_port_pair* new_child_port(struct feng *srv, 
+                                 char * host, unsigned short port)
 {
 
 	client_port_pair *client_port = g_new0(client_port_pair,1);
 	client_port->srv = srv;
+    if(host != NULL){
+        client_port->host = g_strdup(host);
+    }
+    client_port->port = port;
 	return client_port;
 }
 
@@ -77,6 +85,10 @@ void free_child_port(client_port_pair *client)
 
 	if(client)
 	{
+        if(client->host != NULL){
+            g_free(client->host);
+            client->host = NULL;
+        }
 		g_free(client);
 	}
 }
@@ -88,6 +100,7 @@ client_port_pair *get_client_list_item(pid_t pid)
 	GList *item=NULL;
 	client_port_pair *client = NULL;
 	item = child_head;
+    
 	while(item)
 	{
 		client = (client_port_pair *)item->data;

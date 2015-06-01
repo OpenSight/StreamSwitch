@@ -454,6 +454,8 @@ static void rtsp_handle_request(RTSP_Client *rtsp)
      * care of responding with an error if the method is not implemented.
      */
 
+    //fnc_log(FNC_LOG_VERBOSE, "method id:%d\n", req->method_id);
+    
     methods[req->method_id](rtsp, req);
 
     rtsp_free_request(req);

@@ -27,6 +27,7 @@
 #include "rtsp.h"
 
 #include "../config.h"
+#include "fnc_log.h"
 
 /**
  * @file
@@ -179,7 +180,7 @@ static void rtsp_log_access(RTSP_Response *response)
     char *response_length = response->body ?
         g_strdup_printf("%zd", response->body->len) : NULL;
 
-    fprintf(stderr, "%s - - [%s], \"%s %s %s\" %d %s %s %s\n",
+    fnc_log(FNC_LOG_CLIENT, "%s - - [%s], \"%s %s %s\" %d %s %s %s\n",
             response->client->sock->remote_host,
             (const char*)g_hash_table_lookup(response->headers, eris_hdr_date),
             response->request->method, response->request->object,

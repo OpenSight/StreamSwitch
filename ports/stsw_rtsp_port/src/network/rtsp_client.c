@@ -169,15 +169,23 @@ static void child_terminate_cb (struct ev_loop *loop, ev_child *w, int revents)
 	pid_t pid;
 	feng *srv=w->data;
 
+
     
      //ev_child_stop (EV_A_ w);
-    printf ("process %d exited with status %x\n", w->rpid, w->rstatus);
+    //printf ("child process %d exited with status %x\n", w->rpid, w->rstatus);
     
     
     pid = w->rpid;
     client=get_client_list_item(pid);
     if(client)
     {
+        fnc_log(FNC_LOG_INFO, 
+            "The child process (pid:%d) for rtsp connection (%s:%hu) terminated with status %x\n", 
+            w->rpid, 
+            client->host, 
+            client->port, 
+            w->rstatus);    
+        
         reduce_client_list(client);
 
         srv->connection_count--;
@@ -192,6 +200,7 @@ ev_child cw;
 
 void feng_start_child_watcher(struct feng  *srv)
 {
+    cw.data = srv;
     ev_child_init (&cw, child_terminate_cb, 0, 0);
     ev_child_start (srv->loop, &cw);    
 }
@@ -298,7 +307,9 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
         return;
     }
 
-    if(!( clients = new_child_port(srv))){
+    if(!( clients = new_child_port(srv, 
+                                   get_remote_host(client_sock), 
+                                   get_remote_port(client_sock)))){
         Sock_close(client_sock);
         return;
     }
@@ -361,12 +372,18 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
 
 
     }else if(pid > 0){
+        Sock_close(client_sock);   
         srv->connection_count++;
-        Sock_close(client_sock);
+
         clients->pid = pid;
-        add_client_list(clients);
+        fnc_log(FNC_LOG_INFO, 
+            "The child process (pid:%d) for rtsp connection (%s:%hu) is created\n", 
+            pid,
+            clients->host, 
+            clients->port);        
         fnc_log(FNC_LOG_INFO, "Connection reached: %d\n", srv->connection_count);
-        
+        add_client_list(clients);        
+     
         return;
     }else{
         Sock_close(client_sock);

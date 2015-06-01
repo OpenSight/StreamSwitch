@@ -169,7 +169,7 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     srv->srvconf.first_udp_port = 0;
     srv->srvconf.buffered_frames = 2048;
     srv->srvconf.buffered_ms = DEFAULT_BUFFERED_MS;
-    srv->srvconf.loglevel = 0;
+    srv->srvconf.loglevel = FNC_LOG_VERBOSE;
     srv->srvconf.max_conns = 1000;
     srv->srvconf.max_fds = 100;
     srv->srvconf.max_rate = 16;
@@ -177,15 +177,20 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     srv->srvconf.rtcp_heartbeat = 0;
     srv->srvconf.bindhost->ptr = NULL;
     
+    srv->config_storage.document_root = buffer_init();
+    buffer_copy_string(srv->config_storage.document_root, "");
+
  
     
     //log 
     srv->srvconf.log_type = FNC_LOG_OUT;
     
-    if ( syslog )
+    if ( syslog ){
         srv->srvconf.log_type = FNC_LOG_SYS;
-    else if (filelog)
+    }else if (filelog){
         srv->srvconf.log_type = FNC_LOG_FILE;
+        
+    }
 
     fn = fnc_log_init(srv->srvconf.errorlog_file->ptr,
                       srv->srvconf.log_type,
@@ -383,8 +388,11 @@ int main(int argc, char **argv)
     feng_drop_privs(srv);
 
 
-
+    fnc_log(FNC_LOG_INFO, "StreamSwitch RTSP Port Startup\n");
+    
     ev_loop (srv->loop, 0);
+    
+    fnc_log(FNC_LOG_INFO, "StreamSwitch RTSP Port shutdonw\n");
 
     
     

@@ -62,6 +62,7 @@ static const char *log_level_str[] =
 static void fnc_errlog(int level, const char * file, int line, const char *fmt, va_list args)
 {
 
+    
     if (level > log_level) return;
 
     ::std::string log_str;

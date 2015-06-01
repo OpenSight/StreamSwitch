@@ -67,6 +67,8 @@ typedef struct {
 typedef struct client_port_pair{
     int RTP_port[2];
     pid_t pid;
+    char *host;
+    unsigned short port;
     struct feng *srv;
 } client_port_pair;
 
@@ -173,7 +175,8 @@ void init_client_list();
 void free_client_list();
 
 
-client_port_pair* new_child_port(struct feng *srv);
+client_port_pair* new_child_port(struct feng *srv, 
+                                 char * host, unsigned short port);
 void free_child_port(client_port_pair *client);
 
 

@@ -343,11 +343,14 @@ void RTSP_describe(RTSP_Client * rtsp, RTSP_Request *req)
 {
     Url url;
     GString *descr;
+    
+    
+    //fprintf(stderr, "testsetsetset\n");
 
     if ( !rtsp_request_get_url(req, &url) )
         return;
 
-
+    
     do{
         RTSP_ResponseCode error;
         if ( (error = parse_require_header(req)) != RTSP_Ok ){
