@@ -19,13 +19,6 @@ void ParseArgv(int argc, char *argv[],
     parser->RegisterBasicOptions();
     parser->RegisterSourceOptions();
 
-    parser->RegisterOption("frame-size", 'F',  OPTION_FLAG_WITH_ARG,
-                   "SIZE",
-                   "Frame size to send out", NULL, NULL);
-    parser->RegisterOption("fps", 'f',  OPTION_FLAG_WITH_ARG,
-                   "NUM",
-                   "Frames per secode to send", NULL, NULL);
-
     parser->RegisterOption("debug-flags", 'd',
                     OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG",
                     "debug flag for stream_switch core library. "
@@ -124,6 +117,15 @@ int main(int argc, char *argv[]) {
 
     // "rtmp://192.168.1.180:1935/vod/wow.flv"
     rtmpClient = RtmpClientSource::Instance();
+    ret = rtmpClient->Init(parser.OptionValue("stream-name", ""),
+            (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0),
+            (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0),
+            (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
+    if (ret) {
+        goto exit_3;
+    }
+
+
 
     stream_switch::SetIntSigHandler(SignalHandler);
 
@@ -134,13 +136,18 @@ int main(int argc, char *argv[]) {
 
     return 0;
 
+exit_4:
+    rtmpClient->Uninit();
+
+exit_3:
+    RtmpClientSource::Uninstance();
+
 exit_2:
     if (logger) {
         logger->Uninit();
         delete logger;
         logger = NULL;
     }
-
 
 exit_1:
     stream_switch::GlobalUninit();

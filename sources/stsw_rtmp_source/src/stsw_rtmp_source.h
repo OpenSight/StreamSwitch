@@ -43,13 +43,14 @@ public:
     }
 
     void SetQuit();
+    int Init(std::string stream_name, int source_tcp_port, int queue_size, int debug_flags);
+    void Uninit();
     int Connect(std::string rtmpUrl);
-
+    int HandlePacket(RTMPPacket& packet);
+    int HandleonMetaData(char *body, unsigned int len);
 
     void OnKeyFrame(void) {};
     void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic) {};
-
-
 
 private:
     RtmpClientSource();
@@ -58,6 +59,7 @@ private:
     static RtmpClientSource * s_instance;
 
     char quit_;
+    char metaReady_;
     stream_switch::StreamSource source_;
     std::string rtmpUrl_;
     RTMP*  rtmp_;
