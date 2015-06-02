@@ -24,8 +24,9 @@
  * @file main.c
  * server main loop
  */
-
 #include "config.h"
+#include "stream_switch.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +52,8 @@ extern "C" {
 #include "network/rtsp.h"
 #include <glib.h>
 #include <netembryo/wsocket.h>
+
+
 
 #ifdef __cplusplus
 }
@@ -135,46 +138,85 @@ static void feng_handle_signals(feng *srv)
 }
 
 
-static void fncheader()
+void fncheader()
 {
     printf("\n%s - RTSP Port %s\n Project - www.opensight.cn\n",
             PACKAGE,
             VERSION);
 }
 
-static gboolean show_version( const gchar *option_name,
-                              const gchar *value,
-                              gpointer data,
-                              GError **error)
-{
-    fncheader();
-    exit(0);
-}
 
+void ParseArgv(int argc, char *argv[], 
+               stream_switch::ArgParser *parser);
 static gboolean command_environment(feng *srv, int argc, char **argv)
 {
-    gboolean syslog = FALSE, filelog = FALSE;
-    fnc_log_t fn;
+
+    fnc_log_t fn = NULL;
     gchar *progname;
+    std::string log_file;
+    int log_size;
+    int rotate_num;
+    
     
     progname = g_path_get_basename(argv[0]);
     
     
+
+    
+    stream_switch::ArgParser parser;
+
+    //parse the cmd line
+    ParseArgv(argc, argv, &parser); // parse the cmd line        
+    
     fncheader();
     
+    srv->srvconf.port = 
+        strtol(parser.OptionValue("port", "554").c_str(), NULL, 0);
+    buffer_copy_string(srv->srvconf.errorlog_file, 
+        parser.OptionValue("log-file", "errlog.log").c_str());
     
-    srv->srvconf.port = 554;
-    buffer_copy_string(srv->srvconf.errorlog_file, "error.log");
     srv->srvconf.log_type = FNC_LOG_OUT;
-    srv->srvconf.first_udp_port = 0;
-    srv->srvconf.buffered_frames = 2048;
-    srv->srvconf.buffered_ms = DEFAULT_BUFFERED_MS;
-    srv->srvconf.loglevel = FNC_LOG_VERBOSE;
-    srv->srvconf.max_conns = 1000;
-    srv->srvconf.max_fds = 100;
-    srv->srvconf.max_rate = 16;
-    srv->srvconf.max_mbps = 100;
+    std::string log_type = parser.OptionValue("log-type", "stderr");
+    if(log_type == "stderr"){
+        srv->srvconf.log_type = FNC_LOG_OUT;
+    }else if(log_type == "file"){
+        srv->srvconf.log_type = FNC_LOG_FILE;
+
+        log_file = 
+            parser.OptionValue("log-file", "");
+        log_size = 
+            strtol(parser.OptionValue("log-size", "0").c_str(), NULL, 0);
+        rotate_num = 
+            strtol(parser.OptionValue("log-rotate", "0").c_str(), NULL, 0);   
+        
+    }else if(log_type == "syslog"){
+        srv->srvconf.log_type = FNC_LOG_SYS;
+    }else{
+        srv->srvconf.log_type = FNC_LOG_OUT;
+    }
+    srv->srvconf.loglevel = 
+        strtol(parser.OptionValue("log-level", "3").c_str(), NULL, 0);
+    
+    
+    srv->srvconf.buffered_frames = 
+        strtol(parser.OptionValue("buffer-num", "2048").c_str(), NULL, 0);    
+    srv->srvconf.buffered_ms = 
+        strtol(parser.OptionValue("buffer-ms", "2000").c_str(), NULL, 0);
+    srv->srvconf.max_conns = 
+        strtol(parser.OptionValue("max-conns", "1000").c_str(), NULL, 0);
+
+    srv->srvconf.max_rate = 
+        strtol(parser.OptionValue("max-rate", "16").c_str(), NULL, 0);
+    srv->srvconf.max_mbps = 
+        strtol(parser.OptionValue("max-mbps", "100").c_str(), NULL, 0);
+        
     srv->srvconf.rtcp_heartbeat = 0;
+    if(parser.CheckOption("enable-rtcp-heartbeat")){
+        srv->srvconf.rtcp_heartbeat = 1;
+    }
+    
+    srv->srvconf.first_udp_port = 0;    
+    srv->srvconf.max_fds = 100;    
     srv->srvconf.bindhost->ptr = NULL;
     
     srv->config_storage.document_root = buffer_init();
@@ -183,91 +225,25 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
  
     
     //log 
-    srv->srvconf.log_type = FNC_LOG_OUT;
     
-    if ( syslog ){
-        srv->srvconf.log_type = FNC_LOG_SYS;
-    }else if (filelog){
-        srv->srvconf.log_type = FNC_LOG_FILE;
+    
+    
+    if( srv->srvconf.log_type == FNC_LOG_SYS ||
+        srv->srvconf.log_type == FNC_LOG_OUT){
+        fn = fnc_log_init(srv->srvconf.errorlog_file->ptr,
+                          srv->srvconf.log_type,
+                            srv->srvconf.loglevel,
+                              progname);     
+
+    }else{
+        fn = fnc_rotate_log_init(progname, srv->srvconf.errorlog_file->ptr,
+                            srv->srvconf.loglevel, log_size,
+                              rotate_num);           
         
     }
 
-    fn = fnc_log_init(srv->srvconf.errorlog_file->ptr,
-                      srv->srvconf.log_type,
-                        srv->srvconf.loglevel,
-                          progname);
-    if(srv->srvconf.log_type != FNC_LOG_FILE){
-        Sock_init(fn);           
-    }else{
-        Sock_init(NULL);
-    }
-    
-#if 0    //change to use StreamSwitch parser
-    gchar *config_file = NULL;
-    gboolean quiet = FALSE, verbose = FALSE, syslog = FALSE;
+    Sock_init(NULL);
 
-    GOptionEntry optionsTable[] = {
-        { "config", 'f', 0, G_OPTION_ARG_STRING, &config_file,
-            "specify configuration file", NULL },
-        { "quiet", 'q', 0, G_OPTION_ARG_NONE, &quiet,
-            "show as little output as possible", NULL },
-        { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
-            "output to standard error (debug)", NULL },
-        { "version", 'V', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, show_version,
-            "print version information and exit", NULL },
-        { "syslog", 's', 0, G_OPTION_ARG_NONE, &syslog,
-            "use syslog facility", NULL },
-        { NULL, 0, 0, 0, NULL, NULL, NULL }
-    };
-
-    GError *error = NULL;
-    GOptionContext *context = g_option_context_new("");
-    g_option_context_add_main_entries(context, optionsTable, PACKAGE_TARNAME);
-
-    g_option_context_parse(context, &argc, &argv, &error);
-    g_option_context_free(context);
-
-    if ( error != NULL ) {
-        g_critical("%s\n", error->message);
-        return false;
-    }
-
-    if (!quiet) fncheader();
-
-    if ( config_file == NULL )
-        config_file = g_strdup(FENICE_CONF_PATH_DEFAULT_STR);
-
-    if (config_read(srv, config_file)) {
-        g_critical("unable to read configuration file '%s'\n", config_file);
-        g_free(config_file);
-        return false;
-    }
-    g_free(config_file);
-
-    {
-#ifndef CLEANUP_DESTRUCTOR
-        gchar *progname;
-#endif
-        fnc_log_t fn;
-        int view_log;
-
-        progname = g_path_get_basename(argv[0]);
-
-        if ( verbose )
-            view_log = FNC_LOG_OUT;
-        else if ( syslog )
-            view_log = FNC_LOG_SYS;
-        else
-            view_log = FNC_LOG_FILE;
-
-        fn = fnc_log_init(srv->srvconf.errorlog_file->ptr,
-                          view_log,
-                          srv->srvconf.loglevel,
-                          progname);
-
-        Sock_init(fn);
-    }
-#endif
 
 
     return true;

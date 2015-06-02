@@ -52,11 +52,11 @@ PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
 am_stsw_rtsp_port_OBJECTS = src/bufferqueue.$(OBJEXT) \
 	src/fnc_log.$(OBJEXT) src/incoming.$(OBJEXT) \
-	src/main.$(OBJEXT) src/conf/array.$(OBJEXT) \
-	src/conf/buffer.$(OBJEXT) src/conf/data_array.$(OBJEXT) \
-	src/conf/data_count.$(OBJEXT) src/conf/data_integer.$(OBJEXT) \
-	src/conf/data_config.$(OBJEXT) src/conf/data_string.$(OBJEXT) \
-	src/liberis/utils.$(OBJEXT) \
+	src/main.$(OBJEXT) src/parse_args.$(OBJEXT) \
+	src/conf/array.$(OBJEXT) src/conf/buffer.$(OBJEXT) \
+	src/conf/data_array.$(OBJEXT) src/conf/data_count.$(OBJEXT) \
+	src/conf/data_integer.$(OBJEXT) src/conf/data_config.$(OBJEXT) \
+	src/conf/data_string.$(OBJEXT) src/liberis/utils.$(OBJEXT) \
 	src/liberis/headers_parser.$(OBJEXT) \
 	src/network/ragel_request_line.$(OBJEXT) \
 	src/network/ragel_transport.$(OBJEXT) \
@@ -283,6 +283,7 @@ stsw_rtsp_port_SOURCES = \
 	src/feng_utils.h \
 	src/main.cc \
     src/config.h \
+    src/parse_args.cc  \
     \
 	src/conf/array.c \
 	src/conf/array.h \
@@ -433,6 +434,8 @@ src/fnc_log.$(OBJEXT): src/$(am__dirstamp) \
 src/incoming.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/main.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/parse_args.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/conf/$(am__dirstamp):
 	@$(MKDIR_P) src/conf
 	@: > src/conf/$(am__dirstamp)
@@ -613,6 +616,7 @@ mostlyclean-compile:
 	-rm -f src/network/rtsp_response.$(OBJEXT)
 	-rm -f src/network/rtsp_state_machine.$(OBJEXT)
 	-rm -f src/network/rtsp_utils.$(OBJEXT)
+	-rm -f src/parse_args.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -621,6 +625,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/fnc_log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/incoming.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parse_args.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/conf/$(DEPDIR)/array.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/conf/$(DEPDIR)/buffer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/conf/$(DEPDIR)/data_array.Po@am__quote@

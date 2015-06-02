@@ -33,7 +33,7 @@
 #include<stdint.h>
 #include<pthread.h>
 #include<sys/time.h>
-
+#include<stdarg.h>
 
 namespace stream_switch {
 

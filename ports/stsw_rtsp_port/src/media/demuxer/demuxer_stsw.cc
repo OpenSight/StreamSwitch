@@ -86,18 +86,21 @@ static int stsw_url_parse(char * mrl, std::string * stream_name,
         param_len = strlen(mrl) - 
             (size_t)(param_begin - mrl);
     }
+    
+    
     if(stream_name != NULL){
         stream_name->assign(stream_name_begin, stream_name_len);
     }
+
     
     if(params != NULL){
         params->clear();
         
-        char* next_param = param_begin;
+        char* next_param = NULL;
         std::string attr;
-        while (NULL != next_param){
+        while (NULL != param_begin){
 
-            char * next_param = strstr(param_begin, "&");
+            next_param = strstr(param_begin, "&");
 
             if ( next_param != NULL )
             {
@@ -107,7 +110,7 @@ static int stsw_url_parse(char * mrl, std::string * stream_name,
             }else{
                 //最后一个属性
                 attr.assign(param_begin);
-                next_param = NULL;                                     //确保循环退出
+                param_begin = NULL;                                     //确保循环退出
             }
             
             size_t sep = attr.find('=');
@@ -144,6 +147,7 @@ static int stsw_init(Resource * r)
         fnc_log(FNC_LOG_ERR, "[stsw] Cannot Parse %s", r->info->mrl);
         return ret;        
     }
+    //fnc_log(FNC_LOG_VERBOSE, "[stsw] Init stream name: %s", stream_name->c_str());    
     
     it = params.find(std::string("host"));
     if(it != params.end()){

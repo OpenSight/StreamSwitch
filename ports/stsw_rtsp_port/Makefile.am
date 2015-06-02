@@ -17,6 +17,7 @@ stsw_rtsp_port_SOURCES =  \
 	src/feng_utils.h \
 	src/main.cc \
     src/config.h \
+    src/parse_args.cc  \
     \
 	src/conf/array.c \
 	src/conf/array.h \

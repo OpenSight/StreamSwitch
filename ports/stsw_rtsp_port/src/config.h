@@ -11,7 +11,13 @@
 #endif
 
 
+#ifndef PACKAGE
+#define PACKAGE "StreamSwitch"
+#endif
 
+#ifndef VERSION
+#define VERSION "0.1.0"
+#endif
 
 	  
 #endif

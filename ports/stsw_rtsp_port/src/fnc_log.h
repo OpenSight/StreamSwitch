@@ -59,6 +59,8 @@ typedef void (*fnc_log_t)(int, const char*, va_list);
 
 
 fnc_log_t fnc_log_init(char *file, int out, int level, char *name);
+fnc_log_t fnc_rotate_log_init(char *prog_name, char *file, 
+                              int level, int file_size, int rotate_num);
 void fnc_log_uninit(void);
 void fnc_log_internal(int level, const char * file, int line, const char *fmt, ...);
 

@@ -43,6 +43,8 @@ static FILE *fd = NULL;
 
 static int log_level = FNC_LOG_WARN;
 
+
+
 static const char *log_level_str[] = 
 {
     "FATAL", 
@@ -179,6 +181,16 @@ fnc_log_t fnc_log_init(char *file, int out, int level, char *name)
             fnc_vlog = fnc_errlog;
             break;
     }
+    return NULL;
+}
+
+
+fnc_log_t fnc_rotate_log_init(char *prog_name, char *file, 
+                              int level, int file_size, int rotate_num)
+{
+    fd = 0;
+    log_level = level;
+
     return NULL;
 }
 

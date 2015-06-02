@@ -632,7 +632,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
 
             /* for download bandwidth limitation */
             if(session->srv->srvconf.max_mbps != 0 &&
-               session->client->session->download != 0) {
+               session->track->properties.media_source != MS_live) {
                 double now_slot = BW_TIME_TIMESLOT(now);
                 /* means bw limitation is enabled */
                 if((now_slot - session->bw_time_slot) < 0.000001) {
