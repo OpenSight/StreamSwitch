@@ -30,8 +30,8 @@ world. Also, the "controller" is shipped with a web application, which
 provides a Web UI for demonstrating the functionality of StreamSwitch 
 to the customer. 
 
-From the above, it's very easy to add the new input/output protocol support to 
-StreamSwitch. And each protocol component in StreamSwitch is completely 
+From the above, it's very easy to add the support for the new input/output 
+protocol to StreamSwitch. And each protocol component in StreamSwitch is completely 
 independent, and each transmitting media stream on StreamSwitch can work totally 
 in parallel. On the other hand, because each component in the StreamSwitch is a 
 standalone program, which communicates with each other through network, the 
@@ -76,11 +76,11 @@ use the conversion power of StreamSwitch.
 * Multi Protocol. Various stream media protocol is supported by StreamSwitch 
   for fan-in and fan-out, including RTP/RTSP, RTMP, HLS, etc.
 * Extensible. User can develop a standalone extension for his stream protocol. 
-* Componentization. Each input and output protocol is designed as an independent 
-  component (e.g. a independent program), without interference. 
+* Componentization. Each input and output protocol is designed to be an independent 
+  component (e.g. a standalone executable program), without interference. 
 * Distributed Service. User can deploy all component of StreamSwitch in one 
   physical machine as well as deploy different components on multi physical nodes.
-* Parallelization. Each input and output stream is implemented as an independent 
+* Parallelization. Each input and output stream is implemented to be an independent 
   process, which can run concurrently on the modern multi-core computer
 * Massive scale. Through the "proxy" source, it's easy to construct a cascade media 
   delivery cluster to service massive transmission of media streams simultaneously. 
