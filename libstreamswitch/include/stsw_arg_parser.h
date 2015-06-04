@@ -1,9 +1,13 @@
 /**
- * StreamSwitch is an extensible and scalable media stream server for 
- * multi-protocol environment. 
+ *
+ * This file is part of libstreamswtich, which belongs to StreamSwitch
+ * project. 
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
- *
+ * 
+ * StreamSwitch is an extensible and scalable media stream server for 
+ * multi-protocol environment. 
+ *  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
