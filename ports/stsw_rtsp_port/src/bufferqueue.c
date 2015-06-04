@@ -469,6 +469,27 @@ void bq_producer_put(BufferQueue_Producer *producer, gpointer payload) {
     g_mutex_unlock(producer->lock);
 }
 
+
+/**
+ * @brief Get the queue size of a producer
+ *
+ * @param producer Producer to be get size
+ *
+ * @retval the current queue size of the specific producer
+ */
+unsigned bq_producer_queue_length(BufferQueue_Producer *producer)
+{
+    unsigned num = 0;
+    g_mutex_lock(producer->lock);
+    /* Make sure the producer is not stopped */
+    g_assert(g_atomic_int_get(&producer->stopped) == 0);
+    num = g_queue_get_length(producer->queue);
+    g_mutex_unlock(producer->lock);
+
+    return num;
+}
+
+
 /**
  * @brief Create a new consumer
  *

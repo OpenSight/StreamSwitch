@@ -179,6 +179,7 @@ client_port_pair* new_child_port(struct feng *srv,
                                  char * host, unsigned short port);
 void free_child_port(client_port_pair *client);
 
+extern client_port_pair *current_client;
 
 /**
  * @}

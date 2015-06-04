@@ -49,7 +49,7 @@ enum {
 
 
 
-typedef void (*fnc_log_t)(int, const char*, va_list);
+typedef void (*fnc_log_t)(int, const char *, int, const char*, va_list);
 
 
 

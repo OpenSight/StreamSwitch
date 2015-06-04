@@ -91,20 +91,10 @@ typedef struct {
     unsigned short max_mbps;
     unsigned short rtcp_heartbeat;
     unsigned short default_stream_type;
-//	unsigned short max_request_size;
+    
+    unsigned int stsw_debug_flags;
 
-//	unsigned short log_request_header_on_error;
-//	unsigned short log_state_handling;
-/*
-	enum { STAT_CACHE_ENGINE_UNSET,
-			STAT_CACHE_ENGINE_NONE,
-			STAT_CACHE_ENGINE_SIMPLE,
-#ifdef HAVE_FAM_H
-			STAT_CACHE_ENGINE_FAM
-#endif
-	} stat_cache_engine;
-	unsigned short enable_cores;
-*/
+
 } server_config;
 
 typedef struct specific_config {

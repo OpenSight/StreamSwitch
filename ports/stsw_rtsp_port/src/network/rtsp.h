@@ -386,6 +386,8 @@ void feng_stop_child_watcher(struct feng *srv);
 
 
 
+extern client_port_pair *current_client;
+
 #ifdef __cplusplus
 }
 #endif

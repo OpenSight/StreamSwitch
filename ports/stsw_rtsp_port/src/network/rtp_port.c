@@ -35,7 +35,7 @@ GList *child_head=NULL;
 int reach_play=0;
 
 
-
+client_port_pair *current_client = NULL;
 
 static void destroy_client_item(gpointer elem,
                               ATTR_UNUSED gpointer unused) {
@@ -64,6 +64,11 @@ void free_client_list()
         g_list_free(child_head);
         child_head = NULL;
         
+    }
+    
+    if(current_client != NULL){
+        free_child_port(current_client);
+        current_client = NULL;
     }
 }
 

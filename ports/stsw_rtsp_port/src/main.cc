@@ -150,7 +150,6 @@ void ParseArgv(int argc, char *argv[],
                stream_switch::ArgParser *parser);
 static gboolean command_environment(feng *srv, int argc, char **argv)
 {
-
     fnc_log_t fn = NULL;
     gchar *progname;
     std::string log_file;
@@ -215,6 +214,9 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
         srv->srvconf.rtcp_heartbeat = 1;
     }
     
+    srv->srvconf.stsw_debug_flags = 
+        strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0);
+    
     srv->srvconf.first_udp_port = 0;    
     srv->srvconf.max_fds = 100;    
     srv->srvconf.bindhost->ptr = NULL;
@@ -242,9 +244,7 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
         
     }
 
-    Sock_init(NULL);
-
-
+    Sock_init(NULL); //use stderr as the logger for Sock library
 
     return true;
 }

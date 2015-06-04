@@ -260,6 +260,9 @@ void loop_timer_uninit(feng* srv)
 
 #endif
 
+
+
+
 /**
  * @brief Handle an incoming RTSP connection
  *
@@ -317,7 +320,9 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
     if(pid==0){
         
         /*clean the context of parent*/
-        free_child_port(clients);
+        clients->pid = getpid();
+        current_client = clients;
+        //free_child_port(clients);
 
 
         feng_ports_cleanup(srv);

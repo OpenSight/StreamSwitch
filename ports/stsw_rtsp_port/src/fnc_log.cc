@@ -33,7 +33,7 @@
 #include "fnc_log.h"
 
 #include <string>
-
+#include "stream_switch.h"
 
 #define LOG_FORMAT "%d/%b/%Y:%H:%M:%S %z"
 #define ERR_FORMAT "%a %b %d %H:%M:%S %Y"
@@ -43,6 +43,7 @@ static FILE *fd = NULL;
 
 static int log_level = FNC_LOG_WARN;
 
+stream_switch::RotateLogger * global_logger = NULL;
 
 
 static const char *log_level_str[] = 
@@ -134,6 +135,9 @@ static void fnc_syslog(int level, const char * file, int line, const char *fmt, 
         case FNC_LOG_WARN:
             l = LOG_WARNING;
             break;
+        case FNC_LOG_INFO:
+            l = LOG_INFO;
+            break;            
         case FNC_LOG_DEBUG:
             l = LOG_DEBUG;
             break;
@@ -150,6 +154,53 @@ static void fnc_syslog(int level, const char * file, int line, const char *fmt, 
     vsyslog(l, fmt, args);
 #endif    
 }
+
+static int fnc_log_level_2_stsw(int fnc_log_level)
+{
+    int stsw_log_level; 
+    switch (fnc_log_level) {
+        case FNC_LOG_FATAL:
+            stsw_log_level = stream_switch::LOG_LEVEL_CRIT;
+            break;
+        case FNC_LOG_ERR:
+            stsw_log_level = stream_switch::LOG_LEVEL_ERR;
+            break;
+        case FNC_LOG_WARN:
+            stsw_log_level = stream_switch::LOG_LEVEL_WARNING;
+            break;
+        case FNC_LOG_INFO:
+            stsw_log_level = stream_switch::LOG_LEVEL_INFO;
+            break;            
+        case FNC_LOG_DEBUG:
+            stsw_log_level = stream_switch::LOG_LEVEL_DEBUG;
+            break;
+        case FNC_LOG_VERBOSE:
+            stsw_log_level = stream_switch::LOG_LEVEL_DEBUG;
+            break;
+        case FNC_LOG_CLIENT:
+            stsw_log_level = stream_switch::LOG_LEVEL_DEBUG;
+            break;
+            
+        default:
+            stsw_log_level = stream_switch::LOG_LEVEL_INFO;
+            break;
+    } 
+
+    return stsw_log_level;
+}
+
+static void fnc_rotate_file_log(int level, 
+                                const char * file, int line, 
+                                const char *fmt, va_list args)
+{
+    int stsw_log_level; 
+    stsw_log_level = fnc_log_level_2_stsw(level);
+    if(global_logger != NULL){
+        global_logger->LogV(stsw_log_level, file, line, fmt, args);
+    }
+                                    
+}
+
 
 
 static void (*fnc_vlog)(int, const char * , int , const char*, va_list) = fnc_errlog;
@@ -181,17 +232,35 @@ fnc_log_t fnc_log_init(char *file, int out, int level, char *name)
             fnc_vlog = fnc_errlog;
             break;
     }
-    return NULL;
+    return fnc_vlog;
 }
 
 
 fnc_log_t fnc_rotate_log_init(char *prog_name, char *file, 
                               int level, int file_size, int rotate_num)
 {
+    int stsw_log_level;   
+    int ret;
+ 
     fd = 0;
     log_level = level;
+    
+    stsw_log_level = fnc_log_level_2_stsw(level);    
+    
+    global_logger = new stream_switch::RotateLogger();        
+    ret = global_logger->Init(prog_name, 
+            file, file_size, rotate_num, stsw_log_level, false);
+    if(ret){
+        delete global_logger;
+        global_logger = NULL;
+        fprintf(stderr, "Init Logger faile\n");
+        ret = -1;
+        return NULL;
+    }     
+    
+    fnc_vlog = fnc_rotate_file_log;
 
-    return NULL;
+    return fnc_vlog;
 }
 
 
@@ -220,6 +289,13 @@ void fnc_log_uninit(void)
         closelog();
     }
 #endif    
+
+    if(global_logger != NULL){
+        global_logger->Uninit();
+        delete global_logger;
+        global_logger = NULL;
+    }
+    
     fd = stderr;
     fnc_vlog = fnc_errlog;    
 }

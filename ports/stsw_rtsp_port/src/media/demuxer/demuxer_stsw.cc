@@ -31,6 +31,76 @@
 
 #include "media/demuxer.h"
 #include "media/demuxer_module.h"
+#include "network/rtp.h"
+
+#include "stream_switch.h"
+
+#include <string>
+#include <sstream>
+
+///////////////////////////////////////////////////
+// DemuxerStreamSink prototype
+
+class DemuxerSinkListener:public stream_switch::SinkListener{
+  
+public:
+    DemuxerSinkListener(std::string stream_name, Resource * resource);
+    virtual ~DemuxerSinkListener();
+
+
+    virtual void OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                  const char * frame_data, 
+                                  size_t frame_size);    
+                                  
+    virtual void OnMetadataMismatch(uint32_t mismatch_ssrc);    
+
+       
+private: 
+    std::string stream_name_;    
+    Resource * resource_;
+        
+};
+
+
+///////////////////////////////////////////////////
+// DemuxerStreamSink Implementation
+DemuxerSinkListener::DemuxerSinkListener(std::string stream_name, Resource * resource)
+:stream_name_(stream_name), resource_(resource)
+{
+    
+}
+
+DemuxerSinkListener::~DemuxerSinkListener()
+{
+    
+}
+
+void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
+                                  const char * frame_data, 
+                                  size_t frame_size)
+{
+ 
+}
+                                  
+void DemuxerSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
+{
+    
+}
+
+
+
+///////////////////////////////////////////////////
+// demuxer info and implemenation
+
+
+typedef struct stsw_priv_type{
+    stream_switch::StreamSink * sink;
+    DemuxerSinkListener *listener;
+    //TODO other fields
+
+} stsw_priv_type;
+
+
 
 
 typedef std::map<std::string, std::string> UrlParamMap;
@@ -125,9 +195,17 @@ static int stsw_url_parse(char * mrl, std::string * stream_name,
     return RESOURCE_OK;
 }
 
+static std::string int2str(int int_value)
+{
+    std::stringstream stream;
+    stream<<int_value;
+    return stream.str();
+}
+
 
 static int stsw_init(Resource * r)
 {
+    using namespace stream_switch;    
     std::string stream_name; 
     UrlParamMap params;
     int ret;
@@ -140,6 +218,12 @@ static int stsw_init(Resource * r)
     UrlParamMap::iterator it;
     bool remote = false;
     int remote_port = 0;
+    std::string remote_host;
+    StreamClientInfo client_info;
+    pid_t pid;
+    std::string err_info;
+    StreamMetadata metadata;
+    stsw_priv_type *priv;
     
     /* get stream_name */
     ret = stsw_url_parse(r->info->mrl, &stream_name, &params);
@@ -153,6 +237,7 @@ static int stsw_init(Resource * r)
     if(it != params.end()){
         remote = true;
         remote_port = atoi(params["port"].c_str());
+        remote_host = it->second;
     }
     
     memset(&trackinfo, 0, sizeof(TrackInfo));
@@ -162,8 +247,40 @@ static int stsw_init(Resource * r)
     r->info->duration = HUGE_VAL;
     
     /* init StreamSwitch sink */
+    priv = new stsw_priv_type();
+    priv->sink = new StreamSink();
+    priv->listener = new DemuxerSinkListener(stream_name, r);
+    
+    client_info.client_protocol = "rtsp";
+    pid = getpid() ;
+    client_info.client_token = int2str(pid % 0xffffff);  
+    client_info.client_text = "RTSP Client";
+    if(current_client != NULL){
+        client_info.client_ip = current_client->host;
+        client_info.client_port = current_client->port;        
+    }
+    if(remote){
+        ret = priv->sink->InitRemote(remote_host,remote_port, client_info, 
+                         STSW_SUBSCRIBE_SOCKET_HWM, priv->listener, 
+                         r->srv->srvconf.stsw_debug_flags, 
+                         &err_info);
+    }else{
+         ret = priv->sink->InitLocal(stream_name, client_info, 
+                         STSW_SUBSCRIBE_SOCKET_HWM, priv->listener, 
+                         r->srv->srvconf.stsw_debug_flags, 
+                         &err_info);   
+    }
+    if(ret){
+        fnc_log(FNC_LOG_ERR, "[stsw] Init Stream Sink failed (%d): %s",
+                ret, err_info.c_str());  
+        ret = RESOURCE_DAMAGED;
+        goto error_1;
+    }
+       
+      
     
     /* get meta data */ 
+    //ret = sink->
     
     
     /* check if live stream or replay stream,  
@@ -173,9 +290,29 @@ static int stsw_init(Resource * r)
     
     /* configure the resource and tracks */
     
+    
+    r->private_data = priv;
+    
     return RESOURCE_OK;
  
+error_1:
 
+    if(priv != NULL){
+        if(priv->sink != NULL){
+            priv->sink->Uninit();
+            delete priv->sink;
+            priv->sink = NULL;
+        }
+
+        if(priv->listener != NULL){
+            delete priv->listener;
+            priv->listener = NULL;
+        }
+        delete priv;
+        priv = NULL;
+    }
+
+    return ret;
 
  #if 0   
     
@@ -529,23 +666,30 @@ static int stsw_seek(Resource * r, double time_sec)
 
 static void stsw_uninit(gpointer rgen)
 {
+    using namespace stream_switch;  
+    Resource *r = (Resource *)rgen;
+    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;
+
     
     /* uninit the sink */
-    
-#if 0    
-    Resource *r = rgen;
-    lavf_priv_t* priv = r->private_data;
-
-// avf stuff
-    if (priv) {
-        if (priv->avfc) {
-            avformat_close_input(&(priv->avfc));
-            priv->avfc = NULL;
+    if(priv != NULL){
+        if(priv->sink != NULL){
+            priv->sink->Uninit();
+            delete priv->sink;
+            priv->sink = NULL;
         }
-        av_freep(&priv);
-        r->private_data = NULL;
-    }
-#endif    
+
+        if(priv->listener != NULL){
+            delete priv->listener;
+            priv->listener = NULL;
+        }
+        delete priv;
+        priv = NULL;
+    } 
+    
+    
+    
+  
 }
 
 
