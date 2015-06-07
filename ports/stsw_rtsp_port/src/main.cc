@@ -220,6 +220,17 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
     srv->srvconf.stsw_debug_flags = 
         strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0);
     
+    std::string stream_type = 
+        parser.OptionValue("stream-type", "raw");
+    if(stream_type == "raw"){
+        srv->srvconf.default_stream_type = RAW_STREAM;
+    }else if(stream_type == "mp2p"){
+        srv->srvconf.default_stream_type = MP2P_STREAM;
+    }else{
+        srv->srvconf.default_stream_type = RAW_STREAM;
+    }
+    
+    
     srv->srvconf.first_udp_port = 0;    
     srv->srvconf.max_fds = 100;    
     srv->srvconf.bindhost->ptr = NULL;

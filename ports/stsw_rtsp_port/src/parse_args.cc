@@ -70,6 +70,9 @@ void ParseArgv(int argc, char *argv[],
                    "enable check for rtcp RR as client heartbeat, "
                    "default is disabled", 
                    NULL, NULL);  
+    parser->RegisterOption("stream-type", 's', OPTION_FLAG_WITH_ARG,  "[raw|mp2p]",
+                   "default stream type for this port, default is raw", NULL, NULL);                    
+                   
     
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){

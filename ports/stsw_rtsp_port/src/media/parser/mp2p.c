@@ -1129,5 +1129,7 @@ static void mp2p_uninit(Track *tr)
     }
 }
 
+#define mp2p_reset NULL
+
 FNC_LIB_MEDIAPARSER(mp2p);
 

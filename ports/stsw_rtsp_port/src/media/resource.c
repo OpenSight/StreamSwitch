@@ -299,20 +299,7 @@ Track *r_find_track(Resource *resource, const char *track_name) {
     return track->data;
 }
 
-/**
- * @brief Resets the BufferQueue producer queue for a given track
- *
- * @param element The Track element from the list
- * @param user_data Unused, for compatibility with g_list_foreach().
- *
- * @see bq_producer_reset_queue
- */
-static void r_track_producer_reset_queue(gpointer element,
-                                         gpointer user_data) {
-    Track *t = (Track*)element;
 
-    bq_producer_reset_queue(t->producer);
-}
 
 /**
  * @brief Seek a resource to a given time in stream
@@ -328,10 +315,15 @@ int r_seek(Resource *resource, double time) {
     int res;
 
     g_mutex_lock(resource->lock);
+    
+    if(resource->demuxer->seek){
+        res = resource->demuxer->seek(resource, time);
+    }
+    
+    if (resource->tracks) {
+        g_list_foreach(resource->tracks, reset_track, NULL);
+    }
 
-    res = resource->demuxer->seek(resource, time);
-
-    g_list_foreach(resource->tracks, r_track_producer_reset_queue, NULL);
 
     g_mutex_unlock(resource->lock);
 
@@ -399,7 +391,7 @@ int r_start(Resource *resource)
     int ret = RESOURCE_OK;
     
     g_mutex_lock(resource->lock);
-    if(resource->demuxer->pause){
+    if(resource->demuxer->start){
         ret = resource->demuxer->start(resource);
     }
     if(ret == RESOURCE_OK){
@@ -427,6 +419,20 @@ void r_pause(Resource *resource)
     g_mutex_lock(resource->lock);
     if(resource->demuxer->pause){
         resource->demuxer->pause(resource);
+    }
+    
+    //Jamken: After pause ,there may be some packet buffered 
+    // in the track's producer queue. For replay resource, 
+    // it's OK because of these packet's time is irrelavant with 
+    // the play range. But for live resource, these packet's time 
+    // is relative to the playback_time of the former play range. 
+    // so that the time of these packet current in queue vould be invalid
+    // for the latter play range. just reset all tracks and their
+    // queue for live stream
+    if(resource->info.media_source == MS_live){
+        if (resource->tracks) {
+            g_list_foreach(resource->tracks, reset_track, NULL);
+        }
     }
 
     g_mutex_unlock(resource->lock);

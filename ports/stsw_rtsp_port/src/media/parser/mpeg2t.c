@@ -269,4 +269,7 @@ static void mp2t_uninit(Track *track)
     g_slice_free(mp2t_priv, track->private_data);
 }
 
+#define mp2t_reset NULL
+
+
 FNC_LIB_MEDIAPARSER(mp2t);

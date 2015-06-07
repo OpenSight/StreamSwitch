@@ -257,8 +257,12 @@ Track *r_find_track(Resource *, const char *);
 // Tracks
 Track *add_track(Resource *, TrackInfo *, MediaProperties *);
 void free_track(gpointer element, gpointer user_data);
+void reset_track(gpointer element, gpointer user_data);
 
 void track_add_sdp_field(Track *track, sdp_field_type type, char *value);
+
+
+
 
 #ifdef __cplusplus
 }

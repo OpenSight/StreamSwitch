@@ -114,6 +114,8 @@ static int pcma_parse(Track *tr, uint8_t *data, size_t len)
 
 #define pcma_uninit NULL
 
+#define pcma_reset NULL
+
 FNC_LIB_MEDIAPARSER(pcma);
 
 

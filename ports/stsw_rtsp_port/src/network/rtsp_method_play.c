@@ -74,12 +74,20 @@ static RTSP_ResponseCode do_play(RTSP_session * rtsp_sess)
          ((RTP_session*)(rtsp_sess->rtp_sessions->data))->multicast )
         return RTSP_Ok;
 
+    //start the resource
+    if(rtsp_sess->resource != NULL){
+        if(r_start(rtsp_sess->resource)){
+            return RTSP_InternalServerError;
+        }
+    }else{
+        return RTSP_InvalidMethodInState;
+    }
+
 
 
     rtsp_sess->started = 1;
 
-    //start the resource
-    //TODO
+
 
     fnc_log(FNC_LOG_VERBOSE, "[%f] resuming with parameters %f %f %f\n",
             ev_now(rtsp_sess->srv->loop),
@@ -248,12 +256,20 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
      */
     if ( range_hdr == NULL &&
          (range = g_queue_peek_head(session->play_requests)) != NULL ) {
+             
+             
+        range->seek = FALSE;
         range->playback_time = ev_now(session->srv->loop);
 
+
+        fnc_log(FNC_LOG_VERBOSE,
+            "PLAY [%f]: %f %f %f\n", ev_now(session->srv->loop),
+            range->begin_time, range->end_time, range->playback_time);
+            
         return RTSP_Ok;
     }
 
-    fnc_log(FNC_LOG_VERBOSE, "Range header: %s\n", range_hdr);
+
 
     /* Initialise the RTSP_Range structure by setting the three
      * values to the starting values. */
@@ -263,6 +279,8 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
      * not implemented. It might not be entirely correct but until we
      * have better indications, it should be fine. */
     if (range_hdr) {
+        
+        fnc_log(FNC_LOG_VERBOSE, "Range header: %s\n", range_hdr);
         if ( !ragel_parse_range_header(range_hdr, range) ) {
             g_slice_free(RTSP_Range, range);
             /** @todo We should be differentiating between not-implemented and
@@ -296,9 +314,6 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
          * we need to seek the resource before read */
         range->seek = TRUE; 
 
-    }else{
-        /* Jamken: if no Range header, don't seek the reource */        
-        range->seek = FALSE;
     }
 
     if(!session->resource->info->seekable){

@@ -90,6 +90,8 @@ static int simple_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 #define simple_uninit NULL
+#define simple_reset NULL
+
 
 FNC_LIB_MEDIAPARSER(simple);
 

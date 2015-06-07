@@ -182,5 +182,7 @@ static int mpv_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 #define mpv_uninit NULL
+#define mpv_reset NULL
+
 
 FNC_LIB_MEDIAPARSER(mpv);

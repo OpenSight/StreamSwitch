@@ -13,9 +13,35 @@ and then is supplemented with our own extension to make it compatible with
 StreamSwitch and work as a StreamSwitch port.
 
 ## Depends
+-----------------------
 
 As a "feng" derivative, it depends the following library (open source): 
 
 1. libev >= 4.0
 2. libnetembryo >= 0.1.0
 3. glib-2.0 >= 2.16
+
+
+## RTSP URL
+-----------------------
+
+RTSP Client can indicate which stream to receive by the RTSP URL in its request. 
+The RTSP URL used for stsw_rtsp_port server follows the below pattern.
+
+    rtsp://[server_ip]:[port]/stsw/stream/[stream_name]?param1=value&param2=value...
+      
+Where [server_ip] is the IP or domain name of the server running stsw_rtsp_port, 
+[port] is the RTSP listening port of stsw_rtsp_port, default is 554 for rtsp, 
+[stream_name] is the name of the specific stream to receive by RTP/RTSP. 
+Some parameters can be specified in the RTSP URL. By now, stsw_rtsp_port support the 
+following parameter.
+
+host - if the stream source is running on the other host than the one running 
+       stsw_rtsp_port, this parameter specify the IP of the remote host. 
+       If this parameter absent, the stream source is considered running on
+       the same host with stsw_rtsp_port. 
+port - the port of the stream source which running on the other host, only valid if 
+       host is given.
+stream_type - which type of the mux stream emitted by this RTSP session, can 
+              only be RAW/MP2P by now. Default is configured from the command 
+              arguments of stsw_rtsp_port.   

@@ -182,6 +182,8 @@ static int amr_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 
+#define amr_reset NULL
+
 FNC_LIB_MEDIAPARSER(amr);
 
 

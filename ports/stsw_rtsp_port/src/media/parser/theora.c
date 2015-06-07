@@ -255,6 +255,8 @@ static int theora_parse(Track *tr, uint8_t *data, size_t len)
     return ERR_NOERROR;
 }
 
+#define theora_reset NULL
+
 
 FNC_LIB_MEDIAPARSER(theora);
 

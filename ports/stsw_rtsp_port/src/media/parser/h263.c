@@ -107,6 +107,8 @@ static int h263_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 #define h263_uninit NULL
+#define h263_reset NULL
+
 
 FNC_LIB_MEDIAPARSER(h263);
 

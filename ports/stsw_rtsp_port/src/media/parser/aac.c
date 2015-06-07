@@ -126,6 +126,7 @@ static int aac_parse(Track *tr, uint8_t *data, size_t len)
     return ERR_NOERROR;
 }
 
+#define aac_reset NULL
 
 FNC_LIB_MEDIAPARSER(aac);
 

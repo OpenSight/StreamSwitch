@@ -40,6 +40,22 @@
 #include <string>
 #include <sstream>
 
+#define DEMUXER_STSW_METADATA_TIMEOUT 5000
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void demuxer_stsw_global_init(void);
+void demuxer_stsw_global_uninit(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+
 ///////////////////////////////////////////////////
 // DemuxerStreamSink prototype
 
@@ -64,6 +80,23 @@ private:
 };
 
 
+
+typedef struct stsw_priv_type{
+    stream_switch::StreamSink * sink;
+    DemuxerSinkListener *listener;
+
+    int stream_type;
+  
+    //for live stream time scaler
+    /** Real-time timestamp when to start the playback */
+    double playback_time;
+    int has_sync;
+    double delta_time;
+    
+    
+} stsw_priv_type;
+
+
 ///////////////////////////////////////////////////
 // DemuxerStreamSink Implementation
 DemuxerSinkListener::DemuxerSinkListener(std::string stream_name, Resource * resource)
@@ -81,12 +114,107 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
                                   const char * frame_data, 
                                   size_t frame_size)
 {
- 
+
+    int ret = RESOURCE_OK;
+    TrackList tr_it;
+
+
+    //sanity check
+    if(resource_ == NULL){
+        return;
+    }    
+    if(resource_->info.media_source != MS_live){
+        //if not live stream, just drop the live frame
+        return;
+    }
+    
+    g_mutex_lock(resource_->lock);
+    if(resource_->eor){
+        fnc_log(FNC_LOG_DEBUG,
+                 "[stsw] The resource is already EOR, drop the frame);  
+        g_mutex_unlock(resource_->lock); 
+        return;        
+    }
+
+    stsw_priv_type *priv = resource_->private_data;
+    int streamType = priv->stream_type;   
+    
+    double frame_time = (double)frame_info.timestamp.tv_sec + 
+                        ((double)frame_info.timestamp.tv_usec) / 1000000.0;
+    double pts = resource_->timescaler(resource_, frame_time);
+    if(pts < 0){
+        //pts invalid, just drop this frame
+        fnc_log(FNC_LOG_DEBUG,
+                 "[stsw] PTS %f, after scale (original time is %f) is invalid, drop the frame\n",
+                     frame_time, pts);  
+        g_mutex_unlock(resource_->lock); 
+        return;
+    }
+
+    for (tr_it = g_list_first(resource_->tracks);
+         tr_it !=NULL;
+         tr_it = g_list_next(tr_it)) {
+         Track *tr = (Track*)tr_it->data;
+        if (frame_info.sub_stream_index == tr->info->id || 
+            streamType != RAW_STREAM) {
+            if(streamType != RAW_STREAM) {
+                tr->info->id = pkt.stream_index;
+            }
+            fnc_log(FNC_LOG_VERBOSE, "[stsw] Parsing track %s",
+                    tr->info->name);  
+            tr->properties.dts = pts;
+            tr->properties.pts = pts;
+            fnc_log(FNC_LOG_VERBOSE,
+                    "[stsw] delivery & presentation timestamp %f",
+                     pts);  
+            tr->properties.frame_duration = 0;
+            switch(frame_info.frame_type){
+            case MEDIA_FRAME_TYPE_KEY_FRAME:
+                tr->properties.frame_type = FT_KEY_FRAME;
+                break;
+            case MEDIA_FRAME_TYPE_DATA_FRAME:
+                tr->properties.frame_type = FT_DATA_FRAME;
+                break;
+            case MEDIA_FRAME_TYPE_PARAM_FRAME:
+                tr->properties.frame_type = FT_PARAM_FRAME;
+                break;
+            default:
+                tr->properties.frame_type = FT_UNKONW;
+                break;
+            }
+            
+            if(bq_producer_queue_length(tr->producer) >= 
+                resource_->srv->srvconf.buffered_frames){
+                fnc_log(FNC_LOG_DEBUG,
+                 "[stsw] Buffer queue for this track is over the limit (%d), "
+                 "drop the frame\n",
+                     resource_->srv->srvconf.buffered_frames);   
+                break;                
+            }
+            
+            //pass the frame to the codec parser
+            ret = tr->parser->parse(tr, frame_data, frame_size);
+            
+            break;
+        }//if (frame_info.sub_stream_index == tr->info->id || 
+        
+    }//for (tr_it = g_list_first(resource_->tracks);
+    
+    g_mutex_unlock(resource_->lock); 
 }
                                   
 void DemuxerSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
 {
-    
+    if(resource_ != NULL){
+        //sanity check
+        if(resource_->info.media_source != MS_live){
+            //if not live stream, just drop the live frame
+            return;
+        }
+        g_mutex_lock(resource_->lock);
+        resource_->eor = TRUE;
+        g_mutex_unlock(resource_->lock); 
+    }
 }
 
 
@@ -94,16 +222,16 @@ void DemuxerSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
 ///////////////////////////////////////////////////
 // demuxer info and implemenation
 
-
-typedef struct stsw_priv_type{
-    stream_switch::StreamSink * sink;
-    DemuxerSinkListener *listener;
-    //TODO other fields
-
-} stsw_priv_type;
+void demuxer_stsw_global_init(void)
+{
+    GlobalInit(false);
+}
 
 
-
+void demuxer_stsw_global_uninit(void)
+{
+    GlobalUninit();
+}
 
 typedef std::map<std::string, std::string> UrlParamMap;
 
@@ -204,6 +332,32 @@ static std::string int2str(int int_value)
     return stream.str();
 }
 
+static double stsw_timescaler (Resource *r, double res_time) {
+
+    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;
+    
+    if(r->info.media_source == MS_live){
+        
+        if(priv->has_sync == 0){
+            double now = ev_now(r->srv->loop);
+            if(now < priv->playback_time){
+                now = priv->playback_time;
+            }
+            priv->delta_time = (now - priv->playback_time) - res_time;
+            priv->has_sync = 1;
+        }
+        double scale_time = res_time + priv->delta_time;
+        if(scale_time < 0 && scale_time > -0.001){
+            scale_time = 0.0;  //allow in 1 ms error
+        }
+        
+        return scale_time;
+    }else{
+        //for replay stream, just use the original frame time
+        return res_time;
+    }
+
+}
 
 static int stsw_init(Resource * r)
 {
@@ -244,14 +398,23 @@ static int stsw_init(Resource * r)
     
     memset(&trackinfo, 0, sizeof(TrackInfo));
     
-    r->info->seekable = 0;
-    r->info->media_source = MS_live;
-    r->info->duration = HUGE_VAL;
+    //r->info->seekable = 0;
+    //r->info->media_source = MS_live;
+    //r->info->duration = HUGE_VAL;
     
     /* init StreamSwitch sink */
     priv = new stsw_priv_type();
     priv->sink = new StreamSink();
     priv->listener = new DemuxerSinkListener(stream_name, r);
+    priv->stream_type = r->srv->srvconf.default_stream_type;
+    it = params.find(std::string("stream_type"));
+    if(it != param.end()){
+        if(it->second == "raw"){
+            priv->stream_type = RAW_STREAM;
+        }else if(it->second == "mp2p"){
+            priv->stream_type = MP2P_STREAM;
+        }
+    }
     
     client_info.client_protocol = "rtsp";
     pid = getpid() ;
@@ -282,17 +445,121 @@ static int stsw_init(Resource * r)
       
     
     /* get meta data */ 
-    //ret = sink->
-    
+    ret = priv->sink->UpdateStreamMetaData(DEMUXER_STSW_METADATA_TIMEOUT, 
+                                           &metadata, 
+                                           &err_info);
+    if(ret){
+        fnc_log(FNC_LOG_ERR, "[stsw] Get remote metadata failed (%d): %s",
+                ret, err_info.c_str());  
+        ret = RESOURCE_DAMAGED;
+        goto error_1;
+    }    
     
     /* check if live stream or replay stream,  
      * only support live stream now
      */
-    
+    if(metadata.play_type == STREAM_PLAY_TYPE_REPLAY){
+        
+        fnc_log(FNC_LOG_ERR, "[stsw] Replay stream is not supported yet\n");  
+        ret = RESOURCE_DAMAGED;
+        goto error_1;
+    }else{
+        r->model = MM_PUSH;
+        r->info.seekable = FALSE;
+        r->info.duration = HUGE_VAL;
+        r->info.media_source = MS_live;
+        
+    }
     
     /* configure the resource and tracks */
+    strncpy(trackinfo.title, "StreamSwitch", 80);
+    strncpy(trackinfo.author, "OpenSight team", 80);
+    SubStreamMetadataVector::iterator meta_it;
+    for(meta_it=metadata.sub_streams.begin();
+        meta_it!=metadata.sub_streams.end();
+        meta_it++){
+        
+        trackinfo.id = meta_it->sub_stream_index;
+        snprintf(trackinfo.name, sizeof(trackinfo.name), "%d", meta_it->sub_stream_index);
+        
+        memset(&props, 0, sizeof(MediaProperties));
+        props.clock_rate = 90000; //Default
+        props.extradata = (meta_it->extra_data.size() > 0)?meta_it->extra_data.data():NULL;
+        props.extradata_len = meta_it->extra_data.size();
+        strncpy(props.encoding_name, meta_it->codec_name.c_str(), 10);
+        //props.codec_id = codec->codec_id;
+        //props.codec_sub_id = codec->codec_id;
+        props.payload_type = 96;
+        props.frame_type = FT_UNKONW;
+        if (props.payload_type == 96){                    
+            props.payload_type = pt++;
+        }else if (props.payload_type > 96) {
+            if(pt <= props.payload_type ) {
+                pt = props.payload_type + 1;
+            }
+        }
+
+        fnc_log(FNC_LOG_DEBUG, "[stsw] Parsing Stream %s",
+                        props.encoding_name);
+
+        switch(meta_it->media_type){
+        case SUB_STREAM_MEIDA_TYPE_AUDIO:
+            props.media_type     = MP_audio;
+            // Some properties, add more?
+            props.bit_rate       = codec->bit_rate;
+            props.audio_channels = meta_it->media_param.audio.channels;
+                    // Make props an int...
+            props.sample_rate    = meta_it->media_param.audio.samples_per_second;
+            if(samples_per_second){
+                props.frame_duration = (double)meta_it->media_param.audio.sampele_per_frame * 
+                                       ((double)1 / codec->sample_rate);
+                
+            }
+            props.bit_per_sample   = meta_it->media_param.audio.bits_per_sample;
+            props.bit_rate = props.bit_per_sample * props.sample_rate;
+                    
+            if (!(track = add_track(r, &trackinfo, &props)))
+                goto err_alloc;
+            break;
+        case SUB_STREAM_MEIDA_TYPE_VIDEO:
+            props.media_type   = MP_video;
+            props.bit_rate     = 0;
+            props.frame_rate   = meta_it->media_param.video.fps;
+            if(props.frame_rate){
+                props.frame_duration     = (double)1 / props.frame_rate;
+                
+            }
+
+            // addtrack must init the parser, the parser may need the
+            // extradata
+            if (!(track = add_track(r, &trackinfo, &props)))
+                goto err_alloc;
+            break;
+        case SUB_STREAM_MEIDA_TYPE_TEXT:
+        case SUB_STREAM_MEIDA_TYPE_PRIVATE:
+        default:
+            fnc_log(FNC_LOG_DEBUG, "[stsw] codec type unsupported");
+            break;
+        }
+                
+    }//for(it=metadata.sub_streams.begin();
+
+    if(track == NULL){
+        fnc_log(FNC_LOG_ERR, "[stsw] No tracks for the resource %s\n", 
+                r->info->mrl);
+        ret = RESOURCE_DAMAGED;
+        goto error_1;
+    }
     
     
+    if(r->info.media_source == MS_live){
+        fnc_log(FNC_LOG_DEBUG, "[stsw] init live stream successfully\n");
+    }else{
+        fnc_log(FNC_LOG_DEBUG, "[stsw] init replay stream with duration %f", r->info->duration);
+        
+    }
+    
+    r->timescaler = stsw_timescaler;
     r->private_data = priv;
     
     return RESOURCE_OK;
@@ -316,354 +583,19 @@ error_1:
 
     return ret;
 
- #if 0   
-    
-    
-    AVFormatContext *avfc;
-    //AVFormatParameters ap;
-    lavf_priv_t *priv =  NULL;
-    MediaProperties props;
-    Track *track = NULL;
-    TrackInfo trackinfo;
-    int pt = 96;
-    unsigned int i;
-    int streamType = r->srv->srvconf.default_stream_type;
-
-
-
-    //memset(&ap, 0, sizeof(AVFormatParameters));
-    memset(&trackinfo, 0, sizeof(TrackInfo));
-    priv = av_mallocz(sizeof(lavf_priv_t));
-
-    avfc = NULL;
-    //ap.prealloced_context = 1;
-
-    //url_fopen(&priv->pb, r->info->mrl, URL_RDONLY);
-
-    if (avformat_open_input(&avfc, r->info->mrl, NULL, NULL)) {
-        fnc_log(FNC_LOG_DEBUG, "[avf] Cannot open %s", r->info->mrl);
-        goto err_alloc;
-    }
-    avfc->flags |= AVFMT_FLAG_GENPTS;
-    priv->avfc = avfc;
-
-    for(i=0; i<avfc->nb_streams; i++) {
-        AVStream *st= avfc->streams[i];
-        AVCodecContext *codec= st->codec;
-        if(codec->codec_type == AVMEDIA_TYPE_VIDEO) codec->flags2 |= CODEC_FLAG2_CHUNKS;
-    }
-
-    if(avformat_find_stream_info(avfc, NULL) < 0){
-        fnc_log(FNC_LOG_DEBUG, "[avf] Cannot find streams in file %s",
-                r->info->mrl);
-        goto err_alloc;
-    }
-
-/* throw it in the sdp?
-    if(avfc->title    [0])
-    if(avfc->author   [0])
-    if(avfc->copyright[0])
-    if(avfc->comment  [0])
-    if(avfc->album    [0])
-    if(avfc->year        )
-    if(avfc->track       )
-    if(avfc->genre    [0]) */
-
-    // make them pointers?
-    strncpy(trackinfo.title, "TriNet NVR", 80);
-    strncpy(trackinfo.author, "TriNet NVR", 80);
-
-    r->info->duration = (double)avfc->duration /AV_TIME_BASE;
-
-
-    if(streamType != RAW_STREAM) {
-        int videoAvailable = -1;
-
-        r->private_data = priv;
-        for(i=0; i<avfc->nb_streams; i++) {
-            AVStream *st= avfc->streams[i];
-            AVCodecContext *codec= st->codec;
-            switch(codec->codec_type){
-                case AVMEDIA_TYPE_AUDIO:
-                    break;
-                case AVMEDIA_TYPE_VIDEO:
-                    videoAvailable = i;
-                    break;
-                case AVMEDIA_TYPE_DATA:
-                case AVMEDIA_TYPE_UNKNOWN:
-                case AVMEDIA_TYPE_SUBTITLE: //XXX import subtitle work!
-                default:
-                    fnc_log(FNC_LOG_DEBUG, "[avf] codec type unsupported");
-                    break;
-            }
-        }
-        if(videoAvailable != -1) {
-            AVStream *st= avfc->streams[videoAvailable];
-            AVCodecContext *codec= st->codec;
-            trackinfo.id = 0;
-            memset(&props, 0, sizeof(MediaProperties));
-            props.clock_rate = 90000; //Default
-            props.extradata = codec->extradata;
-            props.extradata_len = codec->extradata_size;
-            strncpy(props.encoding_name, "MP2P", 11);
-            props.codec_id = 0;
-            props.codec_sub_id = 0;
-            props.payload_type = 96;
-            props.media_type   = MP_video;
-            props.bit_rate     = codec->bit_rate;
-            props.frame_rate   = av_q2d(st->r_frame_rate);
-            props.frame_type = FT_UNKONW;
-            props.frame_duration     = (double)1 / props.frame_rate;
-            props.AspectRatio  = codec->width *
-                codec->sample_aspect_ratio.num /
-                (float)(codec->height *
-                        codec->sample_aspect_ratio.den);
-            // addtrack must init the parser, the parser may need the
-            // extradata
-            snprintf(trackinfo.name,sizeof(trackinfo.name),"0");
-            if (!(track = add_track(r, &trackinfo, &props))){
-                goto err_alloc;
-            }
-        }
-    }else{
-        for(i=0; i<avfc->nb_streams; i++) {
-            AVStream *st= avfc->streams[i];
-            AVCodecContext *codec= st->codec;
-            trackinfo.id = i;
-            const char *id = tag_from_id(codec->codec_id);
-    
-            if (id) {
-                memset(&props, 0, sizeof(MediaProperties));
-                props.clock_rate = 90000; //Default
-                props.extradata = codec->extradata;
-                props.extradata_len = codec->extradata_size;
-                strncpy(props.encoding_name, id, 11);
-                props.codec_id = codec->codec_id;
-                props.codec_sub_id = codec->codec_id;
-                props.payload_type = pt_from_id(codec->codec_id);
-                props.frame_type = FT_UNKONW;
-                if (props.payload_type == 96){
-                    
-                    props.payload_type = pt++;
-                }else if (props.payload_type > 96) {
-                    if(pt <= props.payload_type ) {
-                        pt = props.payload_type + 1;
-                    }
-                }
-                fnc_log(FNC_LOG_DEBUG, "[avf] Parsing AVStream %s",
-                        props.encoding_name);
-            } else {
-                fnc_log(FNC_LOG_DEBUG, "[avf] Cannot map stream id %d", i);
-                continue;
-            }
-            switch(codec->codec_type){
-                case AVMEDIA_TYPE_AUDIO:
-                    props.media_type     = MP_audio;
-                    // Some properties, add more?
-                    props.bit_rate       = codec->bit_rate;
-                    props.audio_channels = codec->channels;
-                    // Make props an int...
-                    props.sample_rate    = codec->sample_rate;
-                    props.frame_duration       = (double)1 / codec->sample_rate;
-                    props.bit_per_sample   = codec->bits_per_coded_sample;
-                    snprintf(trackinfo.name, sizeof(trackinfo.name), "%d", i);
-                    if (!(track = add_track(r, &trackinfo, &props)))
-                        goto err_alloc;
-                break;
-                case AVMEDIA_TYPE_VIDEO:
-                    props.media_type   = MP_video;
-                    props.bit_rate     = codec->bit_rate;
-                    props.frame_rate   = av_q2d(st->r_frame_rate);
-                    props.frame_duration     = (double)1 / props.frame_rate;
-                    props.AspectRatio  = codec->width *
-                                          codec->sample_aspect_ratio.num /
-                                          (float)(codec->height *
-                                                  codec->sample_aspect_ratio.den);
-                    // addtrack must init the parser, the parser may need the
-                    // extradata
-                    snprintf(trackinfo.name,sizeof(trackinfo.name),"%d",i);
-                    if (!(track = add_track(r, &trackinfo, &props)))
-                goto err_alloc;
-                break;
-                case AVMEDIA_TYPE_DATA:
-                case AVMEDIA_TYPE_UNKNOWN:
-                case AVMEDIA_TYPE_SUBTITLE: //XXX import subtitle work!
-                default:
-                    fnc_log(FNC_LOG_DEBUG, "[avf] codec type unsupported");
-                break;
-            }
-        }
-    
-    }
-
-
-
-    
-
-    if (track) {
-
-        fnc_log(FNC_LOG_DEBUG, "[avf] duration %f", r->info->duration);
-        r->private_data = priv;
-        r->timescaler = avf_timescaler;
-        return RESOURCE_OK;
-    }
-
-
-err_alloc:
-
-
-    if (priv) {
-        if (priv->avfc) {
-            avformat_close_input(&(priv->avfc));
-            priv->avfc = NULL;
-        }
-        av_freep(&priv);
-        r->private_data = NULL;
-    }
-
-    return ERR_PARSE;
-    
-#endif    
+ 
 }
 
 static int stsw_read_packet(Resource * r)
 {
     return RESOURCE_EOF;
-#if 0    
-    
-    int ret = RESOURCE_OK;
-    TrackList tr_it;
-    AVPacket pkt;
-    AVStream *stream;
-    lavf_priv_t *priv = r->private_data;
-    int streamType = r->srv->srvconf.default_stream_type;
 
-// get a packet
-    av_init_packet(&pkt);
-    pkt.data = NULL;
-    pkt.size = 0;
-
-    if(av_read_frame(priv->avfc, &pkt) < 0)
-        return RESOURCE_EOF; //FIXME
-    for (tr_it = g_list_first(r->tracks);
-         tr_it !=NULL;
-         tr_it = g_list_next(tr_it)) {
-        Track *tr = (Track*)tr_it->data;
-        if (pkt.stream_index == tr->info->id ||
-            streamType != RAW_STREAM) {
-            if(streamType != RAW_STREAM) {
-                tr->info->id = pkt.stream_index;
-            }
-// push it to the framer
-            stream = priv->avfc->streams[tr->info->id];
-            fnc_log(FNC_LOG_VERBOSE, "[avf] Parsing track %s",
-                    tr->info->name);
-            if(pkt.dts != AV_NOPTS_VALUE) {
-                tr->properties.dts = r->timescaler (r,
-                    pkt.dts * av_q2d(stream->time_base));
-#ifdef TRISOS
-		   if(tr->properties.dts < 0){
-               av_free_packet(&pkt);
-               return RESOURCE_EOF;
-           }
-		   else{
-#endif
-                fnc_log(FNC_LOG_VERBOSE,
-                        "[avf] delivery timestamp %f",
-                        tr->properties.dts);
-#ifdef TRISOS
-		   }
-#endif
-            } else {
-                fnc_log(FNC_LOG_VERBOSE,
-                        "[avf] missing delivery timestamp");
-#ifdef TRISOS
-                av_free_packet(&pkt);
-                return RESOURCE_NOT_PARSEABLE;
-#endif
-            }
-
-            if(pkt.pts != AV_NOPTS_VALUE) {
-                tr->properties.pts = r->timescaler (r,
-                    pkt.pts * av_q2d(stream->time_base));
-#ifdef TRISOS
-			if(tr->properties.pts < 0){
-                av_free_packet(&pkt);
-                return RESOURCE_EOF;
-		   	}
-		   else{
-#endif
-                fnc_log(FNC_LOG_VERBOSE,
-                        "[avf] presentation timestamp %f",
-                        tr->properties.pts);
-#ifdef TRISOS
-		   }
-#endif
-            } else {
-                fnc_log(FNC_LOG_VERBOSE, "[avf] missing presentation timestamp, replace with dts");
-#ifdef TRISOS
-                tr->properties.pts = r->timescaler (r,
-                    pkt.dts * av_q2d(stream->time_base));
-
-                if(tr->properties.pts < 0){
-                    av_free_packet(&pkt);
-                    return RESOURCE_EOF;
-                }else{
-
-                    fnc_log(FNC_LOG_VERBOSE,
-                            "[avf] presentation timestamp %f",
-                            tr->properties.pts);
-
-                }
-#endif
-            }
-
-            if (pkt.duration) {
-                tr->properties.frame_duration = pkt.duration *
-                    av_q2d(stream->time_base);
-            } else { // welcome to the wonderland ehm, hackland...
-                switch (stream->codec->codec_id) {
-                    case CODEC_ID_MP2:
-                    case CODEC_ID_MP3:
-                        tr->properties.frame_duration = 1152.0/
-                                tr->properties.sample_rate;
-                        break;
-                    default: break;
-                }
-            }
-
-            fnc_log(FNC_LOG_VERBOSE, "[avf] packet duration %f",
-                tr->properties.frame_duration);
-
-            ret = tr->parser->parse(tr, pkt.data, pkt.size);
-            break;
-        }
-    }
-
-    av_free_packet(&pkt);
-
-    return ret;
-    
-#endif    
 }
 
 static int stsw_seek(Resource * r, double time_sec)
 {
     return RESOURCE_OK;
-#if 0    
-    int flags = 0;
-    int64_t time_msec = time_sec * AV_TIME_BASE;
-    fnc_log(FNC_LOG_DEBUG, "Seeking to %f", time_sec);
-    AVFormatContext *fc = ((lavf_priv_t *)r->private_data)->avfc;
-    if (fc->start_time != AV_NOPTS_VALUE)
-        time_msec += fc->start_time;
-    if (time_msec < 0) flags = AVSEEK_FLAG_BACKWARD;
-#ifdef TRISOS
-    r->lastTimestamp = time_sec;
-#endif
-
-    return av_seek_frame(fc, -1, time_msec, flags);
-#endif    
+   
 }
 
 static void stsw_uninit(gpointer rgen)
@@ -688,9 +620,7 @@ static void stsw_uninit(gpointer rgen)
         delete priv;
         priv = NULL;
     } 
-    
-    
-    
+       
   
 }
 
@@ -698,6 +628,30 @@ static void stsw_uninit(gpointer rgen)
 static int stsw_start(Resource * r)
 {
     /* start the sink */
+    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
+    if(priv != NULL){
+        RTSP_session session = r->rtsp_sess;
+        RTSP_Range *range = g_queue_peek_head(session->play_requests);
+        if(range == NULL){
+            //this situation should not happen
+            return RESOURCE_DAMAGED;
+        }
+        
+
+        
+        if(priv->sink != NULL && (!priv->sink->IsStarted()){            
+            
+            //for live stream, resync the time
+            priv->playback_time = range->playback_time;
+            priv->delta_time = 0;
+            priv->has_sync = 0;  
+
+          
+            priv->sink->Start();
+        }
+        
+        return RESOURCE_OK;
+    }
     
     return RESOURCE_OK;
 }
@@ -705,7 +659,20 @@ static int stsw_start(Resource * r)
 static void stsw_pause(Resource * r)
 {
     /* stop the sink */
-    
+    if(r->info.media_source == MS_live){
+        //for live stream, stop the sink
+        stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
+        if(priv != NULL){
+            if(priv->sink != NULL ){
+                priv->sink->Stop();
+            }      
+  
+        }//if(priv != NULL)        
+    }else{
+        // for replay stream, don't stop sink to keep the sink send out
+        // heartbeat to the source
+        
+    }
 }
 
 #ifdef __cplusplus

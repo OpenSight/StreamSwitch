@@ -70,6 +70,12 @@ typedef struct MediaParser {
 
     /** Uninit function to free the private data */
     void (*uninit)(Track *track);
+    
+    /** reset the parser's internal state
+     *  When the resource is seek or the live resource is pause,
+     *  the parser would be reset
+     * */
+    void (*reset)(Track *track);
 } MediaParser;
 
 MediaParser *mparser_find(const char *);

@@ -53,6 +53,9 @@ static int speex_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 #define speex_uninit NULL
+#define speex_reset NULL
+
+
 
 FNC_LIB_MEDIAPARSER(speex);
 

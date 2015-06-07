@@ -43,6 +43,17 @@
 #define STREAM_TIMEOUT 12 /* This one must be big enough to permit to VLC to switch to another
                              transmission protocol and must be a multiple of LIVE_STREAM_BYE_TIMEOUT */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void demuxer_stsw_global_init(void);
+void demuxer_stsw_global_uninit(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 /**
  * @brief Handle client disconnection and free resources
  *
@@ -86,6 +97,8 @@ static void client_ev_disconnect_handler(struct ev_loop *loop,
 
     fnc_log(FNC_LOG_INFO, "[client] Client removed");
 
+    demuxer_stsw_global_uninit();
+    
 	sleep(1);
 	exit(0);
 
@@ -332,6 +345,8 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
         
         feng_stop_child_watcher(srv);
         
+        demuxer_stsw_global_init();
+        
 
         //void fnc_log_change_child();
         if(srv->srvconf.log_type == FNC_LOG_FILE){
@@ -377,7 +392,7 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
         ev_init(timer, client_ev_timeout);
         timer->repeat = STREAM_TIMEOUT;
 
-
+        
 
     }else if(pid > 0){
         Sock_close(client_sock);   

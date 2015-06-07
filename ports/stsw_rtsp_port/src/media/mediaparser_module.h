@@ -36,7 +36,8 @@ extern "C" {
 	&info, \
 	x##_init, \
         x##_parse, \
-	x##_uninit \
+	x##_uninit, \
+    x##_reset  \
 }
 
 

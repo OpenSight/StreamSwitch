@@ -158,5 +158,7 @@ static int mp4ves_parse(Track *tr, uint8_t *data, size_t len)
 
 #define mp4ves_uninit NULL
 
+#define mp4ves_reset NULL
+
 
 FNC_LIB_MEDIAPARSER(mp4ves);

@@ -396,5 +396,7 @@ static void h264_uninit(Track *tr)
     g_slice_free(h264_priv, tr->private_data);
 }
 
+#define h264_reset NULL
+
 FNC_LIB_MEDIAPARSER(h264);
 

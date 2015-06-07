@@ -68,9 +68,6 @@ void free_track(gpointer element,
     if (!track)
         return;
 
-
-
-
     if((track->producer)&&(track->producer_freed == 0))
     {
 
@@ -81,6 +78,7 @@ void free_track(gpointer element,
 
 
     g_free(track->info->mrl);
+    
     g_slice_free(TrackInfo, track->info);
 
     sdp_fields_free(track->sdp_fields);
@@ -89,6 +87,30 @@ void free_track(gpointer element,
         track->parser->uninit(track);
 
     g_slice_free(Track, track);
+}
+
+/**
+ * @brief reset the internal processing state of a Track object
+ * 
+ * by now, reset the producer queue and the codec parser used by this track,
+ *
+ * @param element Track to free
+ * @param user_data Unused, for compatibility with g_list_foreach().
+ */
+void reset_track(gpointer element, gpointer user_data)
+{
+    Track *track = (Track*)element;
+
+    if (!track)
+        return;
+    
+    if(track->producer){
+        bq_producer_reset_queue(track->producer);
+    }
+    
+    if(track->parser && track->parser->reset){
+        track->parser->reset(track);
+    }
 }
 
 
@@ -178,3 +200,6 @@ void track_add_sdp_field(Track *track, sdp_field_type type, char *value)
 
     track->sdp_fields = g_slist_prepend(track->sdp_fields, field);
 }
+
+
+

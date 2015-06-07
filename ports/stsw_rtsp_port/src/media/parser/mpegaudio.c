@@ -78,6 +78,9 @@ static int mpa_parse(Track *tr, uint8_t *data, size_t len)
 }
 
 #define mpa_uninit NULL
+#define mpa_reset NULL
+
+
 
 FNC_LIB_MEDIAPARSER(mpa);
 
