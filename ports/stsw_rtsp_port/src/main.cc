@@ -56,6 +56,7 @@ extern "C" {
 #include <glib.h>
 #include <netembryo/wsocket.h>
 
+#include "media/demuxer.h"
 
 
 #ifdef __cplusplus

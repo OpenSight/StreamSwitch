@@ -429,7 +429,7 @@ void r_pause(Resource *resource)
     // so that the time of these packet current in queue vould be invalid
     // for the latter play range. just reset all tracks and their
     // queue for live stream
-    if(resource->info.media_source == MS_live){
+    if(resource->info->media_source == MS_live){
         if (resource->tracks) {
             g_list_foreach(resource->tracks, reset_track, NULL);
         }

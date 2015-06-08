@@ -34,6 +34,7 @@
 #include "media/demuxer.h"
 #include "media/demuxer_module.h"
 #include "network/rtp.h"
+#include "network/rtsp.h"
 
 #include "stream_switch.h"
 
@@ -114,16 +115,16 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
                                   const char * frame_data, 
                                   size_t frame_size)
 {
-
-    int ret = RESOURCE_OK;
+    using namespace stream_switch;
     TrackList tr_it;
+    int ret;
 
 
     //sanity check
     if(resource_ == NULL){
         return;
     }    
-    if(resource_->info.media_source != MS_live){
+    if(resource_->info->media_source != MS_live){
         //if not live stream, just drop the live frame
         return;
     }
@@ -131,12 +132,12 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
     g_mutex_lock(resource_->lock);
     if(resource_->eor){
         fnc_log(FNC_LOG_DEBUG,
-                 "[stsw] The resource is already EOR, drop the frame);  
+                 "[stsw] The resource is already EOR, drop the frame\n");  
         g_mutex_unlock(resource_->lock); 
         return;        
     }
 
-    stsw_priv_type *priv = resource_->private_data;
+    stsw_priv_type *priv = (stsw_priv_type *)resource_->private_data;
     int streamType = priv->stream_type;   
     
     double frame_time = (double)frame_info.timestamp.tv_sec + 
@@ -158,7 +159,7 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
         if (frame_info.sub_stream_index == tr->info->id || 
             streamType != RAW_STREAM) {
             if(streamType != RAW_STREAM) {
-                tr->info->id = pkt.stream_index;
+                tr->info->id = frame_info.sub_stream_index;
             }
             fnc_log(FNC_LOG_VERBOSE, "[stsw] Parsing track %s",
                     tr->info->name);  
@@ -184,7 +185,7 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
             }
             
             if(bq_producer_queue_length(tr->producer) >= 
-                resource_->srv->srvconf.buffered_frames){
+                (unsigned)resource_->srv->srvconf.buffered_frames){
                 fnc_log(FNC_LOG_DEBUG,
                  "[stsw] Buffer queue for this track is over the limit (%d), "
                  "drop the frame\n",
@@ -193,8 +194,11 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
             }
             
             //pass the frame to the codec parser
-            ret = tr->parser->parse(tr, frame_data, frame_size);
-            
+            ret = tr->parser->parse(tr, (uint8_t*)frame_data, frame_size);
+            if(ret){
+                fnc_log(FNC_LOG_DEBUG,
+                 "[stsw] parser failed to parse the frame\n");                   
+            }
             break;
         }//if (frame_info.sub_stream_index == tr->info->id || 
         
@@ -207,7 +211,7 @@ void DemuxerSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
 {
     if(resource_ != NULL){
         //sanity check
-        if(resource_->info.media_source != MS_live){
+        if(resource_->info->media_source != MS_live){
             //if not live stream, just drop the live frame
             return;
         }
@@ -224,13 +228,13 @@ void DemuxerSinkListener::OnMetadataMismatch(uint32_t mismatch_ssrc)
 
 void demuxer_stsw_global_init(void)
 {
-    GlobalInit(false);
+    stream_switch::GlobalInit(false);
 }
 
 
 void demuxer_stsw_global_uninit(void)
 {
-    GlobalUninit();
+    stream_switch::GlobalUninit();
 }
 
 typedef std::map<std::string, std::string> UrlParamMap;
@@ -336,7 +340,7 @@ static double stsw_timescaler (Resource *r, double res_time) {
 
     stsw_priv_type * priv = (stsw_priv_type *)r->private_data;
     
-    if(r->info.media_source == MS_live){
+    if(r->info->media_source == MS_live){
         
         if(priv->has_sync == 0){
             double now = ev_now(r->srv->loop);
@@ -356,7 +360,8 @@ static double stsw_timescaler (Resource *r, double res_time) {
         //for replay stream, just use the original frame time
         return res_time;
     }
-
+    
+    return res_time;
 }
 
 static int stsw_init(Resource * r)
@@ -369,8 +374,6 @@ static int stsw_init(Resource * r)
     Track *track = NULL;
     TrackInfo trackinfo;
     int pt = 96;
-    unsigned int i;
-    int streamType = r->srv->srvconf.default_stream_type;   
     UrlParamMap::iterator it;
     bool remote = false;
     int remote_port = 0;
@@ -380,6 +383,7 @@ static int stsw_init(Resource * r)
     std::string err_info;
     StreamMetadata metadata;
     stsw_priv_type *priv;
+    SubStreamMetadataVector::iterator meta_it;
     
     /* get stream_name */
     ret = stsw_url_parse(r->info->mrl, &stream_name, &params);
@@ -408,7 +412,7 @@ static int stsw_init(Resource * r)
     priv->listener = new DemuxerSinkListener(stream_name, r);
     priv->stream_type = r->srv->srvconf.default_stream_type;
     it = params.find(std::string("stream_type"));
-    if(it != param.end()){
+    if(it != params.end()){
         if(it->second == "raw"){
             priv->stream_type = RAW_STREAM;
         }else if(it->second == "mp2p"){
@@ -465,16 +469,15 @@ static int stsw_init(Resource * r)
         goto error_1;
     }else{
         r->model = MM_PUSH;
-        r->info.seekable = FALSE;
-        r->info.duration = HUGE_VAL;
-        r->info.media_source = MS_live;
+        r->info->seekable = FALSE;
+        r->info->duration = HUGE_VAL;
+        r->info->media_source = MS_live;
         
     }
     
     /* configure the resource and tracks */
     strncpy(trackinfo.title, "StreamSwitch", 80);
     strncpy(trackinfo.author, "OpenSight team", 80);
-    SubStreamMetadataVector::iterator meta_it;
     for(meta_it=metadata.sub_streams.begin();
         meta_it!=metadata.sub_streams.end();
         meta_it++){
@@ -484,7 +487,7 @@ static int stsw_init(Resource * r)
         
         memset(&props, 0, sizeof(MediaProperties));
         props.clock_rate = 90000; //Default
-        props.extradata = (meta_it->extra_data.size() > 0)?meta_it->extra_data.data():NULL;
+        props.extradata = (uint8_t*)((meta_it->extra_data.size() > 0)?meta_it->extra_data.data():NULL);
         props.extradata_len = meta_it->extra_data.size();
         strncpy(props.encoding_name, meta_it->codec_name.c_str(), 10);
         //props.codec_id = codec->codec_id;
@@ -506,20 +509,19 @@ static int stsw_init(Resource * r)
         case SUB_STREAM_MEIDA_TYPE_AUDIO:
             props.media_type     = MP_audio;
             // Some properties, add more?
-            props.bit_rate       = codec->bit_rate;
             props.audio_channels = meta_it->media_param.audio.channels;
                     // Make props an int...
             props.sample_rate    = meta_it->media_param.audio.samples_per_second;
-            if(samples_per_second){
+            if(props.sample_rate ){
                 props.frame_duration = (double)meta_it->media_param.audio.sampele_per_frame * 
-                                       ((double)1 / codec->sample_rate);
+                                       ((double)1 / props.sample_rate );
                 
             }
             props.bit_per_sample   = meta_it->media_param.audio.bits_per_sample;
             props.bit_rate = props.bit_per_sample * props.sample_rate;
                     
             if (!(track = add_track(r, &trackinfo, &props)))
-                goto err_alloc;
+                goto error_1;
             break;
         case SUB_STREAM_MEIDA_TYPE_VIDEO:
             props.media_type   = MP_video;
@@ -533,7 +535,7 @@ static int stsw_init(Resource * r)
             // addtrack must init the parser, the parser may need the
             // extradata
             if (!(track = add_track(r, &trackinfo, &props)))
-                goto err_alloc;
+                goto error_1;
             break;
         case SUB_STREAM_MEIDA_TYPE_TEXT:
         case SUB_STREAM_MEIDA_TYPE_PRIVATE:
@@ -552,7 +554,7 @@ static int stsw_init(Resource * r)
     }
     
     
-    if(r->info.media_source == MS_live){
+    if(r->info->media_source == MS_live){
         fnc_log(FNC_LOG_DEBUG, "[stsw] init live stream successfully\n");
     }else{
         fnc_log(FNC_LOG_DEBUG, "[stsw] init replay stream with duration %f", r->info->duration);
@@ -627,11 +629,13 @@ static void stsw_uninit(gpointer rgen)
 
 static int stsw_start(Resource * r)
 {
+    int ret;
+    std::string err_info;
     /* start the sink */
     stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
     if(priv != NULL){
-        RTSP_session session = r->rtsp_sess;
-        RTSP_Range *range = g_queue_peek_head(session->play_requests);
+        RTSP_session *session = (RTSP_session *)r->rtsp_sess;
+        RTSP_Range *range = (RTSP_Range *)g_queue_peek_head(session->play_requests);
         if(range == NULL){
             //this situation should not happen
             return RESOURCE_DAMAGED;
@@ -639,7 +643,7 @@ static int stsw_start(Resource * r)
         
 
         
-        if(priv->sink != NULL && (!priv->sink->IsStarted()){            
+        if(priv->sink != NULL && (!priv->sink->IsStarted())){            
             
             //for live stream, resync the time
             priv->playback_time = range->playback_time;
@@ -647,7 +651,13 @@ static int stsw_start(Resource * r)
             priv->has_sync = 0;  
 
           
-            priv->sink->Start();
+            ret = priv->sink->Start(&err_info);
+            if(ret){
+                fnc_log(FNC_LOG_ERR, "[stsw] Fail to start the StreamSwitch Sink(%d): %s\n", 
+                    ret, err_info.c_str());
+                return RESOURCE_DAMAGED;                
+            }
+            
         }
         
         return RESOURCE_OK;
@@ -659,7 +669,7 @@ static int stsw_start(Resource * r)
 static void stsw_pause(Resource * r)
 {
     /* stop the sink */
-    if(r->info.media_source == MS_live){
+    if(r->info->media_source == MS_live){
         //for live stream, stop the sink
         stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
         if(priv != NULL){
