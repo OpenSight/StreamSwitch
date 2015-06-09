@@ -37,6 +37,10 @@ static const MediaParserInfo info = {
 };
 
 
+typedef struct {
+    int gov_start; // if the parser has seen GOV start flag, gov_start would be set to 1
+} mp4v_priv;
+
 #define GROUP_VOP_START_CODE      0xB3
 #define VOP_START_CODE            0xB6
 #define VISUAL_OBJECT_SEQUENCE_START_CODE      0xB0
@@ -102,6 +106,8 @@ static int mp4ves_init(Track *track)
                                          track->properties.clock_rate));
 
     g_free(config);
+    
+    track->private_data = g_slice_new0(h264_priv);
 
     return ERR_NOERROR;
 }
@@ -112,6 +118,16 @@ static int mp4ves_parse(Track *tr, uint8_t *data, size_t len)
 
     unsigned int scale = 1;
     int onlyKeyFrame = 0;
+    mp4v_priv *priv = tr->private_data;
+    int is_key_frame = isMp4vKeyFrame(data, len);
+    
+    if(is_key_frame){
+        priv->gov_start = 1;
+    }
+    if(priv->gov_start == 0){
+        /* if the parser does not encounter the GOV, just drop the frame */
+        return;
+    }    
 
     tr->packetTotalNum++;
 
@@ -122,7 +138,7 @@ static int mp4ves_parse(Track *tr, uint8_t *data, size_t len)
     }
 
     if(onlyKeyFrame == 0 ||
-       isMp4vKeyFrame(data, len) ) {
+       is_key_frame ) {
 
 
         if (DEFAULT_MTU >= len) {
@@ -154,11 +170,16 @@ static int mp4ves_parse(Track *tr, uint8_t *data, size_t len)
 
     return ERR_NOERROR;
 }
+static void mp4ves_uninit(Track *tr)
+{
+    g_slice_free(mp4v_priv, tr->private_data);
+}
 
-
-#define mp4ves_uninit NULL
-
-#define mp4ves_reset NULL
+static void mp4ves_reset(Track *tr)
+{
+    mp4v_priv *priv = tr->private_data; 
+    priv->gov_start = 0;
+}
 
 
 FNC_LIB_MEDIAPARSER(mp4ves);

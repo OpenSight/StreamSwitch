@@ -39,6 +39,7 @@ static const MediaParserInfo info = {
 typedef struct {
     int is_avc;
     unsigned int nal_length_size; // used in avc
+    int gov_start; // if the parser has seen GOV start flag, gov_start would be set to 1
 } h264_priv;
 
 /* Generic Nal header
@@ -274,7 +275,20 @@ static void h264_send_nal(Track *tr, uint8_t *data, size_t len)
 {
     uint8_t nal_unit_type;
     unsigned int scale = 1;
-    int onlyKeyFrame = 0;    
+    int onlyKeyFrame = 0;  
+    h264_priv *priv = tr->private_data;
+    
+    
+    nal_unit_type = data[0] & 0x1F;
+    if(nal_unit_type == 5 || 
+       nal_unit_type == 7){
+        /* if this nal is SPS/IDR, a new gov is begin */
+        priv->gov_start = 1;
+    }
+    if(priv->gov_start == 0){
+        /* if the parser has not yet encounter the GOV start flag, just drop the frame */
+        return;
+    }
     
     tr->packetTotalNum++;
 
@@ -285,8 +299,6 @@ static void h264_send_nal(Track *tr, uint8_t *data, size_t len)
         onlyKeyFrame = ((RTSP_session *)tr->parent->rtsp_sess)->onlyKeyFrame;
     }
     
-    
-    nal_unit_type = data[0] & 0x1F;
     
     if(onlyKeyFrame == 0 ||
        /*    tr->packetTotalNum % scale == 0 || */
@@ -406,7 +418,13 @@ static void h264_uninit(Track *tr)
     g_slice_free(h264_priv, tr->private_data);
 }
 
-#define h264_reset NULL
+
+static void h264_reset(Track *tr)
+{
+    h264_priv *priv = tr->private_data; 
+    priv->gov_start = 0;
+}
+
 
 FNC_LIB_MEDIAPARSER(h264);
 

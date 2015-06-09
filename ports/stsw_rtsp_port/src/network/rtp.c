@@ -608,9 +608,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
                                      rtp_scaler(session, next->delivery -
                                      session->range->begin_time) ) ;
 
-                    }                    
-
-
+                    }
                 }
             } else {
                 /* no more packets in the queue */ 
