@@ -483,6 +483,7 @@ static int stsw_init(Resource * r)
         meta_it++){
         
         trackinfo.id = meta_it->sub_stream_index;
+        //fnc_log(FNC_LOG_DEBUG, "[stsw] trackinfo.name = %d", meta_it->sub_stream_index);  
         snprintf(trackinfo.name, sizeof(trackinfo.name), "%d", meta_it->sub_stream_index);
         
         memset(&props, 0, sizeof(MediaProperties));
@@ -650,13 +651,14 @@ static int stsw_start(Resource * r)
             priv->delta_time = 0;
             priv->has_sync = 0;  
 
-          
+        
             ret = priv->sink->Start(&err_info);
             if(ret){
                 fnc_log(FNC_LOG_ERR, "[stsw] Fail to start the StreamSwitch Sink(%d): %s\n", 
                     ret, err_info.c_str());
                 return RESOURCE_DAMAGED;                
             }
+
             
         }
         

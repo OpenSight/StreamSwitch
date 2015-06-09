@@ -1175,6 +1175,7 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
             it ++){
             
             SubStreamMetadata sub_stream;
+            sub_stream.sub_stream_index = it->index();
             sub_stream.media_type = (SubStreamMediaType)it->media_type();
             sub_stream.codec_name = it->codec_name();      
             sub_stream.direction = (SubStreamDirectionType)it->direction();    

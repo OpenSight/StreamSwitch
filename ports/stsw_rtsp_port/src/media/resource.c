@@ -247,6 +247,7 @@ Resource *r_open(struct feng *srv, const char *inner_path)
 
     /* Now that we have opened the actual resource we can proceed with
      * the extras */
+    fnc_log(FNC_LOG_DEBUG, "init resource %s:",r->info->name);
 
     return r;
  error:
@@ -401,6 +402,8 @@ int r_start(Resource *resource)
     }
 
     g_mutex_unlock(resource->lock);    
+
+    fnc_log(FNC_LOG_DEBUG, "start resource %s:",resource->info->name);
     
     return ret;
 }
@@ -436,6 +439,8 @@ void r_pause(Resource *resource)
     }
 
     g_mutex_unlock(resource->lock);
+    
+    fnc_log(FNC_LOG_DEBUG, "pause resource %s:",resource->info->name);    
 }
 
 /**

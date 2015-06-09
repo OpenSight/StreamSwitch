@@ -155,9 +155,12 @@ static char *encode_avc1_header(uint8_t *p, unsigned int len, int packet_mode)
 
 static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
 {
-    uint8_t *q, *end = p + len;
+    uint8_t *q = NULL, *end = p + len;
     char *sprop = NULL, *out, *buf = NULL;
-
+/*    
+        fnc_log(FNC_LOG_DEBUG, "[h264] header len %d",
+                        len);
+*/
     for (q = p; q < end - 4; q++) {
         if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
             break;
@@ -169,7 +172,7 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
 
     p = q; // sps start;
 
-    for (; q < end - 4; q++) {
+    for (q = (p + 4); q < end - 4; q++) {
         if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
             /* sps end */
             break;
@@ -185,7 +188,10 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
     out = g_strdup_printf("profile-level-id=%02x%02x%02x; "
                           "packetization-mode=%d; ",
                             p[1], p[2], p[3], packet_mode);
-
+/*
+        fnc_log(FNC_LOG_DEBUG, "[h264] g_base64_encode %d",
+                        q-p);    
+*/
     buf = g_base64_encode(p, q-p);
 
     sprop = g_strdup_printf("%ssprop-parameter-sets=%s", out, buf);
@@ -206,6 +212,10 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
             q = end; /* last one */
         }
         p += 4;
+/*        
+        fnc_log(FNC_LOG_DEBUG, "[h264] g_base64_encode %d",
+                        q-p);     
+*/       
         buf = g_base64_encode(p, q - p);
         out = g_strdup_printf("%s,%s",sprop, buf);
         g_free(sprop);
