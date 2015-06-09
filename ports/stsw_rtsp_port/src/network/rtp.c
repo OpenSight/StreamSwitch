@@ -466,8 +466,8 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
 ({         \
     double deltaNext = 0;  \
     deltaNext = rtp_scaler(session, duration)/2;    \
-    if(deltaNext < 0.001) {                         \
-        deltaNext = 0.001;                          \
+    if(deltaNext < 0.005) {                         \
+        deltaNext = 0.005;                          \
     }else if (deltaNext > 0.01) {                   \
         deltaNext = 0.01;                           \
     }                                               \
