@@ -676,7 +676,9 @@ static void stsw_pause(Resource * r)
         stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
         if(priv != NULL){
             if(priv->sink != NULL ){
+                g_mutex_unlock(r->lock);
                 priv->sink->Stop();
+                g_mutex_lock(r->lock);
             }      
   
         }//if(priv != NULL)        
