@@ -197,6 +197,9 @@ static void fnc_rotate_file_log(int level,
                                 const char *fmt, va_list args)
 {
     int stsw_log_level; 
+    
+    if (level > log_level) return;
+    
     stsw_log_level = fnc_log_level_2_stsw(level);
     if(global_logger != NULL){
         global_logger->LogV(stsw_log_level, file, line, fmt, args);
