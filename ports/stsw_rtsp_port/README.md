@@ -45,3 +45,24 @@ port - the port of the stream source which running on the other host, only valid
 stream_type - which type of the mux stream emitted by this RTSP session, can 
               only be RAW/MP2P by now. Default is configured from the command 
               arguments of stsw_rtsp_port.   
+              
+
+## How to run
+--------------------------
+
+just type the following command at this directory can start the stsw_rtsp_port at 
+front ground with outputting log to stderr, and never exit: 
+
+    $./stsw_rtsp_port
+
+stsw_rtsp_port also support many command line argument, you can type the following 
+command to list them: 
+
+    $./stsw_rtsp_port --help
+
+You can send SIGINT/SIGTERM signal to the running process to terminate the port. 
+Also, you can make use of Ctrl+C at the console running stsw_rtsp_port. 
+
+   
+
+              

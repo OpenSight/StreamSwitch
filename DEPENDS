@@ -20,3 +20,8 @@ packages of the following projects:
     * RTMPDump >= 2.3
     
 
+3. stsw_rtsp_port depends
+
+    * libev >= 4.0
+    * libnetembryo >= 0.1.0
+    * glib-2.0 >= 2.16
