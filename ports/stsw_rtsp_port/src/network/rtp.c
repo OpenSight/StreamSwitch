@@ -693,10 +693,12 @@ static void rtcp_read_cb(ATTR_UNUSED struct ev_loop *loop,
                          ev_io *w,
                          ATTR_UNUSED int revents)
 {
-    char buffer[RTP_DEFAULT_MTU*2] = { 0, }; //FIXME just a quick hack...
+    char rtcp_buffer[RTP_DEFAULT_MTU*2] = { 0, }; //FIXME just a quick hack...
     RTP_session *session = w->data;
+    
+    
 
-    int n = Sock_read(session->transport.rtcp_sock, buffer,
+    int n = Sock_read(session->transport.rtcp_sock, rtcp_buffer,
                       RTP_DEFAULT_MTU*2, NULL, MSG_DONTWAIT);
     if(n >= 0 ) {
         session->last_rtcp_read_time = time(NULL);

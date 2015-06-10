@@ -107,7 +107,7 @@ static int mp4ves_init(Track *track)
 
     g_free(config);
     
-    track->private_data = g_slice_new0(h264_priv);
+    track->private_data = g_slice_new0(mp4v_priv);
 
     return ERR_NOERROR;
 }
