@@ -262,7 +262,9 @@ int TextStreamSink::Start(int timeout)
     if(ret){
         fprintf(stderr, "Request key frame failed: %s\n", err_info.c_str());
         ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_WARNING, 
-                  "Request key frame failed: %s\n", err_info.c_str());           
+                  "Request key frame failed: %s\n", err_info.c_str());        
+        sink_.Stop();
+        return -1;
     }
 
 

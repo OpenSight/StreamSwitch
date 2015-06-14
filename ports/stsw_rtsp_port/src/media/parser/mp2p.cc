@@ -32,8 +32,7 @@
 
 #include "feng.h"
 
-#include <libavformat/avformat.h>
-#include <libavutil/crc.h>
+#include "stream_switch.h"
 
 #define MP2P_MAX_STREAM_NUM 4
 #define MP2P_MAX_PES_SIZE 5120
@@ -52,7 +51,6 @@
 #define ISO_11172_END_CODE          ((unsigned int)0x000001b9)
 
 typedef struct mp2p_stream_struct {
-    const int av_id;
     const char tag[11];
     uint8_t stream_type;
     int (*parse)(Track *track, uint8_t *data, size_t len, 
@@ -77,7 +75,6 @@ typedef struct {
                  uint8_t *buf, size_t bufSize, size_t maxSize);
     int (*isKeyFrame)(Track *track, uint8_t *data, size_t len);
 
-    unsigned int nal_length_size; // used for h264 avc
 } mp2p_stream_info;
 
 
@@ -91,6 +88,7 @@ typedef struct {
     int video_bound;
     int stream_num;
     mp2p_stream_info stream_info[MP2P_MAX_STREAM_NUM];
+    int gov_start; // if the parser has seen GOV start flag, gov_start would be set to 1
 } mp2p_priv;
 
 
@@ -437,7 +435,7 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
 {
     unsigned int clock_rate;
     clock_rate = tr->properties.clock_rate;
-
+#if 0
     if(tr != NULL && 
 	   tr->parent != NULL &&
 	   tr->parent->rtsp_sess != NULL &&
@@ -445,7 +443,7 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
         pts = pts / (double)(((RTSP_session *) tr->parent->rtsp_sess)->scale);
 
     }
-
+#endif
 
     return (uint64_t)(pts * clock_rate);
 }
@@ -814,18 +812,18 @@ static int mp2p_simple_audio_parse(Track *tr, uint8_t *data, size_t len,
 /* mp2p parser */
 
 static const mp2p_stream_struct mp2p_streams[] = {
-    { CODEC_ID_H264, "H264", 0x1b, mp2p_h264_parse, ish264KeyFrame},
-    { CODEC_ID_MPEG4, "MP4V-ES", 0x10, mp2p_mp4v_parse, isMp4vesKeyFrame},
-    { CODEC_ID_PCM_MULAW, "PCMU", 0x90, mp2p_simple_audio_parse, noKeyFrame},
-    { CODEC_ID_PCM_ALAW, "PCMA", 0x90, mp2p_simple_audio_parse, noKeyFrame},
-    { CODEC_ID_NONE, "NONE", 0, NULL, NULL}//XXX ...
+    { "H264", 0x1b, mp2p_h264_parse, ish264KeyFrame},
+    { "MP4V-ES", 0x10, mp2p_mp4v_parse, isMp4vesKeyFrame},
+    { "PCMU", 0x90, mp2p_simple_audio_parse, noKeyFrame},
+    { "PCMA", 0x90, mp2p_simple_audio_parse, noKeyFrame},
+    { "NONE", 0, NULL, NULL}//XXX ...
 };
 
-static const mp2p_stream_struct * find_stream_struct(int av_id)
+static const mp2p_stream_struct * find_stream_struct(char * codec_name)
 {
     const mp2p_stream_struct *tags = mp2p_streams;
-    while (tags->av_id != CODEC_ID_NONE) {
-        if (tags->av_id == av_id){
+    while (strcmp(tags->tag, "NONE") != 0) {
+        if (strcmp(tags->tag, codec_name) == 0){
             return tags;
         }
         tags++;
@@ -834,39 +832,57 @@ static const mp2p_stream_struct * find_stream_struct(int av_id)
 }
 
 
-typedef struct lavf_priv{
-//    AVInputFormat *avif;
-    AVFormatContext *avfc;
-//    ByteIOContext *pb;
-//    int audio_streams;
-//    int video_streams;
-    int64_t last_pts; //Use it or not?
-} lavf_priv_t;
+
+
+typedef struct stsw_priv_type{
+    stream_switch::StreamSink * sink;
+    DemuxerSinkListener *listener;
+
+    int stream_type;
+  
+    //for live stream time scaler
+    /** Real-time timestamp when to start the playback */
+    double playback_time;
+    int has_sync;
+    double delta_time;
+    
+    
+} stsw_priv_type;
+
 
 static int mp2p_init(Track *track)
 {
-    AVFormatContext *avfc;
+    using namespace stream_switch;  
     const char * encoder;
     mp2p_priv * priv = NULL;
     int bitrate, i, mpa_id, mpv_id;
     int ret;
     int streamType = MP2P_STREAM;
+    stream_switch::StreamMetadata meta;
     
-    if(track!=NULL && track->parent!=NULL && track->parent->private_data != NULL &&
-       ((lavf_priv_t *)track->parent->private_data)->avfc != NULL) {
-        avfc = ((lavf_priv_t *)track->parent->private_data)->avfc;
+    if(!strcmp(track->parent.demuxer.info.short_name, stsw)){
+        fnc_log(FNC_LOG_ERR, "[mp2p] Cannot support the demuxer besides stsw\n");
+        ret = ERR_INPUT_PARAM;
+        goto error1;        
+    }
+    
+    if(track->parent->private_data != NULL ) {
+        stsw_priv_type * demuxer_priv = (stsw_priv_type *)track->parent->private_data;
+        meta = demuxer_priv->sink->stream_meta();
+        streamType = demuxer_priv->stream_type;
     }else{
         fnc_log(FNC_LOG_ERR, "[mp2p] parameter error \n");
         ret = ERR_INPUT_PARAM;
         goto error1;
     }
-    if(avfc->nb_streams > MP2P_MAX_STREAM_NUM) {
+    
+    if(meta.sub_streams.size() > MP2P_MAX_STREAM_NUM)
         fnc_log(FNC_LOG_ERR, "[mp2p] stream number is too much, not supported\n");
         ret = ERR_PARSE;
         goto error1;
     }
 
-    priv = g_slice_new(mp2p_priv);
+    priv = g_slice_new0(mp2p_priv);
     if(priv == NULL) {
         fnc_log(FNC_LOG_ERR, "[mp2p] g_slice_new failed !!!\n");
         ret =  ERR_ALLOC;
@@ -875,7 +891,7 @@ static int mp2p_init(Track *track)
 
     memset(priv, 0, sizeof(mp2p_priv));
     priv->packet_size = MP2P_MAX_PES_SIZE;
-    priv->stream_num = avfc->nb_streams;
+    priv->stream_num = meta.sub_streams.size();
 
 
     bitrate = 0;
@@ -884,15 +900,14 @@ static int mp2p_init(Track *track)
     mpa_id = AUDIO_ID;
     mpv_id = VIDEO_ID;
 
-    for(i=0;i<avfc->nb_streams;i++) {
+    for(i=0;i<priv->stream_num;i++) {
         int codec_rate;
-        AVStream *st = avfc->streams[i];
-        AVCodecContext *codec= st->codec;
+        stream_switch::SubStreamMetadata *sub_meta = &(meta.sub_stream[i]);
         const mp2p_stream_struct * stream_tag;
 
-        stream_tag = find_stream_struct(codec->codec_id);
+        stream_tag = find_stream_struct(sub_meta->codec_name.c_str());
         if(stream_tag == NULL) {
-            fnc_log(FNC_LOG_WARN, "[mp2p] codec id %d is unsupported, skip", codec->codec_id);
+            fnc_log(FNC_LOG_WARN, "[mp2p] codec name %s is unsupported, skip", sub_meta->codec_name.c_str());
             continue;
         }
         
@@ -900,30 +915,26 @@ static int mp2p_init(Track *track)
         priv->stream_info[i].parse = stream_tag->parse;
         priv->stream_info[i].isKeyFrame = stream_tag->isKeyFrame;
 
-        switch(codec->codec_type){
-        case AVMEDIA_TYPE_AUDIO:
-            priv->stream_info[i].max_buffer_size = 4 * 1024;
+        switch(sub_meta->media_type){
+        case SUB_STREAM_MEIDA_TYPE_AUDIO:
+            priv->stream_info[i].max_buffer_size = 8 * 1024;
             priv->stream_info[i].stream_id = mpa_id++;
-            priv->stream_info[i].type = AVMEDIA_TYPE_AUDIO;
+            priv->stream_info[i].type = SUB_STREAM_MEIDA_TYPE_AUDIO;
             priv->audio_bound++;
             break;
-        case AVMEDIA_TYPE_VIDEO:
+        case SUB_STREAM_MEIDA_TYPE_VIDEO:
 
-            if (codec->rc_buffer_size){
-                priv->stream_info[i].max_buffer_size = 6*1024 + st->codec->rc_buffer_size/8;
-            } else {
-                priv->stream_info[i].max_buffer_size = 4 * 1024 * 1024;
-            }
 
+            priv->stream_info[i].max_buffer_size = 4 * 1024 * 1024;
             priv->stream_info[i].stream_id = mpv_id++;;
-            priv->stream_info[i].type = AVMEDIA_TYPE_VIDEO;
+            priv->stream_info[i].type = SUB_STREAM_MEIDA_TYPE_VIDEO;
             priv->video_bound++;
             break;
-        case AVMEDIA_TYPE_DATA:
-        case AVMEDIA_TYPE_UNKNOWN:
-        case AVMEDIA_TYPE_SUBTITLE: //XXX import subtitle work!
+        case SUB_STREAM_MEIDA_TYPE_TEXT:
+        case SUB_STREAM_MEIDA_TYPE_PRIVATE:
         default:
             priv->stream_info[i].stream_type = 0;
+            priv->stream_info[i].stream_id = 0;
             priv->stream_info[i].parse = NULL;
             fnc_log(FNC_LOG_WARN, "[mp2p] codec type unsupported, skip");
             continue;
@@ -931,40 +942,15 @@ static int mp2p_init(Track *track)
         }
 
         /* bit rate*/
-        if(st->codec->rc_max_rate)
-            codec_rate= st->codec->rc_max_rate;
-        else
-            codec_rate= st->codec->bit_rate;
 
-        if(!codec_rate)
-            codec_rate= (1<<21)*8*50/avfc->nb_streams;
+        codec_rate= (1<<21)*8*50/priv->stream_num;
 
         bitrate += codec_rate;
 
-        /* h264 hack */
-        if(codec->codec_id == CODEC_ID_H264) {
-            if (track->properties.extradata_len == 0) {
-                fnc_log(FNC_LOG_WARN, "[mp2p] No Extradata, unsupported\n");
-                ret = ERR_UNSUPPORTED_PT;
-                goto error2;
-            }
-            if(track->properties.extradata[0] != 1) {
-                fnc_log(FNC_LOG_WARN, "[mp2p] only support avc format h264\n");
-                ret = ERR_UNSUPPORTED_PT;
-                goto error2;
-            }
-            if (track->properties.extradata_len < 7) {
-                fnc_log(FNC_LOG_WARN, "[mp2p] h264 extra data length must >= 7\n");
-                ret = ERR_UNSUPPORTED_PT;
-                goto error2;
-            }
-            priv->stream_info[i].nal_length_size = (track->properties.extradata[4]&0x03)+1;
-        }
-
     }
 
-    if(priv->video_bound == 0 && priv->audio_bound == 0) {
-        fnc_log(FNC_LOG_ERR, "[mp2p] No supported stream is found, Fail!!");
+    if(priv->video_bound == 0 ) {
+        fnc_log(FNC_LOG_ERR, "[mp2p] No supported video stream is found, Fail!!");
         ret = ERR_UNSUPPORTED_PT;
         goto error2;
     }
@@ -972,6 +958,9 @@ static int mp2p_init(Track *track)
     
     /* we increase slightly the bitrate to take into account the
            headers. XXX: compute it exactly */
+    if(meta->bps != 0){
+        bitrate = meta->bps ;
+    }
     bitrate += bitrate / 20;
     bitrate += 10000;
     priv->mux_rate = (bitrate + (8 * 50) - 1) / (8 * 50);
@@ -980,9 +969,6 @@ static int mp2p_init(Track *track)
     
 
     /* add rtp encoder map */
-    if(track->parent->srv != NULL) {
-        streamType = track->parent->srv->srvconf.default_stream_type;
-    }
     encoder = "MP2P";
     if(streamType == PS_STREAM) {
         encoder = "PS";
@@ -1104,13 +1090,14 @@ static int mp2p_parse(Track *tr, uint8_t *data, size_t len)
 
 
     /* frags */
-    if(retSize > 0) { /* means some data is added */
+    if(retSize > 0 && priv->gov_start != 0) { /* means some data is added */
         mp2p_rtp_frag(tr,buf,bufSize);
+        fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame completed");
     }
 
     g_free(buf);
 
-    fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame completed");
+
     return ERR_NOERROR;
 
 error2:
@@ -1126,6 +1113,15 @@ static void mp2p_uninit(Track *tr)
     if(tr->private_data) {
         g_slice_free(mp2p_priv, tr->private_data);
         tr->private_data = NULL;
+    }
+}
+
+
+static void mp2p_reset(Track *tr)
+{
+    if(tr->private_data) {
+        mp2p_priv * priv = (mp2p_priv * )tr->private_data;
+        priv->gov_start = 0;
     }
 }
 

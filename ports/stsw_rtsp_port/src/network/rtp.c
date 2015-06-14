@@ -474,6 +474,7 @@ static void rtp_packet_send(RTP_session *session, MParserBuffer *buffer)
     deltaNext;                                      \
 })
 
+#define RTCP_SR_INTERVAL 49
 
 
 /**
@@ -585,8 +586,9 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
 
             rtp_packet_send(session, buffer);
 
-            if (session->pkt_count % 29 == 1)
+            if (session->pkt_count % RTCP_SR_INTERVAL == 1){
                 rtcp_send_sr(session, SDES);
+            }
 
             if (bq_consumer_move(session->consumer)) {
                 //get the next packet delivery time

@@ -658,6 +658,17 @@ static int stsw_start(Resource * r)
                     ret, err_info.c_str());
                 return RESOURCE_DAMAGED;                
             }
+            
+            //request the key frame now
+            ret = priv->sink->KeyFrame(DEMUXER_STSW_METADATA_TIMEOUT, 
+                                       &err_info);
+            if(ret){
+                fnc_log(FNC_LOG_ERR, "[stsw] Fail to request the key frame(%d): %s\n", 
+                    ret, err_info.c_str());
+                priv->sink->Stop();
+                return RESOURCE_DAMAGED;                
+            }
+                                       
 
             
         }
