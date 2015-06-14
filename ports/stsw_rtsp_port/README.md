@@ -21,6 +21,20 @@ As a "feng" derivative, it depends the following library (open source):
 2. libnetembryo >= 0.1.0
 3. glib-2.0 >= 2.16
 
+## CODEC
+-----------------------
+
+By now, stsw_rtsp_port support the following codec for different stream type. 
+
+1. video
+    * H264 (supported by RAW, MP2P)
+    * MP4V-ES (supported by RAW, MP2P)
+
+2. audio
+    * PCMU (supported by RAW, MP2P)
+    * PCMA (supported by RAW, MP2P)
+    * AAC (supported by RAW)
+
 
 ## RTSP URL
 -----------------------
@@ -50,8 +64,8 @@ stream_type - which type of the mux stream emitted by this RTSP session, can
 ## How to run
 --------------------------
 
-just type the following command at this directory can start the stsw_rtsp_port at 
-front ground with outputting log to stderr, and never exit: 
+Type the following command at this directory can start the stsw_rtsp_port at 
+front-ground with outputting log to stderr, and never exit: 
 
     $./stsw_rtsp_port
 
@@ -60,8 +74,9 @@ command to list them:
 
     $./stsw_rtsp_port --help
 
-You can send SIGINT/SIGTERM signal to the running process to terminate the port. 
-Also, you can make use of Ctrl+C at the console running stsw_rtsp_port. 
+You can send SIGINT/SIGTERM signal to the running process to terminate the server. 
+Also, you can make use of Ctrl+C in the console running stsw_rtsp_port to 
+terminate it. 
 
    
 

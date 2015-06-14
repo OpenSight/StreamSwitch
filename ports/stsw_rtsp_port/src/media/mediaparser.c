@@ -38,7 +38,7 @@ extern MediaParser fnc_mediaparser_aac;
 extern MediaParser fnc_mediaparser_mp4ves;
 extern MediaParser fnc_mediaparser_vorbis;
 extern MediaParser fnc_mediaparser_theora;
-extern MediaParser fnc_mediaparser_speex;
+//extern MediaParser fnc_mediaparser_speex;
 //extern MediaParser fnc_mediaparser_mp2t;
 //extern MediaParser fnc_mediaparser_h263;
 extern MediaParser fnc_mediaparser_amr;
@@ -55,7 +55,7 @@ static MediaParser *media_parsers[] = {
     &fnc_mediaparser_mp4ves,
     &fnc_mediaparser_vorbis,
     &fnc_mediaparser_theora,
-    &fnc_mediaparser_speex,
+    //&fnc_mediaparser_speex,
     //&fnc_mediaparser_mp2t,
     //&fnc_mediaparser_h263,
     &fnc_mediaparser_amr,
