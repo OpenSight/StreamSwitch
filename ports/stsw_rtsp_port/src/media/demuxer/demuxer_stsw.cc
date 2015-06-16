@@ -147,7 +147,7 @@ void DemuxerSinkListener::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &
         //pts invalid, just drop this frame
         fnc_log(FNC_LOG_DEBUG,
                  "[stsw] PTS %f, after scale (original time is %f) is invalid, drop the frame\n",
-                     frame_time, pts);  
+                     pts , frame_time);  
         g_mutex_unlock(resource_->lock); 
         return;
     }
