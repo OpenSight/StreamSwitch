@@ -112,14 +112,15 @@ static void rtp_session_send_play_reply(gpointer element, gpointer user_data)
   RTP_session *p = (RTP_session *)element;
   Track *t = p->track;
 
-  g_string_append_printf(str, "url=%s;seq=%u",
+  g_string_append_printf(str, "url=%s;seq=%u;rtptime=%u",
                          p->uri,
-                         p->start_seq);
-
+                         p->start_seq, 
+                         p->start_rtptime);
+/*
   if (t->properties.media_source != MS_live)
     g_string_append_printf(str,
 			   ";rtptime=%u", p->start_rtptime);
-
+*/
   g_string_append(str, ",");
 }
 

@@ -94,6 +94,21 @@ typedef struct {
 
 
 
+typedef struct stsw_priv_type{
+    stream_switch::StreamSink * sink;
+    DemuxerSinkListener *listener;
+
+    int stream_type;
+  
+    //for live stream time scaler
+    /** Real-time timestamp when to start the playback */
+    double playback_time;
+    int has_sync;
+    double delta_time;
+    
+    
+} stsw_priv_type;
+
 
 /*****************************************************************/
 /* crc32 utils, copy from ffmpeg */
@@ -517,6 +532,7 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
 {
     unsigned int clock_rate;
     clock_rate = tr->properties.clock_rate;
+    double playback_time;
     
     //jamken: use the pts of the frame directly to generate 
     //PES timestamp, don't scale
@@ -529,8 +545,19 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
 
     }
 #endif
+    if(tr->properties.media_source == MS_live){
+        
+        //for live  stream, convert pts to the wall time at first
+        
+        stsw_priv_type * demuxer_priv = (stsw_priv_type *)tr->parent->private_data;
+        
+         return (uint64_t)((pts + demuxer_priv->playback_time) * clock_rate);
+        
+    else{
+        return (uint64_t)(pts * clock_rate);
 
-    return (uint64_t)(pts * clock_rate);
+    }
+    return 0;
 }
 
 /*********************************************************************************/
@@ -596,6 +623,8 @@ static int mp2p_h264_parse(Track *tr, uint8_t *data, size_t len,
     nalsize = len;
 
     nal_unit_type = data[0] & 0x1F;
+    
+    
     if(onlyKeyFrame == 0 ||
         nal_unit_type == 5 ||
         nal_unit_type == 6 ||
@@ -884,20 +913,7 @@ static const mp2p_stream_struct * find_stream_struct(char * codec_name)
 class DemuxerSinkListener;
 
 
-typedef struct stsw_priv_type{
-    stream_switch::StreamSink * sink;
-    DemuxerSinkListener *listener;
 
-    int stream_type;
-  
-    //for live stream time scaler
-    /** Real-time timestamp when to start the playback */
-    double playback_time;
-    int has_sync;
-    double delta_time;
-    
-    
-} stsw_priv_type;
 
 
 static int mp2p_init(Track *track)
@@ -1136,7 +1152,9 @@ static int mp2p_parse(Track *tr, uint8_t *data, size_t len)
 
         retSize = put_system_map_header(priv,buf+bufSize, maxBufSize - bufSize);
         bufSize += retSize;
-
+        
+        //key frame start a new gov
+        priv->gov_start = 1;
     }
 
     retSize = priv->stream_info[index].parse(tr, data, len, buf, bufSize, maxBufSize);

@@ -480,75 +480,132 @@ static int stsw_init(Resource * r)
     /* configure the resource and tracks */
     strncpy(trackinfo.title, "StreamSwitch", 80);
     strncpy(trackinfo.author, "OpenSight team", 80);
-    for(meta_it=metadata.sub_streams.begin();
-        meta_it!=metadata.sub_streams.end();
-        meta_it++){
-        
-        trackinfo.id = meta_it->sub_stream_index;
-        //fnc_log(FNC_LOG_DEBUG, "[stsw] trackinfo.name = %d", meta_it->sub_stream_index);  
-        snprintf(trackinfo.name, sizeof(trackinfo.name), "%d", meta_it->sub_stream_index);
-        
+    
+    
+    if(priv->stream_type != RAW_STREAM) {
+        int videoAvailable = -1;
         memset(&props, 0, sizeof(MediaProperties));
-        props.clock_rate = 90000; //Default
-        props.extradata = (uint8_t*)((meta_it->extra_data.size() > 0)?meta_it->extra_data.data():NULL);
-        props.extradata_len = meta_it->extra_data.size();
-        strncpy(props.encoding_name, meta_it->codec_name.c_str(), 10);
-        //props.codec_id = codec->codec_id;
-        //props.codec_sub_id = codec->codec_id;
+        trackinfo.id = 0;          
+        snprintf(trackinfo.name,sizeof(trackinfo.name),"0");
+        props.clock_rate = 90000; //Default   
+
+        props.media_source = r->info->media_source;
+ 
+        props.extradata = NULL;
+        props.extradata_len = 0;
+        strncpy(props.encoding_name, "MP2P", 11);
+        props.codec_id = 0;
+        props.codec_sub_id = 0;
         props.payload_type = 96;
-        props.frame_type = FT_UNKONW;
-        if (props.payload_type == 96){                    
-            props.payload_type = pt++;
-        }else if (props.payload_type > 96) {
-            if(pt <= props.payload_type ) {
-                pt = props.payload_type + 1;
-            }
-        }
-
-        fnc_log(FNC_LOG_DEBUG, "[stsw] Parsing Stream %s",
-                        props.encoding_name);
-
-        switch(meta_it->media_type){
-        case SUB_STREAM_MEIDA_TYPE_AUDIO:
-            props.media_type     = MP_audio;
-            // Some properties, add more?
-            props.audio_channels = meta_it->media_param.audio.channels;
-                    // Make props an int...
-            props.sample_rate    = meta_it->media_param.audio.samples_per_second;
-            if(props.sample_rate ){
-                props.frame_duration = (double)meta_it->media_param.audio.sampele_per_frame * 
-                                       ((double)1 / props.sample_rate );
+        props.media_type   = MP_video;        
+        
+        for(meta_it=metadata.sub_streams.begin();
+            meta_it!=metadata.sub_streams.end();
+            meta_it++){
                 
-            }
-            props.bit_per_sample   = meta_it->media_param.audio.bits_per_sample;
-            props.bit_rate = props.bit_per_sample * props.sample_rate;
+
+            switch(meta_it->media_type){
+                case SUB_STREAM_MEIDA_TYPE_AUDIO:
+                    break;
+                case SUB_STREAM_MEIDA_TYPE_VIDEO:
+                    videoAvailable = meta_it->sub_stream_index;
+                    props.bit_rate     = 0;
+                    props.frame_rate   = meta_it->media_param.video.fps;
+                    if(props.frame_rate){
+                        props.frame_duration     = (double)1 / props.frame_rate;
                     
-            if (!(track = add_track(r, &trackinfo, &props)))
-                goto error_1;
-            break;
-        case SUB_STREAM_MEIDA_TYPE_VIDEO:
-            props.media_type   = MP_video;
-            props.bit_rate     = 0;
-            props.frame_rate   = meta_it->media_param.video.fps;
-            if(props.frame_rate){
-                props.frame_duration     = (double)1 / props.frame_rate;
-                
+                    }                    
+                    break;
+                case SUB_STREAM_MEIDA_TYPE_TEXT:
+                case SUB_STREAM_MEIDA_TYPE_PRIVATE:
+                default:
+                    fnc_log(FNC_LOG_DEBUG, "[stsw] codec type unsupported");
+                    break;
+            }
+        }
+        if(videoAvailable != -1) {
+
+            if (!(track = add_track(r, &trackinfo, &props))){
+                goto err_alloc;
+            }
+        }
+    }else{
+
+    
+        for(meta_it=metadata.sub_streams.begin();
+            meta_it!=metadata.sub_streams.end();
+            meta_it++){
+            
+            trackinfo.id = meta_it->sub_stream_index;
+            //fnc_log(FNC_LOG_DEBUG, "[stsw] trackinfo.name = %d", meta_it->sub_stream_index);  
+            snprintf(trackinfo.name, sizeof(trackinfo.name), "%d", meta_it->sub_stream_index);
+            
+            memset(&props, 0, sizeof(MediaProperties));
+            props.clock_rate = 90000; //Default
+            props.extradata = (uint8_t*)((meta_it->extra_data.size() > 0)?meta_it->extra_data.data():NULL);
+            props.extradata_len = meta_it->extra_data.size();
+            strncpy(props.encoding_name, meta_it->codec_name.c_str(), 10);
+            //props.codec_id = codec->codec_id;
+            //props.codec_sub_id = codec->codec_id;
+            props.payload_type = 96;
+            props.frame_type = FT_UNKONW;
+            if (props.payload_type == 96){                    
+                props.payload_type = pt++;
+            }else if (props.payload_type > 96) {
+                if(pt <= props.payload_type ) {
+                    pt = props.payload_type + 1;
+                }
             }
 
-            // addtrack must init the parser, the parser may need the
-            // extradata
-            if (!(track = add_track(r, &trackinfo, &props)))
-                goto error_1;
-            break;
-        case SUB_STREAM_MEIDA_TYPE_TEXT:
-        case SUB_STREAM_MEIDA_TYPE_PRIVATE:
-        default:
-            fnc_log(FNC_LOG_DEBUG, "[stsw] codec type unsupported");
-            break;
-        }
-                
-    }//for(it=metadata.sub_streams.begin();
+            props.media_source = r->info->media_source;
 
+
+            fnc_log(FNC_LOG_DEBUG, "[stsw] Parsing Stream %s",
+                            props.encoding_name);
+
+            switch(meta_it->media_type){
+            case SUB_STREAM_MEIDA_TYPE_AUDIO:
+                props.media_type     = MP_audio;
+                // Some properties, add more?
+                props.audio_channels = meta_it->media_param.audio.channels;
+                        // Make props an int...
+                props.sample_rate    = meta_it->media_param.audio.samples_per_second;
+                if(props.sample_rate ){
+                    props.frame_duration = (double)meta_it->media_param.audio.sampele_per_frame * 
+                                           ((double)1 / props.sample_rate );
+                    
+                }
+                props.bit_per_sample   = meta_it->media_param.audio.bits_per_sample;
+                props.bit_rate = props.bit_per_sample * props.sample_rate;
+                        
+                if (!(track = add_track(r, &trackinfo, &props)))
+                    goto error_1;
+                break;
+            case SUB_STREAM_MEIDA_TYPE_VIDEO:
+                props.media_type   = MP_video;
+                props.bit_rate     = 0;
+                props.frame_rate   = meta_it->media_param.video.fps;
+                if(props.frame_rate){
+                    props.frame_duration     = (double)1 / props.frame_rate;
+                    
+                }
+
+                // addtrack must init the parser, the parser may need the
+                // extradata
+                if (!(track = add_track(r, &trackinfo, &props)))
+                    goto error_1;
+                break;
+            case SUB_STREAM_MEIDA_TYPE_TEXT:
+            case SUB_STREAM_MEIDA_TYPE_PRIVATE:
+            default:
+                fnc_log(FNC_LOG_DEBUG, "[stsw] codec type unsupported");
+                break;
+            }
+                    
+        }//for(it=metadata.sub_streams.begin();
+        
+    }//if(priv->stream_type != RAW_STREAM) 
+    
     if(track == NULL){
         fnc_log(FNC_LOG_ERR, "[stsw] No tracks for the resource %s\n", 
                 r->info->mrl);

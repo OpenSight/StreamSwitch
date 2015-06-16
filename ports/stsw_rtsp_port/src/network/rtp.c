@@ -565,7 +565,8 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
         gboolean marker  = buffer->marker;
         
 
-
+        /* Jamken: no rate control for live stream */
+        
         /* avoid send the packet too quickly */
         if (session->track->properties.media_source != MS_live &&
             next_time < (session->range->playback_time + rtp_scaler(session, delivery - session->range->begin_time))){    
