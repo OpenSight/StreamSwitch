@@ -349,6 +349,8 @@ static double stsw_timescaler (Resource *r, double res_time) {
             }
             priv->delta_time = (now - priv->playback_time) - res_time;
             priv->has_sync = 1;
+            fnc_log(FNC_LOG_DEBUG, "[stsw] time sync- org %f, now %f, pts %f\n",
+                res_time, now, res_time + priv->delta_time);             
         }
         double scale_time = res_time + priv->delta_time;
         if(scale_time < 0 && scale_time > -0.001){

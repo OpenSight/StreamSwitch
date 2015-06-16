@@ -226,57 +226,6 @@ void feng_stop_child_watcher(struct feng  *srv)
     ev_child_stop (srv->loop, &cw);    
 }
 
-#if 0
-
-static void timer_watcher_cb(struct ev_loop *loop, ev_timer *w,
-                               int revents)
-{
-#ifndef __WIN32__    
-	pid_t pid;
-	feng *srv=w->data;
-	client_port_pair *client=NULL;
-	while(1)
-	{
-		pid = waitpid(-1,NULL, 0);
-		if(pid>0)
-		{
-			client=get_client_list_item(pid);
-			if(client)
-			{
-                reduce_client_list(client);
-
-                srv->connection_count--;
-
-                free_child_port(client);
-
-			}
-
-		}
-		else
-		break;
-	}
-#endif    
-	ev_timer_again(loop, w);
-}
-void loop_timer_init(feng* srv)
-{
-	ev_timer *timer;
-	timer = &srv->loop_timer;
-	timer->data = srv;
-	ev_init(timer, timer_watcher_cb);
-	timer->repeat = 5.;
-
-    ev_timer_again(srv->loop, &srv->loop_timer);
-}
-
-void loop_timer_uninit(feng* srv)
-{
-    ev_timer_stop(srv->loop, &srv->loop_timer);
-}
-
-#endif
-
-
 
 
 /**

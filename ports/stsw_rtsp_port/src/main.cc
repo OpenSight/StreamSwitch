@@ -64,6 +64,8 @@ extern "C" {
 #endif
 
 
+pid_t master_pid;
+
 /**
  *  Handler to cleanly shut down feng
  */
@@ -71,6 +73,10 @@ static void sigint_cb (struct ev_loop *loop,
                         ev_signal * w,
                         int revents)
 {
+    if(master_pid != getpid()){
+        //child process catch a signal, just ignore
+        return;
+    }
     ev_unloop (loop, EVUNLOOP_ALL);
 }
 
@@ -344,6 +350,9 @@ int main(int argc, char **argv)
 {
     feng *srv;
     int res = 0;
+    
+    
+    master_pid = getpid();
 
     if (!g_thread_supported ()) g_thread_init (NULL);
 
@@ -382,6 +391,7 @@ int main(int argc, char **argv)
     fnc_log(FNC_LOG_INFO, "StreamSwitch RTSP Port Startup\n");
     
     ev_loop (srv->loop, 0);
+    
     
     fnc_log(FNC_LOG_INFO, "StreamSwitch RTSP Port shutdonw\n");
 
