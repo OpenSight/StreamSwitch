@@ -26,15 +26,28 @@
 #ifndef AVCODEC_PUT_BITS_H
 #define AVCODEC_PUT_BITS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "libavutil/bswap.h"
-#include "libavutil/common.h"
-#include "libavutil/intreadwrite.h"
-#include "libavutil/log.h"
-#include "libavutil/avassert.h"
 
+
+#define av_assert2 assert
+
+
+
+#ifndef AV_WB32
+#   define AV_WB32(p, darg) do {                \
+        unsigned d = (darg);                    \
+        ((uint8_t*)(p))[3] = (d);               \
+        ((uint8_t*)(p))[2] = (d)>>8;            \
+        ((uint8_t*)(p))[1] = (d)>>16;           \
+        ((uint8_t*)(p))[0] = (d)>>24;           \
+    } while(0)
+#endif
 
 typedef struct PutBitContext {
     uint32_t bit_buf;
@@ -178,7 +191,7 @@ static inline void put_sbits(PutBitContext *pb, int n, int32_t value)
 /**
  * Write exactly 32 bits into a bitstream.
  */
-static void av_unused put_bits32(PutBitContext *s, uint32_t value)
+static void put_bits32(PutBitContext *s, uint32_t value)
 {
     int lo = value & 0xffff;
     int hi = value >> 16;
@@ -232,5 +245,10 @@ static inline void set_put_bits_buffer_size(PutBitContext *s, int size)
 {
     s->buf_end= s->buf + size;
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* AVCODEC_PUT_BITS_H */

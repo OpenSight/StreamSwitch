@@ -36,7 +36,7 @@ build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = stsw_rtsp_port$(EXEEXT)
 subdir = ports/stsw_rtsp_port
-DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
@@ -86,7 +86,8 @@ am_stsw_rtsp_port_OBJECTS = src/bufferqueue.$(OBJEXT) \
 	src/media/parser/speex.$(OBJEXT) \
 	src/media/parser/amr.$(OBJEXT) src/media/parser/pcmu.$(OBJEXT) \
 	src/media/parser/pcma.$(OBJEXT) \
-	src/media/parser/simple.$(OBJEXT)
+	src/media/parser/simple.$(OBJEXT) \
+	src/media/parser/mp2p.$(OBJEXT)
 stsw_rtsp_port_OBJECTS = $(am_stsw_rtsp_port_OBJECTS)
 stsw_rtsp_port_DEPENDENCIES =  \
 	$(builddir)/../../libstreamswitch/libstreamswitch.la
@@ -341,7 +342,9 @@ stsw_rtsp_port_SOURCES = \
 	src/media/parser/amr.c \
 	src/media/parser/pcmu.c \
 	src/media/parser/pcma.c \
-	src/media/parser/simple.c 
+	src/media/parser/simple.c \
+    src/media/parser/mp2p.cc  \
+    src/media/parser/put_bits.h     
 
 stsw_rtsp_port_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la 
 all: all-am
@@ -563,6 +566,8 @@ src/media/parser/pcma.$(OBJEXT): src/media/parser/$(am__dirstamp) \
 	src/media/parser/$(DEPDIR)/$(am__dirstamp)
 src/media/parser/simple.$(OBJEXT): src/media/parser/$(am__dirstamp) \
 	src/media/parser/$(DEPDIR)/$(am__dirstamp)
+src/media/parser/mp2p.$(OBJEXT): src/media/parser/$(am__dirstamp) \
+	src/media/parser/$(DEPDIR)/$(am__dirstamp)
 stsw_rtsp_port$(EXEEXT): $(stsw_rtsp_port_OBJECTS) $(stsw_rtsp_port_DEPENDENCIES) 
 	@rm -f stsw_rtsp_port$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(stsw_rtsp_port_OBJECTS) $(stsw_rtsp_port_LDADD) $(LIBS)
@@ -589,6 +594,7 @@ mostlyclean-compile:
 	-rm -f src/media/parser/aac.$(OBJEXT)
 	-rm -f src/media/parser/amr.$(OBJEXT)
 	-rm -f src/media/parser/h264.$(OBJEXT)
+	-rm -f src/media/parser/mp2p.$(OBJEXT)
 	-rm -f src/media/parser/mp4ves.$(OBJEXT)
 	-rm -f src/media/parser/pcma.$(OBJEXT)
 	-rm -f src/media/parser/pcmu.$(OBJEXT)
@@ -643,6 +649,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/aac.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/amr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/h264.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/mp2p.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/mp4ves.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/pcma.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/media/parser/$(DEPDIR)/pcmu.Po@am__quote@

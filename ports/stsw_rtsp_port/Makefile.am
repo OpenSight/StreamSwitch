@@ -75,7 +75,9 @@ stsw_rtsp_port_SOURCES =  \
 	src/media/parser/amr.c \
 	src/media/parser/pcmu.c \
 	src/media/parser/pcma.c \
-	src/media/parser/simple.c 
+	src/media/parser/simple.c \
+    src/media/parser/mp2p.cc  \
+    src/media/parser/put_bits.h     
 
 
     
