@@ -73,6 +73,22 @@ void Mpeg4OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
                 struct timeval presentationTime, unsigned durationInMicroseconds)
 {
     using namespace stream_switch;
+
+
+    if(presentationTime.tv_sec < last_pts_.tv_sec ||
+       (presentationTime.tv_sec == last_pts_.tv_sec &&
+        presentationTime.tv_usec < last_pts_.tv_usec)){
+
+        // for mpeg4 stream, consider B frame situation 
+        // presentation time is not required to monotone increasing
+        
+    }else{
+        //update the last pts
+        last_pts_.tv_sec = presentationTime.tv_sec;
+        last_pts_.tv_usec = presentationTime.tv_usec;
+    }
+
+
     
     MPEG4VideoStreamDiscreteFramer * source = 
         dynamic_cast<MPEG4VideoStreamDiscreteFramer *> (subsession_->readSource());

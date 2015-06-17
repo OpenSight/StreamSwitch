@@ -101,7 +101,25 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
 #endif
 
     
-    //check pts
+
+    
+    
+    DoAfterGettingFrame(frameSize, numTruncatedBytes, presentationTime, durationInMicroseconds);
+
+
+  
+out:    
+  
+    // Then continue, to request the next frame of data:
+    continuePlaying();
+}
+
+void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
+                struct timeval presentationTime, unsigned durationInMicroseconds)
+{
+
+
+    //by default, pts require monotone increasing
     if(presentationTime.tv_sec < last_pts_.tv_sec ||
        (presentationTime.tv_sec == last_pts_.tv_sec &&
         presentationTime.tv_usec < last_pts_.tv_usec)){
@@ -118,7 +136,7 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
         }
         envir() <<")\n";
         
-        goto out;
+        return;
         
     }else{
         //update the last pts
@@ -127,19 +145,6 @@ void MediaOutputSink::afterGettingFrame(unsigned frameSize, unsigned numTruncate
     }
     
     
-    DoAfterGettingFrame(frameSize, numTruncatedBytes, presentationTime, durationInMicroseconds);
-
-
-  
-out:    
-  
-    // Then continue, to request the next frame of data:
-    continuePlaying();
-}
-
-void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
-                struct timeval presentationTime, unsigned durationInMicroseconds)
-{
     //update metadata if needed    
     
     //analyze the frame's type

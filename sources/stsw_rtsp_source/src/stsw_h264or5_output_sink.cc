@@ -77,6 +77,20 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
 {
     using namespace stream_switch;
     
+    
+    if(presentationTime.tv_sec < last_pts_.tv_sec ||
+       (presentationTime.tv_sec == last_pts_.tv_sec &&
+        presentationTime.tv_usec < last_pts_.tv_usec)){
+
+        // for h264/h265 stream, consider B frame situation 
+        // presentation time is not required to monotone increasing
+        
+    }else{
+        //update the last pts
+        last_pts_.tv_sec = presentationTime.tv_sec;
+        last_pts_.tv_usec = presentationTime.tv_usec;
+    }
+    
     H264or5VideoStreamFramer * source = 
         dynamic_cast<H264or5VideoStreamFramer *> (subsession_->readSource());
         

@@ -308,7 +308,7 @@ struct MediaFrameInfo{
     //pts for this frame. if the stream is live stream, this timestamp is 
     // the absolute timestamp from epoch. If replay stream, this timestamp
     // is the relative time from the stream's beginning. 
-    // For live stream, the pts should be monotone increasing for 
+    // For live stream, the pts may or may not monotone increasing for 
     // the corresponding substream
     struct timeval timestamp; 
     
