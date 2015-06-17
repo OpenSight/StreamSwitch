@@ -524,10 +524,11 @@ static int stsw_init(Resource * r)
             }
         }
         if(videoAvailable != -1) {
-
+            r->private_data = priv;
             if (!(track = add_track(r, &trackinfo, &props))){
-                goto err_alloc;
+                goto error_1;
             }
+            //r->private_data = NULL;
         }
     }else{
 

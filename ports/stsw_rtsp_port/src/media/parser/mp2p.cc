@@ -92,7 +92,7 @@ typedef struct {
 } mp2p_priv;
 
 
-
+class DemuxerSinkListener;
 
 typedef struct stsw_priv_type{
     stream_switch::StreamSink * sink;
@@ -551,9 +551,9 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
         
         stsw_priv_type * demuxer_priv = (stsw_priv_type *)tr->parent->private_data;
         
-         return (uint64_t)((pts + demuxer_priv->playback_time) * clock_rate);
+        return (uint64_t)((pts + demuxer_priv->playback_time) * clock_rate);
         
-    else{
+    }else{
         return (uint64_t)(pts * clock_rate);
 
     }
@@ -910,7 +910,7 @@ static const mp2p_stream_struct * find_stream_struct(char * codec_name)
     return NULL;
 }
 
-class DemuxerSinkListener;
+
 
 
 
@@ -929,13 +929,14 @@ static int mp2p_init(Track *track)
     if(track == NULL || track->parent == NULL ||
     track->parent->demuxer == NULL || track->parent->demuxer->info == NULL ||
     track->parent->demuxer->info->short_name == NULL){
-        fnc_log(FNC_LOG_ERR, "[mp2p] Cannot support the demuxer besides stsw\n");
+        fnc_log(FNC_LOG_ERR, "[mp2p] Cannot support the demuxer without short name\n");
         ret = ERR_INPUT_PARAM;
         goto error1;          
     }
     
-    if(!strcmp(track->parent->demuxer->info->short_name, "stsw")){
-        fnc_log(FNC_LOG_ERR, "[mp2p] Cannot support the demuxer besides stsw\n");
+    if(strcmp(track->parent->demuxer->info->short_name, "stsw") != 0){
+        fnc_log(FNC_LOG_ERR, "[mp2p] Cannot support the demuxer (%s)\n", 
+         track->parent->demuxer->info->short_name);
         ret = ERR_INPUT_PARAM;
         goto error1;        
     }
