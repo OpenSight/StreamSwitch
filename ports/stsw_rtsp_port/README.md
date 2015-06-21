@@ -64,7 +64,7 @@ stream_type - which type of the mux stream emitted by this RTSP session, can
 ## How to run
 --------------------------
 
-Type the following command at this directory can start the stsw_rtsp_port at 
+Typing the following command at this directory can start the stsw_rtsp_port at 
 front-ground with outputting log to stderr, and never exit: 
 
     $./stsw_rtsp_port

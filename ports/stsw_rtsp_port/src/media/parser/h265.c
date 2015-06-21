@@ -260,7 +260,7 @@ static int h265_init(Track *track)
     return err;
 }
 /* send a h265 nal to bufferqueue */
-/* data - contains a h264 nal */
+/* data - contains a h265 nal */
 static void h265_send_nal(Track *tr, uint8_t *data, size_t len)
 {
     uint8_t nal_unit_type;
