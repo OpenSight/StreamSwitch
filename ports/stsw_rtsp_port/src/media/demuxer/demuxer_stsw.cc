@@ -578,6 +578,12 @@ static int stsw_init(Resource * r)
                 }
                 props.bit_per_sample   = meta_it->media_param.audio.bits_per_sample;
                 props.bit_rate = props.bit_per_sample * props.sample_rate;
+                if(meta_it->media_param.audio.samples_per_second != 0){
+                    //if the sample rate is given, use the given sample rate as 
+                    //rtp clock_rate
+                    props.clock_rate = 
+                        meta_it->media_param.audio.samples_per_second;
+                }
                         
                 if (!(track = add_track(r, &trackinfo, &props)))
                     goto error_1;
