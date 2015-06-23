@@ -55,6 +55,18 @@ public:
     // OnLiveMediaFrame
     // When a live media frame is received, this method would be invoked
     // by the internal thread
+    // Args: 
+    //     media_frame MediaFrameInfo in : info of the media frame received
+    //     frame_data : the frame data of the media, whose format depends on 
+    //                  which codec in used. It should be the encoded raw data 
+    //                  of one intact frame
+    //                  Notes:
+    //                  1) For H264/h265, it's a single NAL unit 
+    //                     include a intact picture, without the start code
+    //                     - 0x00000001
+    //                  2) For MPEG4, it's a segment of MPEG4 bitstream 
+    //                     including just one intact picture
+
     virtual void OnLiveMediaFrame(const MediaFrameInfo &frame_info, 
                                   const char * frame_data, 
                                   size_t frame_size) = 0;    

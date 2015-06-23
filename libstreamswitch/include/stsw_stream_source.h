@@ -110,7 +110,16 @@ public:
     // send out a llive media frame of a specific sub stream with a valid sequence number.
     // replay source should not invoke this method.
     // Args:
-    //     media_frame MediaFrameInfo in : the media frame to send
+    //     media_frame MediaFrameInfo in : info of the media frame to send
+    //     frame_data : the frame data of the media, whose format depends on 
+    //                  which codec in used. It should be the encoded raw data 
+    //                  of one intact frame
+    //                  Notes:
+    //                  1) For H264/h265, it's a single NAL unit 
+    //                     include a intact picture, without the start code
+    //                     - 0x00000001
+    //                  2) For MPEG4, it's a segment of MPEG4 bitstream 
+    //                     including just one intact picture
     //     err_info string out: the error info if failed
     virtual int SendLiveMediaFrame(const MediaFrameInfo &frame_info, 
                                     const char * frame_data, 
