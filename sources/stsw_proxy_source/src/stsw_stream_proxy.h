@@ -37,7 +37,11 @@
 
 
 
-
+// the stream proxy source class
+//     A stream proxy class is work as a proxy to relay the stream from the
+// back-end source. 
+// Thread safety: 
+//     this class is not thread-safe for simpleness. 
 
 class StreamProxySource
 :public stream_switch::SourceListener, public stream_switch::SinkListener{
@@ -77,9 +81,10 @@ public:
      * @param err_info  output the error info if failed
      * @return 0 if sucessful, or other code of ErrorCode if failed 
      */
-    virtual int UpdateStreamMetaData(int timeout, stream_switch::StreamMetadata * metadata, std::string *err_info);
+    virtual int UpdateStreamMetaData(int timeout, stream_switch::StreamMetadata * metadata);
     
     virtual int Start();
+    
     virtual void Stop();
     
     virtual int Hearbeat();
@@ -101,9 +106,11 @@ public:
  
        
 private: 
-    pthread_mutex_t lock_;
+
     stream_switch::StreamSource * source_;
     stream_switch::StreamSink * sink_;
+    
+    pthread_mutex_t lock_;    
     bool need_key_frame_;
     bool need_update_metadata_;    
     time_t last_frame_recv_;
