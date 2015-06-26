@@ -74,8 +74,8 @@ public:
  
 
 
-    virtual int Init(int argc, char ** argv);
-    virtual void Uninit();
+    int Init(int argc, char ** argv);
+    void Uninit();
     virtual int DoLoop();
     
     virtual void SetWatch(){
