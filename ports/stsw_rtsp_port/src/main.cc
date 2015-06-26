@@ -359,13 +359,13 @@ int main(int argc, char **argv)
 
 
     if (! (srv = feng_alloc()) ) {
-        res = 1;
+        res = -1;
         goto end_1;
     }
 
     /* parses the command line and initializes the log*/
     if ( !command_environment(srv, argc, argv) ) {
-        res = 1;
+        res = -1;
         goto end_2;
     }
     
@@ -381,7 +381,7 @@ int main(int argc, char **argv)
     feng_start_child_watcher(srv);
 
     if (!feng_bind_ports(srv)) {
-        res = 3;
+        res = -1;
         goto end_3;
     }
 

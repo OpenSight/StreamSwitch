@@ -658,7 +658,7 @@ static int mp2p_h264_parse(Track *tr, uint8_t *data, size_t len,
             pes_size += pes_header_size;
 
             if(first_PES_frag) {
-                pes_size += 4;
+                pes_size += 4;  // start code for h265 
             }
 
             if(pes_size + (nalsize - nal_index) > priv->packet_size) {

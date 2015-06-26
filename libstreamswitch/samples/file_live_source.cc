@@ -351,7 +351,6 @@ int main(int argc, char *argv[])
             delete global_logger;
             global_logger = NULL;
             fprintf(stderr, "Init Logger faile\n");
-            ret = -1;
             goto exit_1;
         }        
     }
@@ -377,7 +376,6 @@ int main(int argc, char *argv[])
         fps, 
         (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
     if(ret){
-        ret = -1;
         goto exit_2;       
     }
     
@@ -385,7 +383,6 @@ int main(int argc, char *argv[])
     
     ret = source.Start();
     if(ret){
-        ret = -1;
         goto exit_3;
     }
     gettimeofday(&next_send_tv, NULL);
