@@ -462,7 +462,7 @@ void RtspSourceApp::OnError(RtspClientErrCode err_code, const char * err_info)
         break;
     }
     source_->set_stream_state(state);
-    exit_code_ = state;
+    exit_code_ = ERROR_CODE_GENERAL;
     SetWatch();
 }
 
