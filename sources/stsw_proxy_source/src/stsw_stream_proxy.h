@@ -47,7 +47,30 @@ class StreamProxySource
 :public stream_switch::SourceListener, public stream_switch::SinkListener{
   
 public:
-    StreamProxySource();
+
+
+	static StreamProxySource* Instance()
+	{ 
+		if ( NULL == s_instance )
+		{
+			s_instance = new StreamProxySource();
+		}
+
+		return s_instance;
+	}
+
+	static void Uninstance()
+	{
+		if ( NULL != s_instance )
+		{
+			delete s_instance;
+			s_instance = NULL;
+		}
+	}
+
+
+
+
     virtual ~StreamProxySource();
     
     
@@ -106,6 +129,8 @@ public:
  
        
 private: 
+    StreamProxySource();
+    static StreamProxySource * s_instance;
 
     stream_switch::StreamSource * source_;
     stream_switch::StreamSink * sink_;
@@ -119,5 +144,7 @@ private:
 #define STREAM_PROXY_FLAG_STARTED 2
 #define STREAM_PROXY_FLAG_META_READY 4
     volatile uint32_t flags_;       
+
+
 
 };

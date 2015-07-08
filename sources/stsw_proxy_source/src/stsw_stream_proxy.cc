@@ -67,7 +67,7 @@
 ///////////////////////////////////////////////////////////////
 //functions
 
-int GetOutIp4(const char * dest_ip, uint16_t dest_port, char* buffer, size_t buflen) 
+static int GetOutIp4(const char * dest_ip, uint16_t dest_port, char* buffer, size_t buflen) 
 {
     if(dest_ip == NULL || buffer == NULL || buflen < 16){
         return -1;
@@ -114,7 +114,12 @@ int GetOutIp4(const char * dest_ip, uint16_t dest_port, char* buffer, size_t buf
     return 0;
 }
 
-
+static std::string int2str(int int_value)
+{
+    std::stringstream stream;
+    stream<<int_value;
+    return stream.str();
+}
 
 ////////////////////////////////////////////////////////////////
 //class implementation
@@ -229,7 +234,7 @@ int StreamProxySource::Init(std::string stsw_url,
     
     ret = sink_->InitRemote(url.host_name_, 
                             url.port_, 
-                            &client_info, 
+                            client_info, 
                             sub_queue_size, 
                             this,
                             debug_flags, 
@@ -317,7 +322,7 @@ int StreamProxySource:UpdateStreamMetaData(int timeout,
     
     if(tmp_metadata.play_type != stream_switch::STREAM_PLAY_TYPE_LIVE){
         STDERR_LOG(LOG_LEVEL_ERR, "stsw_proxy_source only support relaying live stream\n");        
-        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL);
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return -1;        
     }
     
@@ -329,6 +334,9 @@ int StreamProxySource:UpdateStreamMetaData(int timeout,
     
     flags_ |= STREAM_PROXY_FLAG_META_READY;
     
+
+    STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
+              "StreamProxySource Start successful (stsw_url:%s, stream_name:%s)");    
     
     return 0;
                                                
@@ -347,26 +355,31 @@ int StreamProxySource::Start()
         return 0;
     }
     
+    
+    
+    
     last_frame_recv_ = time(NULL);
     
     ret = source_->Start(&err_info);
     if(ret){
         STDERR_LOG(LOG_LEVEL_ERR, "Start internal source failed: %s\n", 
                    err_info.c_str());        
-        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL);
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return ret;
     }
+    
+    //change source state
+    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);    
 
     ret = sink_->Start(&err_info);
     if(ret){
         STDERR_LOG(LOG_LEVEL_ERR, "Start internal sink failed: %s\n", 
                    err_info.c_str());        
-        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL);
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return ret;
     }
         
-    //change source state
-    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);
+
     
     flags_ |= STREAM_PROXY_FLAG_STARTED;
     

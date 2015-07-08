@@ -33,6 +33,12 @@
 #include <stdio.h>
 #include <string>
 
+int InitGlobalLogger(std::string base_name, 
+                     int file_size, int rotate_num,  
+                     int log_level);
+                     
+int UninitGlobalLogger();
+                     
 extern stream_switch::RotateLogger * global_logger;
 
 
