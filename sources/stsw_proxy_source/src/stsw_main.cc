@@ -112,7 +112,7 @@ void ParseArgv(int argc, char *argv[],
         exit(0);
     }else if(parser->CheckOption("version")){
         
-        fprintf(stderr, VERSION"\n");
+        fprintf(stderr, PACKAGE_VERSION"\n");
         exit(0);
     }
     

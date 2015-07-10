@@ -271,7 +271,7 @@ int StreamProxySource::Init(std::string stsw_url,
     flags_ |= STREAM_PROXY_FLAG_INIT;
     
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
-              "StreamProxySource Init successful (stsw_url:%s, stream_name:%s)", 
+              "StreamProxySource Init successful (stsw_url:%s, stream_name:%s)\n", 
               stsw_url.c_str(), stream_name.c_str());    
 
 
@@ -342,7 +342,7 @@ int StreamProxySource::UpdateStreamMetaData(int timeout, stream_switch::StreamMe
     
 
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
-              "StreamProxySource Start successful (stsw_url:%s, stream_name:%s)");    
+              "StreamProxySource Start successful (stsw_url:%s, stream_name:%s)\n");    
     
     return 0;
                                                

@@ -30,10 +30,6 @@
 #include <list>
 #include <sys/time.h>
 
-#ifndef VERSION
-#define VERSION  "0.1.0"
-#endif
-
 #define STSW_SOCKET_NAME_STREAM_PREFIX  "stsw_stream"
 #define STSW_SOCKET_NAME_CONNECTOR  "/"
 #define STSW_SOCKET_NAME_STREAM_API  "api"
