@@ -810,6 +810,8 @@ CXXFLAGS
 CXX
 INCLUDE_RTSP_PORT_FALSE
 INCLUDE_RTSP_PORT_TRUE
+INCLUDE_PROXY_SOURCE_FALSE
+INCLUDE_PROXY_SOURCE_TRUE
 INCLUDE_RTMP_SOURCE_FALSE
 INCLUDE_RTMP_SOURCE_TRUE
 INCLUDE_RTSP_SOURCE_FALSE
@@ -937,6 +939,7 @@ with_gnu_ld
 enable_libtool_lock
 with_rtsp_source
 with_rtmp_source
+with_proxy_source
 with_rtsp_port
 '
       ac_precious_vars='build_alias
@@ -1614,6 +1617,8 @@ Optional Packages:
   --with-rtsp-source      would contains the stsw_rtsp_source program
                           [default=yes]
   --with-rtmp-source      would contains the stsw_rtmp_source program
+                          [default=yes]
+  --with-proxy-source     would contains the stsw_proxy_source program
                           [default=yes]
   --with-rtsp-port        would contains the stsw_rtsp_port program
                           [default=yes]
@@ -4565,13 +4570,13 @@ if test "${lt_cv_nm_interface+set}" = set; then
 else
   lt_cv_nm_interface="BSD nm"
   echo "int some_variable = 0;" > conftest.$ac_ext
-  (eval echo "\"\$as_me:4568: $ac_compile\"" >&5)
+  (eval echo "\"\$as_me:4573: $ac_compile\"" >&5)
   (eval "$ac_compile" 2>conftest.err)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4571: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
+  (eval echo "\"\$as_me:4576: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
   (eval "$NM \"conftest.$ac_objext\"" 2>conftest.err > conftest.out)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4574: output\"" >&5)
+  (eval echo "\"\$as_me:4579: output\"" >&5)
   cat conftest.out >&5
   if $GREP 'External.*some_variable' conftest.out > /dev/null; then
     lt_cv_nm_interface="MS dumpbin"
@@ -5777,7 +5782,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 5780 "configure"' > conftest.$ac_ext
+  echo '#line 5785 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7634,11 +7639,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7637: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7642: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7641: \$? = $ac_status" >&5
+   echo "$as_me:7646: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7973,11 +7978,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7976: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7981: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7980: \$? = $ac_status" >&5
+   echo "$as_me:7985: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8078,11 +8083,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8081: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8086: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8085: \$? = $ac_status" >&5
+   echo "$as_me:8090: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8133,11 +8138,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8136: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8141: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8140: \$? = $ac_status" >&5
+   echo "$as_me:8145: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10936,7 +10941,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10939 "configure"
+#line 10944 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11032,7 +11037,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11035 "configure"
+#line 11040 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11299,6 +11304,26 @@ fi
 else
   INCLUDE_RTMP_SOURCE_TRUE='#'
   INCLUDE_RTMP_SOURCE_FALSE=
+fi
+
+
+
+
+# Check whether --with-proxy-source was given.
+if test "${with_proxy_source+set}" = set; then
+  withval=$with_proxy_source; proxy_source=${withval}
+else
+  proxy_source=yes
+fi
+
+
+
+ if test "x$proxy_source" = xyes; then
+  INCLUDE_PROXY_SOURCE_TRUE=
+  INCLUDE_PROXY_SOURCE_FALSE='#'
+else
+  INCLUDE_PROXY_SOURCE_TRUE='#'
+  INCLUDE_PROXY_SOURCE_FALSE=
 fi
 
 
@@ -14373,11 +14398,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14376: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14401: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:14380: \$? = $ac_status" >&5
+   echo "$as_me:14405: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14472,11 +14497,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14475: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14500: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14479: \$? = $ac_status" >&5
+   echo "$as_me:14504: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14524,11 +14549,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14527: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14552: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14531: \$? = $ac_status" >&5
+   echo "$as_me:14556: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -18560,7 +18585,7 @@ done
 
 
 # generate Makefiles
-ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile ports/stsw_rtsp_port/Makefile"
+ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile sources/stsw_proxy_source/Makefile ports/stsw_rtsp_port/Makefile"
 
 
 # Generate other makefiles
@@ -18745,6 +18770,13 @@ if test -z "${INCLUDE_RTMP_SOURCE_TRUE}" && test -z "${INCLUDE_RTMP_SOURCE_FALSE
   { { $as_echo "$as_me:$LINENO: error: conditional \"INCLUDE_RTMP_SOURCE\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
 $as_echo "$as_me: error: conditional \"INCLUDE_RTMP_SOURCE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${INCLUDE_PROXY_SOURCE_TRUE}" && test -z "${INCLUDE_PROXY_SOURCE_FALSE}"; then
+  { { $as_echo "$as_me:$LINENO: error: conditional \"INCLUDE_PROXY_SOURCE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+$as_echo "$as_me: error: conditional \"INCLUDE_PROXY_SOURCE\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi
@@ -19622,6 +19654,7 @@ do
     "libstreamswitch/libstreamswitch.pc") CONFIG_FILES="$CONFIG_FILES libstreamswitch/libstreamswitch.pc" ;;
     "sources/stsw_rtsp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtsp_source/Makefile" ;;
     "sources/stsw_rtmp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtmp_source/Makefile" ;;
+    "sources/stsw_proxy_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_proxy_source/Makefile" ;;
     "ports/stsw_rtsp_port/Makefile") CONFIG_FILES="$CONFIG_FILES ports/stsw_rtsp_port/Makefile" ;;
 
   *) { { $as_echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
@@ -21093,7 +21126,10 @@ StreamSwitch program path ............ : $bindir
 
 stsw_rtsp_source included............. : $rtsp_source
 stsw_rtmp_source included ............ : $rtmp_source
+stsw_proxy_source included ........... : $proxy_source
 stsw_rtsp_port included .............. : $rtsp_port
+
+
 
 
  'make' will now compile StreamSwitch and 'su -c make install' will install it.
@@ -21110,7 +21146,10 @@ StreamSwitch program path ............ : $bindir
 
 stsw_rtsp_source included............. : $rtsp_source
 stsw_rtmp_source included ............ : $rtmp_source
+stsw_proxy_source included ........... : $proxy_source
 stsw_rtsp_port included .............. : $rtsp_port
+
+
 
 
  'make' will now compile StreamSwitch and 'su -c make install' will install it.

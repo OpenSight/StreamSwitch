@@ -40,12 +40,18 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+
 
 #include <stream_switch.h>
 
 #include <pthread.h>
 
 #include "url.h"
+#include "stsw_log.h"
+
 
 ///////////////////////////////////////////////////////////////
 //Type
@@ -124,12 +130,15 @@ static std::string int2str(int int_value)
 ////////////////////////////////////////////////////////////////
 //class implementation
 
+
+StreamProxySource* StreamProxySource::s_instance = NULL;
+
 StreamProxySource::StreamProxySource()
 :need_key_frame_(false), need_update_metadata_(false), 
 last_frame_recv_(0), flags_(0)
 {
     source_ = new stream_switch::StreamSource();
-    sink_ = new stream_switch::StreamSink():
+    sink_ = new stream_switch::StreamSink();
 }
 StreamProxySource::~StreamProxySource()
 {
@@ -162,7 +171,7 @@ int StreamProxySource::Init(std::string stsw_url,
                             int source_tcp_port,             
                             int sub_queue_size, 
                             int pub_queue_size,
-                            int debug_flags);    
+                            int debug_flags)  
 {
     using namespace stream_switch;         
     int ret;
@@ -214,7 +223,6 @@ int StreamProxySource::Init(std::string stsw_url,
     pthread_mutexattr_init(&attr);
     ret = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  
     if(ret){
-        SET_ERR_INFO(err_info, "pthread_mutexattr_settype failed");   
         ret = ERROR_CODE_SYSTEM;
         perror("pthread_mutexattr_settype failed");   
         pthread_mutexattr_destroy(&attr);      
@@ -223,7 +231,6 @@ int StreamProxySource::Init(std::string stsw_url,
     }    
     ret = pthread_mutex_init(&lock_, &attr);  
     if(ret){
-        SET_ERR_INFO(err_info, "pthread_mutex_init failed"); 
         ret = ERROR_CODE_SYSTEM;
         perror("pthread_mutex_init failed");
         pthread_mutexattr_destroy(&attr); 
@@ -302,8 +309,7 @@ void StreamProxySource::Uninit()
 }
 
 
-int StreamProxySource:UpdateStreamMetaData(int timeout, 
-                                           stream_switch::StreamMetadata * metadata)
+int StreamProxySource::UpdateStreamMetaData(int timeout, stream_switch::StreamMetadata * metadata)
 {
     stream_switch::StreamMetadata tmp_metadata;
     int ret;
@@ -314,14 +320,14 @@ int StreamProxySource:UpdateStreamMetaData(int timeout,
     }    
     ret = sink_->UpdateStreamMetaData(timeout, &tmp_metadata, &err_info);
     if(ret){
-        STDERR_LOG(LOG_LEVEL_ERR, "Get metadata from back-end source failed: %s\n", 
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "Get metadata from back-end source failed: %s\n", 
                    err_info.c_str());        
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL);
         return ret;
     }
     
     if(tmp_metadata.play_type != stream_switch::STREAM_PLAY_TYPE_LIVE){
-        STDERR_LOG(LOG_LEVEL_ERR, "stsw_proxy_source only support relaying live stream\n");        
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "stsw_proxy_source only support relaying live stream\n");        
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return -1;        
     }
@@ -362,7 +368,7 @@ int StreamProxySource::Start()
     
     ret = source_->Start(&err_info);
     if(ret){
-        STDERR_LOG(LOG_LEVEL_ERR, "Start internal source failed: %s\n", 
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "Start internal source failed: %s\n", 
                    err_info.c_str());        
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return ret;
@@ -373,7 +379,7 @@ int StreamProxySource::Start()
 
     ret = sink_->Start(&err_info);
     if(ret){
-        STDERR_LOG(LOG_LEVEL_ERR, "Start internal sink failed: %s\n", 
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "Start internal sink failed: %s\n", 
                    err_info.c_str());        
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return ret;
@@ -412,10 +418,10 @@ int StreamProxySource::Hearbeat()
     std::string err_info;
     
     if(!IsInit()){
-        return;
+        return -1;
     }   
     if(!IsStarted()){
-        return;        
+        return -1;        
     }
         
     
@@ -432,7 +438,7 @@ int StreamProxySource::Hearbeat()
     
     if((now - last_frame_recv) >= MAX_FRAME_INTERVAL_SEC){
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_MEIDA_STOP);
-        STDERR_LOG(LOG_LEVEL_ERR, "stsw_proxy_source stop receiving media data\n");
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "stsw_proxy_source stop receiving media data\n");
         return stream_switch::ERROR_CODE_GENERAL;        
     }
     
@@ -440,7 +446,7 @@ int StreamProxySource::Hearbeat()
         ret = sink_->KeyFrame(DEFAULT_TIMEOUT_MSEC, &err_info);
         if(ret){
             source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
-            STDERR_LOG(LOG_LEVEL_ERR, "Request key frame from back-end source failed:%s\n",
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, "Request key frame from back-end source failed:%s\n",
                    err_info.c_str());            
             return ret;
         }
@@ -448,7 +454,7 @@ int StreamProxySource::Hearbeat()
     
     if(need_update_metadata){
         Stop();
-        ret = UpdateStreamMetaData(DEFAULT_TIMEOUT_MSEC, NULL)
+        ret = UpdateStreamMetaData(DEFAULT_TIMEOUT_MSEC, NULL);
         if(ret){
             return ret;
         }    

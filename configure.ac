@@ -37,6 +37,15 @@ AC_ARG_WITH([rtmp-source],
 
 AM_CONDITIONAL([INCLUDE_RTMP_SOURCE], [test "x$rtmp_source" = xyes])
 
+
+AC_ARG_WITH([proxy-source], 
+[AS_HELP_STRING([--with-proxy-source], 
+[would contains the stsw_proxy_source program @<:@default=yes@:>@])], 
+[proxy_source=${withval}], [proxy_source=yes]) 
+
+
+AM_CONDITIONAL([INCLUDE_PROXY_SOURCE], [test "x$proxy_source" = xyes])
+
 AC_ARG_WITH([rtsp-port], 
 [AS_HELP_STRING([--with-rtsp-port], 
 [would contains the stsw_rtsp_port program @<:@default=yes@:>@])], 
@@ -120,6 +129,7 @@ AC_CONFIG_FILES([Makefile \
                  libstreamswitch/libstreamswitch.pc \
                  sources/stsw_rtsp_source/Makefile \
                  sources/stsw_rtmp_source/Makefile \
+                 sources/stsw_proxy_source/Makefile \
                  ports/stsw_rtsp_port/Makefile])
 
 # Generate other makefiles
@@ -145,7 +155,10 @@ StreamSwitch program path ............ : $bindir
 
 stsw_rtsp_source included............. : $rtsp_source
 stsw_rtmp_source included ............ : $rtmp_source
+stsw_proxy_source included ........... : $proxy_source
 stsw_rtsp_port included .............. : $rtsp_port
+
+
 
 
  'make' will now compile StreamSwitch and 'su -c make install' will install it.

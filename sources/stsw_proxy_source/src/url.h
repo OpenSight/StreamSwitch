@@ -30,9 +30,9 @@
 **/ 
 
 
-#include <string>
+#include <string.h>
 #include <stdlib.h>
-
+#include <string>
 
 
 class UrlParser{
@@ -42,12 +42,12 @@ public:
 
     inline int Parse(const char * urlname){
         
-        char * protocol_start, * hostname_start, * port_start, * path_start;
+        const char * protocol_start, * hostname_start, * port_start, * path_start;
         size_t protocol_len, hostname_len, port_len, path_len;
 
 
 
-        hostname_start = strstr(urlname, "://");
+        hostname_start = strstr(urlname, (const char*)"://");
         if (hostname_start == NULL) {
             hostname_start = urlname;
             protocol_start = NULL;
@@ -60,7 +60,7 @@ public:
 
         hostname_len = strlen(urlname) - ((size_t)(hostname_start - urlname));
 
-        path_start = strstr(hostname_start, "/");
+        path_start = strstr(hostname_start, (const char*)"/");
         if (path_start == NULL) {
             path_len = 0;
         } else {
@@ -98,8 +98,8 @@ public:
         if (path_len) {
             path_.assign(path_start, path_len);
         }
-        if(host_len){
-            host_name_.assign(hostname_start, hostname_len)
+        if(hostname_len){
+            host_name_.assign(hostname_start, hostname_len);
         }
 
         return 0;

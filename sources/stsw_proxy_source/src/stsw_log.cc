@@ -44,7 +44,7 @@ int InitGlobalLogger(std::string base_name,
                      int log_level)
 {
     int ret = 0;
-    global_logger = new RotateLogger();
+    global_logger = new stream_switch::RotateLogger();
     ret = global_logger->Init("stsw_proxy_source", 
             base_name, file_size, rotate_num, log_level, false);
     if(ret){

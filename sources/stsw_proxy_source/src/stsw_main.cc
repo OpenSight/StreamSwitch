@@ -66,16 +66,22 @@ void ParseArgv(int argc, char *argv[],
     std::string err_info;
     parser->RegisterBasicOptions();
     parser->RegisterSourceOptions();
+    parser->UnregisterOption("queue-size");
     
     parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
-                   "FILE_PATH", 
-                   "Absolute path of the file which this source read from", NULL, NULL);  
-    parser->RegisterOption("frame-size", 'F',  OPTION_FLAG_WITH_ARG,
-                   "SIZE", 
-                   "Frame size to send out", NULL, NULL);                     
-    parser->RegisterOption("fps", 'f',  OPTION_FLAG_WITH_ARG,
-                   "NUM", 
-                   "Frames per secode to send", NULL, NULL);         
+                   "URL", 
+                   "URL is the stsw url (begin wiht stsw://) of the back-end source which this proxy to read from", NULL, NULL);  
+    
+    parser->RegisterOption("pub-queue-size", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "the size of the message queue for Publisher, 0 means no limit."
+                   "Default is an internal value determined when compiling", NULL, NULL);  
+
+    parser->RegisterOption("sub-queue-size", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "the size of the message queue for Subscriber, 0 means no limit."
+                   "Default is an internal value determined when compiling", NULL, NULL);  
+
 
     parser->RegisterOption("debug-flags", 'd', 
                     OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
@@ -95,18 +101,18 @@ void ParseArgv(int argc, char *argv[],
         std::string option_help;
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
-        "A live stream source which reads the media frames from a specified file in cycl\n"
+        "A proxy source which is used to relay the media stream from the other live source\n"
         "Usange: %s [options]\n"
         "\n"
         "Option list:\n"
         "%s"
         "\n"
-        "User can send SIGINT/SIGTERM signal to terminate this source\n"
-        "\n", "file_live_source", option_help.c_str());
+        "User can send SIGINT/SIGTERM signal to terminate this proxy\n"
+        "\n", "stsw_proxy_source", option_help.c_str());
         exit(0);
     }else if(parser->CheckOption("version")){
         
-        fprintf(stderr, "v0.1.0\n");
+        fprintf(stderr, VERSION"\n");
         exit(0);
     }
     
@@ -132,7 +138,7 @@ int main(int argc, char *argv[])
     int ret = 0;
     StreamProxySource * proxy = NULL;
     int pub_queue_size = STSW_PUBLISH_SOCKET_HWM;
-    int sub_queue_size = STSW_SUBSCRIBER_SOCKET_HWM;   
+    int sub_queue_size = STSW_SUBSCRIBE_SOCKET_HWM;   
     
     GlobalInit();
     
