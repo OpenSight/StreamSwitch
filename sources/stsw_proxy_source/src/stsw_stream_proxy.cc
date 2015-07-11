@@ -356,13 +356,15 @@ int StreamProxySource::Start()
     
     if(!IsInit()){
         return -1;
-    }   
-    if(IsStarted()){
-        return 0;
+    } 
+    if(!IsMetaReady()){
+        return -1;
     }
     
     
-    
+    if(IsStarted()){
+        return 0;
+    }    
     
     last_frame_recv_ = time(NULL);
     
@@ -373,9 +375,7 @@ int StreamProxySource::Start()
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return ret;
     }
-    
-    //change source state
-    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);    
+ 
 
     ret = sink_->Start(&err_info);
     if(ret){
@@ -385,7 +385,9 @@ int StreamProxySource::Start()
         return ret;
     }
         
-
+    
+    //change source state
+    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);   
     
     flags_ |= STREAM_PROXY_FLAG_STARTED;
     

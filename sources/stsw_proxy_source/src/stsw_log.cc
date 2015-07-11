@@ -36,7 +36,7 @@
 
 
 stream_switch::RotateLogger * global_logger = NULL;
-
+int stderr_level = 0;
 
 
 int InitGlobalLogger(std::string base_name, 
@@ -52,12 +52,14 @@ int InitGlobalLogger(std::string base_name,
         global_logger = NULL;
         fprintf(stderr, "Init Logger faile\n");
     }     
+    stderr_level = log_level;
     return ret;
 }
 
 int UninitGlobalLogger()
 {
     if(global_logger != NULL){
+        global_logger->Uninit();
         delete global_logger;
         global_logger = NULL;
     }

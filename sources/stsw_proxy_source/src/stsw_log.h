@@ -40,14 +40,16 @@ int InitGlobalLogger(std::string base_name,
 int UninitGlobalLogger();
                      
 extern stream_switch::RotateLogger * global_logger;
-
+extern int stderr_level;
 
 #define STDERR_LOG(level, fmt, ...)  \
 do {         \
     if(global_logger != NULL){                  \
         global_logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
-    }else{                 \
-        fprintf(stderr, fmt, ##__VA_ARGS__);    \
+    }else{   \
+        if(level <= stderr_level) {\
+            fprintf(stderr, fmt, ##__VA_ARGS__);    \
+        }     \
     }                             \
 }while(0)
 
