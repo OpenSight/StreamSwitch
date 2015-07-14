@@ -36,7 +36,7 @@
 
 
 stream_switch::RotateLogger * global_logger = NULL;
-int stderr_level = 0;
+int stderr_level = stream_switch::LOG_LEVEL_DEBUG;
 
 
 int InitGlobalLogger(std::string base_name, 
