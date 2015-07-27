@@ -1,0 +1,5 @@
+include README.md AUTHORS.md CHANGES.md LICENSE
+include *.txt *.ini *.cfg *.rst
+recursive-include storlever *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml
+recursive-include initscripts *
+recursive-include docs *
