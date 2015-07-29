@@ -20,6 +20,7 @@ PROC_STOP = 0
 PROC_RUNNING = 1
 
 POLL_INTERVAL_SEC = 0.1
+DEFAULT_STOP_WAIT_TIMEOUT = 3
 
 _watchers = {}
 _next_wid = 0
@@ -32,14 +33,17 @@ def _get_next_watcher_id():
 
 
 class ProcWatcher(object):
-    def __init__(self, args, restart_interval, listener):
+    def __init__(self, args, 
+                 error_restart_interval, success_restart_interval, 
+                 listener):
         self.wid = _get_next_watcher_id()
         self.args = args
-        self.last_proc_ret = 0
-        self.last_proc_exit_time = 0
+        self.process_return_code = 0
+        self.process_exit_time = 0
         self._proc_start_time = 0
         self.restart_count = 0
-        self._restart_interval = restart_interval
+        self._error_restart_interval = error_restart_interval
+        self._success_restart_interval = success_restart_interval
         self._popen = None
         self._started = False
         self._listener = listener
@@ -66,8 +70,8 @@ class ProcWatcher(object):
 
     def _on_process_terminate(self, ret):
         self._popen = None
-        self.last_proc_ret = ret
-        self.last_proc_exit_time = time.time()
+        self.process_return_code = ret
+        self.process_exit_time = time.time()
         self._proc_start_time = 0
         self._on_listener_stop()
 
@@ -93,8 +97,7 @@ class ProcWatcher(object):
         while (greenlet_id == self._poll_greenlet_id) and self._started:
             try:
                 if self._popen is None:
-                    if (time.time() >= next_open_time) and \
-                            self._restart_interval > 0:
+                    if time.time() >= next_open_time:
                         # restart
                         self.restart_count += 1
                         self._launch_process()
@@ -107,16 +110,32 @@ class ProcWatcher(object):
 
                         if ret != 0:
                             # exit with error
-                            next_open_time = time.time() + self.restart_process()
+                            next_open_time = time.time() + self._error_restart_interval
                         else:
                             # exit normally
-                            next_open_time = time.time()
+                            next_open_time = time.time() + self._success_restart_interval
 
             except Exception:
                 pass
 
             sleep(POLL_INTERVAL_SEC)      # next time to check
+    
+    def _terminate_run(self, popen, wait_timeout):
+        
+        ret = None
+        try:
+            ret = popen.wait(wait_timeout)
+        except subprocess.TimeoutExpired:
+            ret = None
+        except Exception:
+            pass
 
+        #check terminated successfully, if not, kill it
+        if ret is None:
+            # time out, force child process terminate
+            popen.kill()
+
+    
     @property
     def pid(self):
         if self._popen is not None:
@@ -137,11 +156,18 @@ class ProcWatcher(object):
             return time.time() - self._proc_start_time
         else:
             return 0
-
+            
+    def restart_process(self):
+        if self._popen is not None:
+            self._popen.terminate()
+            
     def is_started(self):
         return self._started
 
     def start(self):
+        """ start the watcher and launch its process
+        
+        """
         if self._started:
             return
 
@@ -164,7 +190,20 @@ class ProcWatcher(object):
                 self._on_process_terminate(-1)
             raise
 
-    def stop(self):
+    def stop(self, wait_timeout):
+        """ Stop the watcher and wait until the related process terminates
+    
+        Stop this watcher, send SIGTERM signal to the process, 
+        wait until the process exits or wait_timeout is due, 
+        if the process has not yet terminated, kill it. 
+    
+        After this function return, the process should have been terminated
+    
+        Args:
+            self: watcher instance
+            wait_timeout: the time to wait for the process's termination before kill it
+        
+        """
         if not self._started:
             return
 
@@ -173,11 +212,14 @@ class ProcWatcher(object):
         if self._popen is not None:
             # terminate the process normally at first
             self._popen.terminate()
+            ret = None
             try:
-                ret = self._popen.wait(1)
+                ret = self._popen.wait(wait_timeout)
             except subprocess.TimeoutExpired:
                 ret = None
-
+            except Exception:
+                pass
+            
             #check terminated successfully, if not, kill it
             if ret is None:
                 # time out, force child process terminate
@@ -185,16 +227,41 @@ class ProcWatcher(object):
                 ret = -1
 
             self._on_process_terminate(ret)
+    
+    def async_stop(self, wait_timeout):
+        """ Stop the watcher, and terminate the process async
+    
+        After this function return, the watcher has been stopped, but the process 
+        may or may not have been terminated. It postpone the process termination 
+        waiting operation in another new greenlet
+    
+        Args:
+            self: watcher instance
+            wait_timeout: the time to wait for the process's termination before kill it
+        
+        """
+        if not self._started:
+            return
 
+        self._started = False   # make poll greenlet exit
+
+        if self._popen is not None:     
+            self._popen.terminate()            
+            gevent.spawn(self._terminate_run, self._popen, wait_timeout)
+            self._on_process_terminate(0)
+    
+    
     def delete(self):
-        self.stop()
+        self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)
 
         global _watchers
         if self.wid in _watchers:
             del _watchers[self.wid]
 
 
-def spawn_watcher(args, restart_interval=30, listener=None):
+def spawn_watcher(args, 
+                  error_restart_interval=30, success_restart_interval=1, 
+                  listener=None):
     """ create asd start a process watcher instance
 
     Args:
@@ -206,7 +273,7 @@ def spawn_watcher(args, restart_interval=30, listener=None):
             sequence.
         restart_interval: time in sec to restart the process after its error termination.
             if the process exit with 0 exit_code, it would be restart immediately.
-            if this parameter is 0, means never restart the process
+            
 
     Returns:
         A started Watcher instance related to the args which is already schedule
@@ -214,9 +281,9 @@ def spawn_watcher(args, restart_interval=30, listener=None):
     Raises:
         OSError: when trying to execute a non-existent file
     """
-    global _next_wid
-    _next_wid += 1
-    watcher = ProcWatcher(_next_wid, args, restart_interval, listener)
+    watcher = ProcWatcher(args, 
+                          error_restart_interval, success_restart_interval, 
+                          listener)
     watcher.start()
     return watcher
 
