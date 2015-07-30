@@ -35,18 +35,18 @@ def _get_next_watcher_id():
 class ProcWatcher(object):
     def __init__(self, args, 
                  error_restart_interval, success_restart_interval, 
-                 listener):
+                 process_status_cb):
         self.wid = _get_next_watcher_id()
         self.args = args
         self.process_return_code = 0
         self.process_exit_time = 0
-        self._proc_start_time = 0
         self.restart_count = 0
+        self._proc_start_time = 0
         self._error_restart_interval = error_restart_interval
         self._success_restart_interval = success_restart_interval
         self._popen = None
         self._started = False
-        self._listener = listener
+        self._process_status_cb = process_status_cb
         self._poll_greenlet_id = 1
         self._watcher_start_time = 0
 
@@ -57,37 +57,39 @@ class ProcWatcher(object):
         _watchers[self.wid] = self
 
     def __str__(self):
-        return 'ProcWatcher (wid:%s)' % self.wid
+        return ('ProcWatcher (wid:%s, args:%s, pid:%s, process_status:%d,'
+                'process_return_code:%d, process_exit_time:%f '
+                'process_running_time:%f, restart_count:%d, is_started:%s)') % \
+               (self.wid, self.args, self.pid, self.process_status,
+                self.process_return_code, self.process_exit_time,
+                self.process_running_time, self.restart_count,
+                self.is_started())
 
     def _launch_process(self):
+
         self._popen = subprocess.Popen(self.args,
                                        stdin=subprocess.DEVNULL,
                                        stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL,
-                                       close_fds=True)
+                                       close_fds=True,
+                                       shell=False)
+        # print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
         self._proc_start_time = time.time()
-        self._on_listener_start()
+        self._on_process_status_change()
 
     def _on_process_terminate(self, ret):
+        # print("process pid:%d terminated with returncode:%d" % (self._popen.pid, ret))
         self._popen = None
         self.process_return_code = ret
         self.process_exit_time = time.time()
         self._proc_start_time = 0
-        self._on_listener_stop()
+        self._on_process_status_change()
 
-    def _on_listener_start(self):
+    def _on_process_status_change(self):
         try:
-            if self._listener is not None \
-               and hasattr(self._listener, "on_process_start"):
-                self._listener.on_process_start(self)
-        except Exception:
-            pass
-
-    def _on_listener_stop(self):
-        try:
-            if self._listener is not None \
-               and hasattr(self._listener, "on_process_stop"):
-                self._listener.on_process_stop(self)
+            if self._process_status_cb is not None and \
+               callable(self._process_status_cb):
+                self._process_status_cb(self)
         except Exception:
             pass
 
@@ -119,8 +121,9 @@ class ProcWatcher(object):
                 pass
 
             sleep(POLL_INTERVAL_SEC)      # next time to check
-    
-    def _terminate_run(self, popen, wait_timeout):
+
+    @staticmethod
+    def _terminate_run(popen, wait_timeout):
         
         ret = None
         try:
@@ -190,7 +193,7 @@ class ProcWatcher(object):
                 self._on_process_terminate(-1)
             raise
 
-    def stop(self, wait_timeout):
+    def stop(self, wait_timeout=DEFAULT_STOP_WAIT_TIMEOUT):
         """ Stop the watcher and wait until the related process terminates
     
         Stop this watcher, send SIGTERM signal to the process, 
@@ -228,7 +231,7 @@ class ProcWatcher(object):
 
             self._on_process_terminate(ret)
     
-    def async_stop(self, wait_timeout):
+    def async_stop(self, wait_timeout=DEFAULT_STOP_WAIT_TIMEOUT):
         """ Stop the watcher, and terminate the process async
     
         After this function return, the watcher has been stopped, but the process 
@@ -247,9 +250,8 @@ class ProcWatcher(object):
 
         if self._popen is not None:     
             self._popen.terminate()            
-            gevent.spawn(self._terminate_run, self._popen, wait_timeout)
+            gevent.spawn(ProcWatcher._terminate_run, self._popen, wait_timeout)
             self._on_process_terminate(0)
-    
     
     def delete(self):
         self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)
@@ -261,7 +263,7 @@ class ProcWatcher(object):
 
 def spawn_watcher(args, 
                   error_restart_interval=30, success_restart_interval=1, 
-                  listener=None):
+                  process_status_cb=None):
     """ create asd start a process watcher instance
 
     Args:
@@ -283,7 +285,7 @@ def spawn_watcher(args,
     """
     watcher = ProcWatcher(args, 
                           error_restart_interval, success_restart_interval, 
-                          listener)
+                          process_status_cb)
     watcher.start()
     return watcher
 
@@ -297,8 +299,82 @@ def find_watcher_by_wid(wid):
 
 
 def test_main():
-    # ls_watcher = spawn_watcher(["ls"])
-    pass
+    print("create ls watcher")
+    ls_watcher = spawn_watcher(["ls"])
+    print(ls_watcher)
+    assert(ls_watcher.pid is not None)
+    assert(ls_watcher.process_status == PROC_RUNNING)
+    assert(ls_watcher.process_running_time > 0)
+    assert(ls_watcher.is_started())
+    print("enter sleep")
+    sleep(0.5)
+    # the process should terminated
+    print("after 0.5s:")
+    print(ls_watcher)
+    assert(ls_watcher.pid is None)
+    assert(ls_watcher.process_status == PROC_STOP)
+    assert(ls_watcher.process_running_time == 0)
+    assert(ls_watcher.process_return_code == 0)
+    assert(ls_watcher.process_exit_time != 0)
+    assert(ls_watcher.is_started())
+    print("enter sleep")
+    sleep(1)
+    # the process should restart
+    print("after 1.5s:")
+    print(ls_watcher)
+    assert(ls_watcher.restart_count > 0)
+    ls_watcher.stop()
+    ls_watcher.delete()
+    del ls_watcher
+
+    print("create \"sleep\" watcher")
+    sleep_watcher = spawn_watcher(["sleep", "5"], 1, 1)
+    print(sleep_watcher)
+    org_pid = sleep_watcher.pid
+    assert(sleep_watcher.pid is not None)
+    assert(sleep_watcher.process_status == PROC_RUNNING)
+    assert(sleep_watcher.process_running_time > 0)
+    assert(sleep_watcher.is_started())
+    print("restart process")
+    sleep_watcher.restart_process()
+    print("enter sleep")
+    sleep(0.5)
+    # the process should terminated
+    print("after 0.5s:")
+    print(sleep_watcher)
+    assert(sleep_watcher.pid is None)
+    assert(sleep_watcher.process_status == PROC_STOP)
+    assert(sleep_watcher.process_running_time == 0)
+    assert(sleep_watcher.process_exit_time != 0)
+    print("enter sleep")
+    sleep(1)
+    print("after 1.5s:")
+    print(sleep_watcher)
+    assert(sleep_watcher.restart_count > 0)
+    assert(sleep_watcher.pid != org_pid)
+    assert(sleep_watcher.pid is not None)
+    assert(sleep_watcher.process_status == PROC_RUNNING)
+    assert(sleep_watcher.process_running_time > 0)
+    assert(sleep_watcher.is_started())
+    print("stop \"sleep\" watcher")
+    sleep_watcher.stop()
+    print(sleep_watcher)
+    assert(sleep_watcher.pid is None)
+    assert(sleep_watcher.process_status == PROC_STOP)
+    assert(sleep_watcher.process_running_time == 0)
+    assert(sleep_watcher.process_exit_time != 0)
+
+    print("start \"sleep\" watcher")
+    sleep_watcher.start()
+    print(sleep_watcher)
+    assert(sleep_watcher.pid is not None)
+    assert(sleep_watcher.process_status == PROC_RUNNING)
+    assert(sleep_watcher.process_running_time > 0)
+    assert(sleep_watcher.is_started())
+    print("enter sleep")
+    sleep(1)
+
+    sleep_watcher.delete()
 
 if __name__ == "__main__":
     test_main()
