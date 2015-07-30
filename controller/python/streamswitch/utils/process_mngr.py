@@ -13,7 +13,8 @@ helper functions
 from __future__ import unicode_literals, division
 import gevent
 from gevent import subprocess, sleep
-
+import sys
+import os
 import time
 
 PROC_STOP = 0
@@ -21,6 +22,12 @@ PROC_RUNNING = 1
 
 POLL_INTERVAL_SEC = 0.1
 DEFAULT_STOP_WAIT_TIMEOUT = 3
+
+if sys.version_info[:2] >= (3, 3):
+    DEVNULL = subprocess.DEVNULL
+else:
+    DEVNULL = open(os.devnull, "r+")
+
 
 _watchers = {}
 _next_wid = 0
@@ -68,17 +75,17 @@ class ProcWatcher(object):
     def _launch_process(self):
 
         self._popen = subprocess.Popen(self.args,
-                                       stdin=subprocess.DEVNULL,
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL,
+                                       stdin=DEVNULL,
+                                       stdout=DEVNULL,
+                                       stderr=DEVNULL,
                                        close_fds=True,
                                        shell=False)
-        # print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
+        print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
         self._proc_start_time = time.time()
         self._on_process_status_change()
 
     def _on_process_terminate(self, ret):
-        # print("process pid:%d terminated with returncode:%d" % (self._popen.pid, ret))
+        print("process pid:%d terminated with returncode:%d" % (self._popen.pid, ret))
         self._popen = None
         self.process_return_code = ret
         self.process_exit_time = time.time()
