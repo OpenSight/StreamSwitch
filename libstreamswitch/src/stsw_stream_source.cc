@@ -810,7 +810,7 @@ int StreamSource::StatisticHandler(const ProtoCommonPacket &request,
         local_statistic.ssrc = stream_meta_.ssrc;
     }
     
-    local_statistic.timestamp = (int64_t)time(NULL);
+    local_statistic.timestamp = (int64_t)zclock_time();
     local_statistic.sum_bytes = 0;
     SubStreamMediaStatisticVector::iterator it;
     for(it = local_statistic.sub_streams.begin(); 

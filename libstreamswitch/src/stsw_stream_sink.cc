@@ -1457,7 +1457,7 @@ void StreamSink::ReceiverStatistic(MediaStatisticInfo * statistic)
 
     LockGuard guard(&lock_);   
     statistic->ssrc = stream_meta_.ssrc;
-    statistic->timestamp = (int64_t)time(NULL);
+    statistic->timestamp = (int64_t)zclock_time();
     statistic->sub_streams = statistic_;
 
     SubStreamMediaStatisticVector::iterator it;

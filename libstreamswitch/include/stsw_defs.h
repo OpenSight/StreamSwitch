@@ -278,7 +278,7 @@ typedef std::vector<SubStreamMediaStatistic> SubStreamMediaStatisticVector;
 
 struct MediaStatisticInfo{
     uint32_t ssrc;
-    int64_t timestamp;   //the statistic generation time
+    int64_t timestamp;   //the statistic generation time, in milliseconds
     uint64_t sum_bytes;  //the sum bytes received of all sub streams    
     SubStreamMediaStatisticVector sub_streams;
 };

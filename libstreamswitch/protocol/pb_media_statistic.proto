@@ -27,7 +27,7 @@ message ProtoSubStreamMediaStatistic{
 
 message ProtoMediaStatisticRep{
     optional uint32 ssrc = 1;
-    optional int64 timestamp = 2;   //the statistic generation time
+    optional int64 timestamp = 2;   //the statistic generation time, in milli sec
     optional uint64 sum_bytes = 3;  //the sum bytes received of all sub streams
     //tag below 64 is reserved to future extension
     
