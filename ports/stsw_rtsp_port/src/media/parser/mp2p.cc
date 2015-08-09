@@ -22,6 +22,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  **/
+#include <string>
+#include <math.h>
 
 #include "fnc_log.h"
 #include "media/demuxer.h"
@@ -50,32 +52,57 @@
 #define PACKET_START_CODE_PREFIX    ((unsigned int)0x00000100)
 #define ISO_11172_END_CODE          ((unsigned int)0x000001b9)
 
-typedef struct mp2p_stream_struct {
-    const char tag[11];
-    uint8_t stream_type;
-    int (*parse)(Track *track, uint8_t *data, size_t len, 
-                 uint8_t *buf, size_t bufSize, size_t maxSize);
-    int (*isKeyFrame)(Track *track, uint8_t *data, size_t len);
 
-} mp2p_stream_struct;
+
+class StreamParser{
+public:
+
+    static StreamParser * CreateParser(const std::string &codec_name, uint8_t stream_id, uint8_t stream_type, 
+                 int media_type, int max_buffer_size);
+    
+
+    virtual int Parse(Track *tr, uint8_t *data, size_t len);
+    virtual void Reset(Track *tr){
+        //nothing to do by default
+        return;
+    }
+    virtual bool IsKeyFrame(uint8_t *data, size_t len){
+        // no key frame by default
+        return false;
+    }
+    
+    virtual uint8_t stream_id(){
+        return stream_id_;
+    }
+    
+    virtual uint8_t stream_type(){
+        return stream_type_;
+    }
+    virtual int max_buffer_size(){
+        return max_buffer_size_;
+    }
+    
+protected:
+    StreamParser(const std::string &codec_name, uint8_t stream_id, uint8_t stream_type, 
+                 int media_type, int max_buffer_size/* in bytes */);
+    virtual int EncodePes(Track *track, uint8_t *data, size_t len, 
+                        bool is_key_frame,
+                       uint8_t *buf, size_t bufSize, size_t maxSize);
+    
+    std::string codec_name_;
+    uint8_t stream_id_;
+    uint8_t stream_type_;
+    int media_type_;
+    int max_buffer_size_;
+};
+
+
 
 
 static const MediaParserInfo info = {
     "MP2P",
     MP_video
 };
-
-
-typedef struct {
-    uint8_t stream_id;
-    uint8_t stream_type;
-    int type;
-    int max_buffer_size; /* in bytes */
-    int (*parse)(Track *track, uint8_t *data, size_t len, 
-                 uint8_t *buf, size_t bufSize, size_t maxSize);
-    int (*isKeyFrame)(Track *track, uint8_t *data, size_t len);
-
-} mp2p_stream_info;
 
 
 
@@ -87,7 +114,7 @@ typedef struct {
     int audio_bound;
     int video_bound;
     int stream_num;
-    mp2p_stream_info stream_info[MP2P_MAX_STREAM_NUM];
+    StreamParser * streams[MP2P_MAX_STREAM_NUM];
     int gov_start; // if the parser has seen GOV start flag, gov_start would be set to 1
 } mp2p_priv;
 
@@ -108,6 +135,12 @@ typedef struct stsw_priv_type{
     
     
 } stsw_priv_type;
+
+
+
+static void mp2p_rtp_frag(Track *tr, uint8_t *data, size_t len);
+
+
 
 
 /*****************************************************************/
@@ -261,11 +294,11 @@ static int put_system_header(mp2p_priv *priv, uint8_t *buf,int bufSize)
         /* audio stream info */
     private_stream_coded = 0;
     for(i=0;i<priv->stream_num;i++) {
-        mp2p_stream_info *stream = &(priv->stream_info[i]);
+        StreamParser *stream_parser = priv->streams[i];
 
-        if(stream->stream_id != 0) {
+        if(stream_parser != NULL) {
             
-            id = stream->stream_id;
+            id = stream_parser->stream_id();
             if (id < 0xc0) {
                 /* special case for private streams (AC-3 uses that) */
                 if (private_stream_coded)
@@ -278,11 +311,11 @@ static int put_system_header(mp2p_priv *priv, uint8_t *buf,int bufSize)
             if (id < 0xe0) {
                 /* audio */
                 put_bits(&pb, 1, 0);
-                put_bits(&pb, 13, stream->max_buffer_size / 128);
+                put_bits(&pb, 13, stream_parser->max_buffer_size() / 128);
             } else {
                 /* video */
                 put_bits(&pb, 1, 1);
-                put_bits(&pb, 13, stream->max_buffer_size / 1024);
+                put_bits(&pb, 13, stream_parser->max_buffer_size() / 1024);
             }
         }
         
@@ -326,9 +359,9 @@ static int put_system_map_header(mp2p_priv *priv, uint8_t *buf,int bufSize)
 
     streamNum = 0;
     for(i=0;i<priv->stream_num;i++) {
-        mp2p_stream_info *stream = &(priv->stream_info[i]);
+        StreamParser *stream_parser = priv->streams[i];
 
-        if(stream->stream_id != 0) {
+        if(stream_parser != NULL) {
             streamNum++;
         }
     }
@@ -336,11 +369,11 @@ static int put_system_map_header(mp2p_priv *priv, uint8_t *buf,int bufSize)
 	put_bits(&pb, 16, streamNum * 4);    //elementary stream map length 
 
     for(i=0;i<priv->stream_num;i++) {
-        mp2p_stream_info *stream = &(priv->stream_info[i]);
+        StreamParser *stream_parser = priv->streams[i];
 
-        if(stream->stream_id != 0) {
-            put_bits(&pb, 8, stream->stream_type);
-            put_bits(&pb, 8, stream->stream_id);
+        if(stream_parser != NULL) {
+            put_bits(&pb, 8, stream_parser->stream_type());
+            put_bits(&pb, 8, stream_parser->stream_id());
             put_bits(&pb, 16, 0);    //elementary_stream_info_length
         }
     }
@@ -560,183 +593,128 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
     return 0;
 }
 
-/*********************************************************************************/
-/* codec parsers */
+/****************************************************************/
+/*stream parser */
 
-
-
-static int ish264KeyFrame(Track *tr, uint8_t * frameSource, size_t frameSize)
+StreamParser * StreamParser::CreateParser(const std::string &codec_name, 
+                                           uint8_t stream_id, uint8_t stream_type, 
+                                           int media_type, int max_buffer_size)
 {
+    return new StreamParser(codec_name, stream_id, stream_type, media_type, max_buffer_size);
+}
 
-    uint8_t nal_unit_type;
+StreamParser::StreamParser(const std::string &codec_name, 
+                           uint8_t stream_id, uint8_t stream_type, 
+                           int media_type, int max_buffer_size/* in bytes */)
+:codec_name_(codec_name), stream_id_(stream_id), stream_type_(stream_type),
+media_type_(media_type), max_buffer_size_(max_buffer_size)
+{
     
-    if(frameSize == 0 || frameSource == NULL){
-        return 0;
+}
+
+
+int StreamParser::Parse(Track *tr, uint8_t *data, size_t len)
+{
+    using namespace stream_switch;
+    mp2p_priv * priv = NULL;
+    int ret;
+    uint8_t *buf;
+    size_t maxBufSize,bufSize;
+    int64_t timestamp;
+    int retSize;
+    bool is_key_frame;
+
+    priv = (mp2p_priv *)tr->private_data;
+   
+    
+    /* malloc space*/
+    maxBufSize = 0;
+    maxBufSize += 256; /* pack, system, map header size */
+    maxBufSize += ((len + priv->packet_size -100 -1)/ (priv->packet_size -100)) * 256; /* pes headers */
+    maxBufSize += len;
+    maxBufSize += 1024; /* add 1 K extraly */
+    buf = (uint8_t *)g_malloc(maxBufSize);
+    if(buf == NULL) {
+        fnc_log(FNC_LOG_ERR, "[mp2p] StreamParser.parse() malloc failed");
+        ret = RESOURCE_DAMAGED;
+        goto error1;
+    }
+    memset(buf, 0, maxBufSize);
+    bufSize = 0;
+
+    timestamp = pts2PSTimpstamp(tr, tr->properties.pts);
+
+    
+    /* add pack header */
+    retSize = put_pack_header(priv, buf+bufSize, maxBufSize - bufSize, timestamp);
+    bufSize += retSize;
+
+    /* check if key frame, then add system header and map header */
+    is_key_frame = IsKeyFrame(data, len);
+    if(is_key_frame && media_type_ == SUB_STREAM_MEIDA_TYPE_VIDEO) {
+        
+        retSize = put_system_header(priv, buf+bufSize, maxBufSize - bufSize);
+        bufSize += retSize;        
+
+        retSize = put_system_map_header(priv,buf+bufSize, maxBufSize - bufSize);
+        bufSize += retSize;
+        
+        //key frame start a new gov
+        priv->gov_start = 1;
     }
 
-    nal_unit_type = frameSource[0] & 0x1F;
-    if(nal_unit_type == 5 ||
-        nal_unit_type == 7) {
+    retSize = EncodePes(tr, data, len, is_key_frame, buf, bufSize, maxBufSize );
+    if(retSize < 0 ) {
+        fnc_log(FNC_LOG_VERBOSE, "[mp2p] Encode Pes error");
+        ret = RESOURCE_NOT_PARSEABLE;
+        goto error2;
+    }
+    bufSize += retSize;
 
-        return 1;
+
+    /* frags */
+    if(retSize > 0 && priv->gov_start != 0) { /* means some data is added */
+        mp2p_rtp_frag(tr,buf,bufSize);
+        fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame completed");
     }
 
+    g_free(buf);
 
-    return 0;
+
+    return ERR_NOERROR;
+
+error2:
+    
+    g_free(buf);
+error1:
+    return ret;    
 }
 
-extern "C" int isMp4vKeyFrame(uint8_t * frameSource, size_t frameSize);
-
-static int isMp4vesKeyFrame(Track *tr, uint8_t * frameSource, size_t frameSize)
+int StreamParser::EncodePes(Track *track, uint8_t *data, size_t len, 
+                       bool is_key_frame, 
+                       uint8_t *buf, size_t bufSize, size_t maxSize)
 {
-    return isMp4vKeyFrame(frameSource,frameSize);
-}
-
-static int noKeyFrame(Track *tr, uint8_t * frameSource, size_t frameSize)
-{
-    return 0;
-}
-
-static int mp2p_h264_parse(Track *tr, uint8_t *data, size_t len, 
-                           uint8_t *buf, size_t bufSize, size_t maxSize)
-{
+    using namespace stream_switch;
     int64_t pts, dts;
-    mp2p_priv * priv = (mp2p_priv * )tr->private_data;
-    mp2p_stream_info * stream = &(priv->stream_info[tr->info->id]);
-    size_t nalsize = 0;
-    size_t orgBufSize = bufSize;
-    int onlyKeyFrame = 0;
-    uint8_t dwPtsDtsFlag;
-    uint8_t nal_unit_type;
-
-    if(tr->parent != NULL && tr->parent->rtsp_sess != NULL) {
-        onlyKeyFrame = ((RTSP_session *)tr->parent->rtsp_sess)->onlyKeyFrame;
-    }
-
-    pts = pts2PSTimpstamp(tr, tr->properties.pts);
-    dts = pts2PSTimpstamp(tr, tr->properties.dts);
-
-    dwPtsDtsFlag = 2;
-    
-
-       
-    nalsize = len;
-
-    nal_unit_type = data[0] & 0x1F;
-    
-    
-    if(onlyKeyFrame == 0 ||
-        nal_unit_type == 5 ||
-        nal_unit_type == 6 ||
-        nal_unit_type == 7 ||
-        nal_unit_type == 8 ||
-        nal_unit_type == 9) {
-        /* NALU: (data+index), size: nalsize */
-
-        uint8_t first_PES_frag = 1;
-        size_t nal_index = 0;
-
-        first_PES_frag = 1;
-        nal_index = 0;
-
-        while(nal_index < nalsize) {
-
-            int pes_header_size = 0;
-            uint32_t stuffSize = 0;
-            size_t nal_partial_size = 0;
-            size_t pes_size = 0;
-
-            pes_size = 0;
-            nal_partial_size = 0;
-            pes_header_size = 0;
-            stuffSize = 0;
-
-            /* calulate PES size */
-
-            pes_header_size = get_pes_header_size(bufSize, dwPtsDtsFlag, first_PES_frag, &stuffSize);
-
-            pes_size += pes_header_size;
-
-            if(first_PES_frag) {
-                pes_size += 4;  // start code for h265 
-            }
-
-            if(pes_size + (nalsize - nal_index) > priv->packet_size) {
-                nal_partial_size = priv->packet_size - pes_size;
-            }else{
-                nal_partial_size = nalsize - nal_index;
-
-            }
-            pes_size += nal_partial_size;
-
-
-            /* check overflow */
-            if(pes_size + bufSize > maxSize) {
-                /* error, not enough space */
-                fnc_log(FNC_LOG_ERR, "[mp2p] AVC: not enough space to hold pes (%d/%d)", 
-                        (int)pes_size + bufSize, (int)maxSize);
-                return -1;
-            }
-
-
-            /* fill in PES header */
-            pes_header_size = put_pes_header(stream->stream_id, 
-                                             pes_size - 6, stuffSize, 
-                                             first_PES_frag,
-                                             first_PES_frag, 
-                                             dwPtsDtsFlag, pts, dts, 
-                                             stream->max_buffer_size, 
-                                             buf + bufSize, maxSize - bufSize);
-            bufSize += pes_header_size;
-                
-
-            /* fill in start code */
-            if(first_PES_frag) {
-                put_word(0x00000001,buf + bufSize);
-                bufSize += 4;
-            }
-
-            /* fill in NALU */
-            memcpy(buf + bufSize, data + nal_index, nal_partial_size);
-            bufSize += nal_partial_size;
-
-            /* clean up */
-            first_PES_frag = 0; /* the first pes of the NALU has data_alignment_indicator*/
-            dwPtsDtsFlag = 0; /* only the first pes has pts */
-            nal_index += nal_partial_size;
-                
-        }//while(nal_index < nalsize) 
-    }
-
-
-    return (int)(bufSize - orgBufSize);
-
-}
-
-
-static int mp2p_mp4v_parse(Track *tr, uint8_t *data, size_t len, 
-                           uint8_t *buf, size_t bufSize, size_t maxSize)
-{
-    int64_t pts, dts;
-    mp2p_priv * priv = (mp2p_priv * )tr->private_data;
-    mp2p_stream_info * stream = &(priv->stream_info[tr->info->id]);
+    mp2p_priv * priv = (mp2p_priv * )track->private_data;
     size_t orgBufSize = bufSize;
     int onlyKeyFrame = 0;
     uint8_t dwPtsDtsFlag;
 
 
-    if(tr->parent != NULL && tr->parent->rtsp_sess != NULL) {
-        onlyKeyFrame = ((RTSP_session *)tr->parent->rtsp_sess)->onlyKeyFrame;
+    if(track->parent != NULL && track->parent->rtsp_sess != NULL) {
+        onlyKeyFrame = ((RTSP_session *)track->parent->rtsp_sess)->onlyKeyFrame;
     }
 
-    pts = pts2PSTimpstamp(tr, tr->properties.pts);
-    dts = pts2PSTimpstamp(tr, tr->properties.dts);
+    pts = pts2PSTimpstamp(track, track->properties.pts);
+    dts = pts2PSTimpstamp(track, track->properties.dts);
 
     dwPtsDtsFlag = 2;
     
 
     if(onlyKeyFrame == 0 ||
-       isMp4vKeyFrame(data, len)) {
+       is_key_frame ||
+       media_type_ == SUB_STREAM_MEIDA_TYPE_AUDIO) {
         /* frame: (data), size: len */
 
         uint8_t first_PES_frag = 1;
@@ -746,11 +724,13 @@ static int mp2p_mp4v_parse(Track *tr, uint8_t *data, size_t len,
 
             int pes_header_size = 0;
             uint32_t stuffSize = 0;
-            size_t vop_partial_size = 0;
+            size_t partial_size = 0;
             size_t pes_size = 0;
+            uint8_t data_alignment_indicator = 0;
+            
 
             pes_size = 0;
-            vop_partial_size = 0;
+            partial_size = 0;
             pes_header_size = 0;
             stuffSize = 0;
 
@@ -760,152 +740,287 @@ static int mp2p_mp4v_parse(Track *tr, uint8_t *data, size_t len,
             pes_size += pes_header_size;
 
             if(pes_size + (len - index) > priv->packet_size) {
-                vop_partial_size = priv->packet_size - pes_size;
+                partial_size = priv->packet_size - pes_size;
             }else{
-                vop_partial_size = len - index;
+                partial_size = len - index;
 
             }
-            pes_size += vop_partial_size;
+            pes_size += partial_size;
 
 
             /* check overflow */
             if(pes_size + bufSize > maxSize) {
                 /* error, not enough space */
-                fnc_log(FNC_LOG_ERR, "[mp2p] Mpeg4v: not enough space to hold pes (%d/%d)", 
+                fnc_log(FNC_LOG_ERR, "[mp2p] StreamParser::EncodePes(): not enough space to hold pes (%d/%d)", 
                         (int)pes_size + bufSize, (int)maxSize);
                 return -1;
             }
-
+            
+            
+            if(media_type_ == SUB_STREAM_MEIDA_TYPE_VIDEO){
+                data_alignment_indicator = first_PES_frag;
+            }else{
+                data_alignment_indicator = 0;
+            }
             /* fill in PES header */
-            pes_header_size = put_pes_header(stream->stream_id, 
+            pes_header_size = put_pes_header(stream_id(), 
                                              pes_size - 6, stuffSize, 
                                              first_PES_frag,
-                                             first_PES_frag, 
+                                             data_alignment_indicator, 
                                              dwPtsDtsFlag, pts, dts, 
-                                             stream->max_buffer_size,
+                                             max_buffer_size(),
                                              buf + bufSize, maxSize - bufSize);
             bufSize += pes_header_size;
                 
 
-            /* fill in NALU */
-            memcpy(buf + bufSize, (data + index), vop_partial_size);
-            bufSize += vop_partial_size;
+            /* fill in frame */
+            memcpy(buf + bufSize, (data + index), partial_size);
+            bufSize += partial_size;
 
             /* clean up */
             first_PES_frag = 0; /* the first pes of the NALU has data_alignment_indicator*/
             dwPtsDtsFlag = 0; /* only the first pes has pts */
-            index += vop_partial_size;
+            index += partial_size;
                 
         }
 
     }
 
     return (int)(bufSize - orgBufSize);
-
+                           
 }
 
 
-static int mp2p_simple_audio_parse(Track *tr, uint8_t *data, size_t len, 
-                                   uint8_t *buf, size_t bufSize, size_t maxSize)
-{
-    int64_t pts, dts;
-    mp2p_priv * priv = (mp2p_priv * )tr->private_data;
-    mp2p_stream_info * stream = &(priv->stream_info[tr->info->id]);
-    size_t orgBufSize = bufSize, index = 0;
-    uint8_t dwPtsDtsFlag;
-    uint8_t first_PES_frag = 1;
+// mp4v parser
+class Mp4vStreamParser: public StreamParser{
 
-
-    pts = pts2PSTimpstamp(tr, tr->properties.pts);
-    dts = pts2PSTimpstamp(tr, tr->properties.dts);
-
-    dwPtsDtsFlag = 2;
-
+public:
+    static StreamParser * CreateParser(const std::string &codec_name, uint8_t stream_id, 
+                                       uint8_t stream_type, int media_type, int max_buffer_size);
     
-    /* frame: (data), size: len */
-
-    while(index < len) {
-
-        int pes_header_size;
-        uint32_t stuffSize;
-        size_t partial_size = 0;
-        size_t pes_size = 0;
-
-        pes_size = 0;
-        partial_size = 0;
-        pes_header_size = 0;
-        stuffSize = 0;
-
-        /* calulate PES size */
-        pes_header_size = get_pes_header_size(bufSize,dwPtsDtsFlag, first_PES_frag, &stuffSize);
-        pes_size += pes_header_size;
-
-        if(pes_size + (len - index) > priv->packet_size) {
-            partial_size = priv->packet_size - pes_size;
-        }else{
-            partial_size = len - index;
-
-        }
-        pes_size += partial_size;
-
-
-        /* check overflow */
-        if(pes_size + bufSize > maxSize) {
-            /* error, not enough space */
-            fnc_log(FNC_LOG_ERR, "[mp2p] audio: not enough space to hold pes (%d/%d)", 
-                    (int)pes_size + bufSize, (int)maxSize);
-            return -1;
-        }
-
-        /* fill in PES header */
-        pes_header_size = put_pes_header(stream->stream_id, 
-                                         pes_size - 6, stuffSize, 
-                                         first_PES_frag, 
-                                         0,
-                                         dwPtsDtsFlag, pts, dts, 
-                                         stream->max_buffer_size,
-                                         buf + bufSize, maxSize - bufSize);
-        bufSize += pes_header_size;
-                
-
-        /* fill in NALU */
-        memcpy(buf + bufSize, (data + index), partial_size);
-        bufSize += partial_size;
-
-        /* clean up */
-        dwPtsDtsFlag = 0; /* only the first pes has pts */
-        first_PES_frag = 0;
-        index += partial_size;
-                
-    }
-
-    return (int)(bufSize - orgBufSize);
-
-}
-
-
-
-
-
-/**********************************************************************************/
-/* mp2p parser */
-
-static const mp2p_stream_struct mp2p_streams[] = {
-    { "H264", 0x1b, mp2p_h264_parse, ish264KeyFrame},
-    { "MP4V-ES", 0x10, mp2p_mp4v_parse, isMp4vesKeyFrame},
-    { "PCMU", 0x90, mp2p_simple_audio_parse, noKeyFrame},
-    { "PCMA", 0x90, mp2p_simple_audio_parse, noKeyFrame},
-    { "NONE", 0, NULL, NULL}//XXX ...
+    virtual bool IsKeyFrame(uint8_t *data, size_t len);
+protected:
+    Mp4vStreamParser(const std::string &codec_name, 
+                     uint8_t stream_id, uint8_t stream_type, 
+                     int media_type, int max_buffer_size);
 };
 
-static const mp2p_stream_struct * find_stream_struct(char * codec_name)
+extern "C" int isMp4vKeyFrame(uint8_t * frameSource, size_t frameSize);
+
+bool Mp4vStreamParser::IsKeyFrame(uint8_t *data, size_t len)
 {
-    const mp2p_stream_struct *tags = mp2p_streams;
-    while (strcmp(tags->tag, "NONE") != 0) {
-        if (strcmp(tags->tag, codec_name) == 0){
-            return tags;
+    return (isMp4vKeyFrame(data,len) != 0);
+}
+
+Mp4vStreamParser::Mp4vStreamParser(const std::string &codec_name, 
+                     uint8_t stream_id, uint8_t stream_type, 
+                     int media_type, int max_buffer_size)
+:StreamParser(codec_name, stream_id, stream_type, media_type, max_buffer_size)
+{
+    
+}
+
+StreamParser * Mp4vStreamParser::CreateParser(const std::string &codec_name, uint8_t stream_id, 
+                                         uint8_t stream_type, int media_type, int max_buffer_size)
+{
+    return new Mp4vStreamParser(codec_name, stream_id, stream_type, 
+                                media_type, max_buffer_size);
+}
+
+
+#define MAX_CACHE_SIZE  (5*1024*1024)
+// h264 parser
+class H264StreamParser: public StreamParser{
+
+public:
+
+    static StreamParser * CreateParser(const std::string &codec_name, uint8_t stream_id, 
+                                       uint8_t stream_type, int media_type, int max_buffer_size);
+    
+    virtual bool IsKeyFrame(uint8_t *data, size_t len)
+    {
+        return is_key_frame_;
+    }
+    
+    virtual int Parse(Track *tr, uint8_t *data, size_t len);
+    virtual void Reset(Track *tr){
+        frame_cache_.clear();
+        cache_dts_ = 0;
+        cache_pts_ = 0;
+        is_key_frame_ = false;
+        return;
+    }    
+    virtual int FlushCache(Track *tr);
+    virtual int AppendCache(Track *tr, uint8_t *data, size_t len);
+    
+    virtual bool IsVCL(uint8_t *data, size_t len){
+        uint8_t nal_unit_type;
+        if(data == NULL || len == 0){
+            return false;
         }
-        tags++;
+        nal_unit_type =  data[0] & 0x1F;
+        if(nal_unit_type <= 5){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    virtual bool IsIDR(uint8_t *data, size_t len){
+        uint8_t nal_unit_type;
+        if(data == NULL || len == 0){
+            return false;
+        }
+        nal_unit_type =  data[0] & 0x1F;
+        if(nal_unit_type == 5){
+            return true;
+        }else{
+            return false;
+        }        
+    }
+    
+protected:
+    H264StreamParser(const std::string &codec_name, 
+                     uint8_t stream_id, uint8_t stream_type, 
+                     int media_type, int max_buffer_size);
+                     
+protected:
+    bool is_key_frame_;
+    std::string frame_cache_;
+    double cache_pts_;             //time is in seconds
+    double cache_dts_;             //time is in seconds
+    
+};
+
+
+H264StreamParser::H264StreamParser(const std::string &codec_name, 
+                     uint8_t stream_id, uint8_t stream_type, 
+                     int media_type, int max_buffer_size)
+:StreamParser(codec_name, stream_id, stream_type, media_type, max_buffer_size), 
+is_key_frame_(false), cache_pts_(0.0), cache_dts_(0.0)
+{
+    
+}
+
+int H264StreamParser::Parse(Track *tr, uint8_t *data, size_t len)
+{
+    double pts = tr->properties.pts;             
+    double dts = tr->properties.dts; 
+    int ret = ERR_NOERROR;
+    
+           
+    //
+    // 1 if cannot merge with the current frame, flush the cache
+    //
+    if(!frame_cache_.empty() && 
+       (fabs(pts - cache_pts_) >= 0.002 || fabs(dts-cache_dts_) >= 0.002)){
+        FlushCache(tr);
+    }
+    
+    //
+    // 2 add the current frame to the cache
+    //
+    if(AppendCache(tr, data, len)){
+        return ERR_ALLOC;    
+    }
+    is_key_frame_ = IsIDR(data, len);
+    
+    //
+    // 3 flush the cache for VCL
+    if(IsVCL(data, len)){
+        ret = FlushCache(tr);
+    }    
+    
+    return ret;
+}
+
+int H264StreamParser::AppendCache(Track *tr, uint8_t *data, size_t len)
+{
+    char start_code[] = {0, 0, 0, 1};
+    bool is_cache_empty = frame_cache_.empty();
+    
+    if(frame_cache_.size() >= MAX_CACHE_SIZE){
+        return -1;
+    }
+    
+    frame_cache_.append(start_code, 4);
+    frame_cache_.append((const char *)data, len);
+    if(is_cache_empty){
+        cache_pts_ = tr->properties.pts;
+        cache_dts_ = tr->properties.dts;
+    }
+    return 0;
+}
+
+int H264StreamParser::FlushCache(Track *tr)
+{
+    double org_pts = tr->properties.pts;
+    double org_dts = tr->properties.dts;
+    int ret = ERR_NOERROR;
+    
+    if(frame_cache_.empty()){
+        return ERR_NOERROR;
+    }
+    
+    tr->properties.pts = cache_pts_;
+    tr->properties.dts = cache_dts_;
+    
+    ret = StreamParser::Parse(tr, (uint8_t *)frame_cache_.data(), frame_cache_.size());
+    
+    tr->properties.pts = org_pts;
+    tr->properties.dts = org_dts;
+    frame_cache_.clear();
+    
+    return ret;
+    
+}
+
+
+
+
+
+StreamParser * H264StreamParser::CreateParser(const std::string &codec_name, uint8_t stream_id, 
+                                         uint8_t stream_type, int media_type, int max_buffer_size)
+{
+    return new H264StreamParser(codec_name, stream_id, stream_type, 
+                                media_type, max_buffer_size);
+}
+
+
+
+
+
+// parser repo
+
+struct StreamParserInfo{
+    const char *codec_name;
+    uint8_t stream_type;
+    
+    StreamParser * (*factory)(const std::string &codec_name, 
+                              uint8_t stream_id, uint8_t stream_type, 
+                              int media_type, int max_buffer_size);
+} ;
+
+static const StreamParserInfo mp2p_stream_parsers[] = {
+    { "H264", 0x1b, H264StreamParser::CreateParser},
+    { "MP4V-ES", 0x10, Mp4vStreamParser::CreateParser},
+    { "PCMU", 0x90, StreamParser::CreateParser},
+    { "PCMA", 0x90, StreamParser::CreateParser},
+    { NULL, 0, NULL}//XXX ...
+};
+
+
+static StreamParser * CreateStreamParser(const std::string &codec_name, uint8_t stream_id, 
+                                         int media_type, int max_buffer_size)
+{
+    
+    const StreamParserInfo * parser_info = mp2p_stream_parsers;
+    while(parser_info->codec_name != NULL){
+        if(codec_name == parser_info->codec_name && 
+           parser_info->factory != NULL){
+            return parser_info->factory(codec_name, stream_id, parser_info->stream_type, 
+                                        media_type, max_buffer_size);
+        }
+        parser_info ++;
     }
     return NULL;
 }
@@ -913,7 +1028,8 @@ static const mp2p_stream_struct * find_stream_struct(char * codec_name)
 
 
 
-
+/**********************************************************************************/
+/* mp2p parser */
 
 
 static int mp2p_init(Track *track)
@@ -978,50 +1094,56 @@ static int mp2p_init(Track *track)
     for(i=0;i<priv->stream_num;i++) {
         int codec_rate;
         stream_switch::SubStreamMetadata *sub_meta = &(meta.sub_streams[i]);
-        const mp2p_stream_struct * stream_tag;
-
-        stream_tag = find_stream_struct((char *)sub_meta->codec_name.c_str());
-        if(stream_tag == NULL) {
-            fnc_log(FNC_LOG_WARN, "[mp2p] codec name %s is unsupported, skip", sub_meta->codec_name.c_str());
-            continue;
-        }
+        int max_buffer_size = 0;
+        uint8_t stream_id = 0;
         
-        priv->stream_info[i].stream_type = stream_tag->stream_type;
-        priv->stream_info[i].parse = stream_tag->parse;
-        priv->stream_info[i].isKeyFrame = stream_tag->isKeyFrame;
-
+        
         switch(sub_meta->media_type){
         case SUB_STREAM_MEIDA_TYPE_AUDIO:
-            priv->stream_info[i].max_buffer_size = 8 * 1024;
-            priv->stream_info[i].stream_id = mpa_id++;
-            priv->stream_info[i].type = SUB_STREAM_MEIDA_TYPE_AUDIO;
-            priv->audio_bound++;
+            max_buffer_size = 8 * 1024;
+            stream_id = mpa_id;
             break;
         case SUB_STREAM_MEIDA_TYPE_VIDEO:
-
-
-            priv->stream_info[i].max_buffer_size = 4 * 1024 * 1024;
-            priv->stream_info[i].stream_id = mpv_id++;;
-            priv->stream_info[i].type = SUB_STREAM_MEIDA_TYPE_VIDEO;
-            priv->video_bound++;
+            max_buffer_size = 4 * 1024 * 1024;
+            stream_id = mpv_id;
             break;
         case SUB_STREAM_MEIDA_TYPE_TEXT:
         case SUB_STREAM_MEIDA_TYPE_PRIVATE:
         default:
-            priv->stream_info[i].stream_type = 0;
-            priv->stream_info[i].stream_id = 0;
-            priv->stream_info[i].parse = NULL;
+            stream_id = 0;
             fnc_log(FNC_LOG_WARN, "[mp2p] codec type unsupported, skip");
             continue;
+            break;
+        }        
+        
+        priv->streams[i] = CreateStreamParser(sub_meta->codec_name, stream_id, 
+                                              sub_meta->media_type, max_buffer_size);
+                    
+        if(priv->streams[i] == NULL){
+            fnc_log(FNC_LOG_WARN, "[mp2p] codec name %s is unsupported, skip", sub_meta->codec_name.c_str());
+            continue;            
+        }
+        
+        //create parser successfully
+        
+        switch(sub_meta->media_type){
+        case SUB_STREAM_MEIDA_TYPE_AUDIO:
+            mpa_id++;
+            priv->audio_bound++;
+            break;
+        case SUB_STREAM_MEIDA_TYPE_VIDEO:
+            mpv_id++;;
+            priv->video_bound++;
+            break;
+
+        default:
             break;
         }
 
         /* bit rate*/
-
         codec_rate= (1<<21)*8*50/priv->stream_num;
 
         bitrate += codec_rate;
-
     }
 
     if(priv->video_bound == 0 ) {
@@ -1039,8 +1161,6 @@ static int mp2p_init(Track *track)
     bitrate += bitrate / 20;
     bitrate += 10000;
     priv->mux_rate = (bitrate + (8 * 50) - 1) / (8 * 50);
-
-
     
 
     /* add rtp encoder map */
@@ -1061,6 +1181,13 @@ static int mp2p_init(Track *track)
     
 error2:
     if(priv != NULL) {
+        for(int i=0;i<priv->stream_num;i++) {
+            if(priv->streams[i] != NULL){
+                delete priv->streams[i];
+                priv->streams[i] = NULL;                
+            }
+        }  
+       
         g_slice_free(mp2p_priv, priv);
     }
 
@@ -1114,95 +1241,46 @@ static int mp2p_parse(Track *tr, uint8_t *data, size_t len)
 
     priv = (mp2p_priv *)tr->private_data;
     index = tr->info->id;
-
-    if(priv->stream_info[index].stream_id == 0 ||
-       priv->stream_info[index].parse == NULL) {
+    
+    if(priv->streams[index] == NULL){
         fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame skip (no stream)");
-        return ERR_NOERROR;
+        return ERR_NOERROR;        
     }
 
 
-    /* malloc space*/
-    maxBufSize = 0;
-    maxBufSize += 256; /* pack, system, map header size */
-    maxBufSize += ((len + priv->packet_size -100 -1)/ (priv->packet_size -100)) * 256; /* pes headers */
-    maxBufSize += len;
-    maxBufSize += 1024; /* add 1 K extraly */
-    buf = (uint8_t *)g_malloc(maxBufSize);
-    if(buf == NULL) {
-        fnc_log(FNC_LOG_ERR, "[mp2p] mp2p_h264_parse malloc failed");
-        ret = RESOURCE_DAMAGED;
-        goto error1;
-    }
-    memset(buf, 0, maxBufSize);
-    bufSize = 0;
+    return priv->streams[index]->Parse(tr, data, len);
 
-    timestamp = pts2PSTimpstamp(tr, tr->properties.pts);
-
-    
-    /* add pack header */
-    retSize = put_pack_header(priv, buf+bufSize, maxBufSize - bufSize, timestamp);
-    bufSize += retSize;
-
-    /* check if key frame, then add system header and map header */
-    if(priv->stream_info[index].isKeyFrame != NULL &&
-       priv->stream_info[index].isKeyFrame(tr, data,len)) {
-        
-        retSize = put_system_header(priv, buf+bufSize, maxBufSize - bufSize);
-        bufSize += retSize;        
-
-        retSize = put_system_map_header(priv,buf+bufSize, maxBufSize - bufSize);
-        bufSize += retSize;
-        
-        //key frame start a new gov
-        priv->gov_start = 1;
-    }
-
-    retSize = priv->stream_info[index].parse(tr, data, len, buf, bufSize, maxBufSize);
-    if(retSize < 0 ) {
-        fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame parser error");
-        ret = RESOURCE_NOT_PARSEABLE;
-        goto error2;
-    }
-    bufSize += retSize;
-
-
-    /* frags */
-    if(retSize > 0 && priv->gov_start != 0) { /* means some data is added */
-        mp2p_rtp_frag(tr,buf,bufSize);
-        fnc_log(FNC_LOG_VERBOSE, "[mp2p] Frame completed");
-    }
-
-    g_free(buf);
-
-
-    return ERR_NOERROR;
-
-error2:
-    
-    g_free(buf);
-error1:
-    return ret;
 
 }
 
 static void mp2p_uninit(Track *tr)
 {
     if(tr->private_data) {
+        mp2p_priv * priv = (mp2p_priv * )tr->private_data;
+        for(int i=0;i<priv->stream_num;i++) {
+            if(priv->streams[i] != NULL){
+                delete priv->streams[i];
+                priv->streams[i] = NULL;                
+            }
+        }   
+ 
         g_slice_free(mp2p_priv, tr->private_data);
         tr->private_data = NULL;
     }
 }
 
-
 static void mp2p_reset(Track *tr)
 {
     if(tr->private_data) {
         mp2p_priv * priv = (mp2p_priv * )tr->private_data;
+        for(int i=0;i<priv->stream_num;i++) {
+            if(priv->streams[i] != NULL){
+                priv->streams[i]->Reset(tr);                
+            }
+        }          
         priv->gov_start = 0;
     }
 }
-
 
 FNC_LIB_MEDIAPARSER(mp2p);
 
