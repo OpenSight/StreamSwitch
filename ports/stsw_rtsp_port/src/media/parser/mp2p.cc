@@ -36,8 +36,8 @@
 
 #include "stream_switch.h"
 
-#define MP2P_MAX_STREAM_NUM 4
-#define MP2P_MAX_PES_SIZE 5120
+#define MP2P_MAX_STREAM_NUM 8
+#define MP2P_MAX_PES_SIZE 8192
 
 
 
@@ -745,6 +745,7 @@ int StreamParser::EncodePes(Track *track, uint8_t *data, size_t len,
                 partial_size = len - index;
 
             }
+
             pes_size += partial_size;
 
 
