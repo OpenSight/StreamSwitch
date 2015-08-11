@@ -144,6 +144,7 @@ class ProcWatcher(object):
         if ret is None:
             # time out, force child process terminate
             popen.kill()
+            popen.wait()
 
     
     @property
@@ -234,6 +235,7 @@ class ProcWatcher(object):
             if ret is None:
                 # time out, force child process terminate
                 self._popen.kill()
+                self._popen.wait()
                 ret = -1
 
             self._on_process_terminate(ret)
@@ -260,7 +262,7 @@ class ProcWatcher(object):
             gevent.spawn(ProcWatcher._terminate_run, self._popen, wait_timeout)
             self._on_process_terminate(0)
     
-    def delete(self):
+    def destroy(self):
         self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)
 
         global _watchers
@@ -331,7 +333,7 @@ def test_main():
     print(ls_watcher)
     assert(ls_watcher.restart_count > 0)
     ls_watcher.stop()
-    ls_watcher.delete()
+    ls_watcher.destroy()
     del ls_watcher
 
     print("create \"sleep\" watcher")
@@ -381,7 +383,7 @@ def test_main():
     print("enter sleep")
     sleep(1)
 
-    sleep_watcher.delete()
+    sleep_watcher.destroy()
 
 if __name__ == "__main__":
     test_main()

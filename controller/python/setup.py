@@ -12,7 +12,8 @@ requires = [
     'pyramid_debugtoolbar>=2.2.2',
     'PyYaml>=3.11',
     'pyramid_chameleon>=0.3',
-    'gevent>=1.1b1'
+    'gevent>=1.1b1',
+    'pyzmq>=14.0'
 ]
 
 if sys.version_info < (2,7):
