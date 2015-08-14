@@ -11,7 +11,10 @@ This module implements the input stream management
 
 from __future__ import unicode_literals, division
 from streamswitch.utils.exceptions import StreamSwitchError
-from streamswitch.utils.events import StreamSubsriberEvent
+from streamswitch.utils.events import StreamSubsriberEvent, StreamInfoEvent
+from ..pb.pb_packet_pb2 import *
+from ..pb.pb_stream_info_pb2 import *
+
 import zmq.green as zmq
 import gevent
 from gevent import sleep
@@ -29,6 +32,8 @@ STREAM_STATE_ERR = -1
 STREAM_STATE_ERR_CONNECT_FAIL = -2
 STREAM_STATE_ERR_MEIDA_STOP = -3
 STREAM_STATE_ERR_TIME = -4
+
+STREAM_STATE_ERR_TIMEOUT = -255
 
 PLAY_TYPE_LIVE = 0
 PLAY_TYPE_REPLAY = 1
@@ -54,7 +59,10 @@ STSW_SOCKET_NAME_STREAM_PREFIX = "stsw_stream"
 STSW_SOCKET_NAME_STREAM_PUBLISH = "broadcast"
 
 
+STSW_PUBLISH_INFO_CHANNEL = "info"
+STSW_PUBLISH_MEDIA_CHANNEL = "media"
 
+STSW_STREAM_STATE_TIMEOUT_TIME = 300
 
 class SubStreamMetaData(object):
     def __init__(self):
@@ -154,7 +162,7 @@ class StreamBase(object):
         self.cmd_args = []
 
         # status
-        self.state = STREAM_STATE_CONNECTING
+        self._state = STREAM_STATE_CONNECTING
         self.play_type = PLAY_TYPE_LIVE
         self.source_protocol = ""
         self.ssrc = 0
@@ -166,6 +174,14 @@ class StreamBase(object):
     @property
     def stream_name(self):
         return self._stream_name
+
+    @property
+    def state(self):
+        if self._state >= 0:
+            if time.time() - self.update_time >= STSW_STREAM_STATE_TIMEOUT_TIME:
+                return STREAM_STATE_ERR_TIMEOUT
+
+        return self._state
 
     def start(self):
         if self._has_destroy:
@@ -243,25 +259,39 @@ class StreamBase(object):
             "/" + self.stream_name + "/" + STSW_SOCKET_NAME_STREAM_PUBLISH
         subscriber_socket = self._mngr.zmq_ctx.socket(zmq.SUB)
         subscriber_socket.setsockopt(zmq.LINGER, 0)
-        subscriber_socket.set_string(zmq.SUBSCRIBE, "info")   # only recv the stream info
+        subscriber_socket.set_string(zmq.SUBSCRIBE, STSW_PUBLISH_INFO_CHANNEL)   # only recv the stream info
         subscriber_socket.connect(subscriber_endpoint)
         return subscriber_socket
 
     def _parse_sub_bytes(self, bytes_list):
         channel = bytes_list[0].decode()
-        packet = bytes_list[0] # more parse for packet_bytes
+        packet = ProtoCommonPacket.FromString(bytes_list[1])   # parse for packet_bytes
         if len(bytes_list) > 2:
             blob = bytes_list[2]
 
         return channel, packet, blob
 
     def _handle_sub_packet(self, channel, packet, blob):
+        if channel == STSW_PUBLISH_INFO_CHANNEL:
+            if packet.header.code == PROTO_PACKET_CODE_STREAM_INFO:
+                self._handle_stream_info(packet)
 
         if self._event_listener is not None and callable(self._event_listener):
             self._event_listener(StreamSubsriberEvent("Stream Subsriber event", self, channel, packet, blob))
 
-    def _handle_stream_info(self, packet):
-        pass
+    def _handle_stream_info(self, packet, blob):
+        stream_info = ProtoStreamInfoMsg.FromString(packet.body)
+        self.state = stream_info.state
+        self.play_type = stream_info.play_type
+        self.source_protocol = stream_info.source_proto
+        self.ssrc = stream_info.ssrc
+        self.cur_bps = stream_info.cur_bps
+        self.last_frame_time = float(stream_info.last_frame_sec) + float(stream_info.last_frame_usec) / 1000000.0
+        self.update_time = time.time()
+        self.client_num = stream_info.client_num
+
+        if self._event_listener is not None and callable(self._event_listener):
+            self._event_listener(StreamInfoEvent("Stream info event", self, stream_info))
 
 
 class StreamManager(object):

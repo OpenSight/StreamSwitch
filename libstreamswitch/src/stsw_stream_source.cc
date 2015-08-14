@@ -33,7 +33,7 @@
 #include <list>
 #include <string.h>
 #include <errno.h>
-
+#include <time.h>
 #include <czmq.h>
 
 #include <stsw_lock_guard.h>
@@ -46,6 +46,8 @@
 #include <pb_metadata.pb.h>
 #include <pb_media_statistic.pb.h>
 #include <pb_client_list.pb.h>
+
+
 
 namespace stream_switch {
 
@@ -1229,6 +1231,7 @@ void StreamSource::SendStreamInfo(void)
     stream_info.set_cur_bps(cur_bps_);
     stream_info.set_last_frame_sec(last_frame_sec_);
     stream_info.set_last_frame_usec(last_frame_usec_);
+    stream_info.set_send_time(time(NULL));
     stream_info.set_stream_name(stream_name_);
     stream_info.set_client_num((int32_t)receivers_info_->receiver_list.size());
     

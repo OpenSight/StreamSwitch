@@ -14,6 +14,7 @@ enum ProtoSourceStreamState {
     PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP = -3;    //stop to receive the media data
     PROTO_SOURCE_STREAM_STATE_ERR_TIME = -4;          //timestamp loss sync
     
+    PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT = -255;     //not receive the stream info 
 }
 
 message ProtoStreamInfoMsg{
@@ -25,7 +26,7 @@ message ProtoStreamInfoMsg{
     optional uint32 cur_bps = 5;  //the last 1 sec bps for the total throughput of this stream
     optional int64 last_frame_sec = 6;
     optional int32 last_frame_usec = 7;
-	optional int64 send_time = 8;    //the time (from epoch) in ms of broadcasting this msg
+	optional int64 send_time = 8;    //the time (from epoch) in second of broadcasting this msg
 	
 	optional string stream_name = 9;  //the stream name 
 	optional int32 client_num = 10;  //the client number
