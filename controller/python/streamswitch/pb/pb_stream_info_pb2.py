@@ -20,7 +20,7 @@ import pb_metadata_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='pb_stream_info.proto',
   package='stream_switch',
-  serialized_pb=_b('\n\x14pb_stream_info.proto\x12\rstream_switch\x1a\x11pb_metadata.proto\"\x9d\x02\n\x12ProtoStreamInfoMsg\x12\x34\n\x05state\x18\x01 \x01(\x0e\x32%.stream_switch.ProtoSourceStreamState\x12/\n\tplay_type\x18\x02 \x01(\x0e\x32\x1c.stream_switch.ProtoPlayType\x12\x14\n\x0csource_proto\x18\x03 \x01(\t\x12\x0c\n\x04ssrc\x18\x04 \x01(\r\x12\x0f\n\x07\x63ur_bps\x18\x05 \x01(\r\x12\x16\n\x0elast_frame_sec\x18\x06 \x01(\x03\x12\x17\n\x0flast_frame_usec\x18\x07 \x01(\x05\x12\x11\n\tsend_time\x18\x08 \x01(\x03\x12\x13\n\x0bstream_name\x18\t \x01(\t\x12\x12\n\nclient_num\x18\n \x01(\x05*\xb1\x02\n\x16ProtoSourceStreamState\x12(\n$PROTO_SOURCE_STREAM_STATE_CONNECTING\x10\x00\x12 \n\x1cPROTO_SOURCE_STREAM_STATE_OK\x10\x01\x12*\n\x1dPROTO_SOURCE_STREAM_STATE_ERR\x10\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x37\n*PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL\x10\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x35\n(PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP\x10\xfd\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12/\n\"PROTO_SOURCE_STREAM_STATE_ERR_TIME\x10\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01')
+  serialized_pb=_b('\n\x14pb_stream_info.proto\x12\rstream_switch\x1a\x11pb_metadata.proto\"\x9d\x02\n\x12ProtoStreamInfoMsg\x12\x34\n\x05state\x18\x01 \x01(\x0e\x32%.stream_switch.ProtoSourceStreamState\x12/\n\tplay_type\x18\x02 \x01(\x0e\x32\x1c.stream_switch.ProtoPlayType\x12\x14\n\x0csource_proto\x18\x03 \x01(\t\x12\x0c\n\x04ssrc\x18\x04 \x01(\r\x12\x0f\n\x07\x63ur_bps\x18\x05 \x01(\r\x12\x16\n\x0elast_frame_sec\x18\x06 \x01(\x03\x12\x17\n\x0flast_frame_usec\x18\x07 \x01(\x05\x12\x11\n\tsend_time\x18\x08 \x01(\x03\x12\x13\n\x0bstream_name\x18\t \x01(\t\x12\x12\n\nclient_num\x18\n \x01(\x05*\xe5\x02\n\x16ProtoSourceStreamState\x12(\n$PROTO_SOURCE_STREAM_STATE_CONNECTING\x10\x00\x12 \n\x1cPROTO_SOURCE_STREAM_STATE_OK\x10\x01\x12*\n\x1dPROTO_SOURCE_STREAM_STATE_ERR\x10\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x37\n*PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL\x10\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x35\n(PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP\x10\xfd\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12/\n\"PROTO_SOURCE_STREAM_STATE_ERR_TIME\x10\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x32\n%PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT\x10\x81\xfe\xff\xff\xff\xff\xff\xff\xff\x01')
   ,
   dependencies=[pb_metadata_pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -55,11 +55,15 @@ _PROTOSOURCESTREAMSTATE = _descriptor.EnumDescriptor(
       name='PROTO_SOURCE_STREAM_STATE_ERR_TIME', index=5, number=-4,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT', index=6, number=-255,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
   serialized_start=347,
-  serialized_end=652,
+  serialized_end=704,
 )
 _sym_db.RegisterEnumDescriptor(_PROTOSOURCESTREAMSTATE)
 
@@ -70,6 +74,7 @@ PROTO_SOURCE_STREAM_STATE_ERR = -1
 PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL = -2
 PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP = -3
 PROTO_SOURCE_STREAM_STATE_ERR_TIME = -4
+PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT = -255
 
 
 

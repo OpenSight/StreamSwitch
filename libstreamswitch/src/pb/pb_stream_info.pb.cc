@@ -98,7 +98,7 @@ void protobuf_AddDesc_pb_5fstream_5finfo_2eproto() {
     " \001(\t\022\014\n\004ssrc\030\004 \001(\r\022\017\n\007cur_bps\030\005 \001(\r\022\026\n\016l"
     "ast_frame_sec\030\006 \001(\003\022\027\n\017last_frame_usec\030\007"
     " \001(\005\022\021\n\tsend_time\030\010 \001(\003\022\023\n\013stream_name\030\t"
-    " \001(\t\022\022\n\nclient_num\030\n \001(\005*\261\002\n\026ProtoSource"
+    " \001(\t\022\022\n\nclient_num\030\n \001(\005*\345\002\n\026ProtoSource"
     "StreamState\022(\n$PROTO_SOURCE_STREAM_STATE"
     "_CONNECTING\020\000\022 \n\034PROTO_SOURCE_STREAM_STA"
     "TE_OK\020\001\022*\n\035PROTO_SOURCE_STREAM_STATE_ERR"
@@ -106,7 +106,8 @@ void protobuf_AddDesc_pb_5fstream_5finfo_2eproto() {
     "_ERR_CONNECT_FAIL\020\376\377\377\377\377\377\377\377\377\001\0225\n(PROTO_SO"
     "URCE_STREAM_STATE_ERR_MEIDA_STOP\020\375\377\377\377\377\377\377"
     "\377\377\001\022/\n\"PROTO_SOURCE_STREAM_STATE_ERR_TIM"
-    "E\020\374\377\377\377\377\377\377\377\377\001", 652);
+    "E\020\374\377\377\377\377\377\377\377\377\001\0222\n%PROTO_SOURCE_STREAM_STAT"
+    "E_ERR_TIMEOUT\020\201\376\377\377\377\377\377\377\377\001", 704);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "pb_stream_info.proto", &protobuf_RegisterTypes);
   ProtoStreamInfoMsg::default_instance_ = new ProtoStreamInfoMsg();
@@ -126,6 +127,7 @@ const ::google::protobuf::EnumDescriptor* ProtoSourceStreamState_descriptor() {
 }
 bool ProtoSourceStreamState_IsValid(int value) {
   switch(value) {
+    case -255:
     case -4:
     case -3:
     case -2:

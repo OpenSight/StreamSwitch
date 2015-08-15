@@ -43,10 +43,11 @@ enum ProtoSourceStreamState {
   PROTO_SOURCE_STREAM_STATE_ERR = -1,
   PROTO_SOURCE_STREAM_STATE_ERR_CONNECT_FAIL = -2,
   PROTO_SOURCE_STREAM_STATE_ERR_MEIDA_STOP = -3,
-  PROTO_SOURCE_STREAM_STATE_ERR_TIME = -4
+  PROTO_SOURCE_STREAM_STATE_ERR_TIME = -4,
+  PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT = -255
 };
 bool ProtoSourceStreamState_IsValid(int value);
-const ProtoSourceStreamState ProtoSourceStreamState_MIN = PROTO_SOURCE_STREAM_STATE_ERR_TIME;
+const ProtoSourceStreamState ProtoSourceStreamState_MIN = PROTO_SOURCE_STREAM_STATE_ERR_TIMEOUT;
 const ProtoSourceStreamState ProtoSourceStreamState_MAX = PROTO_SOURCE_STREAM_STATE_OK;
 const int ProtoSourceStreamState_ARRAYSIZE = ProtoSourceStreamState_MAX + 1;
 
