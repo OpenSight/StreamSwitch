@@ -17,6 +17,11 @@ class StreamSwitchEvent(object):
 
 
 class StreamSubsriberEvent(StreamSwitchEvent):
+    """subscriber message event
+
+    When a packet is received from subscriber socket, this event
+    would be passed to the event listener after processing
+    """
     def __init__(self, info, stream, channel, packet, blob):
         super(StreamSubsriberEvent, self).__init__(info)
         self.stream = stream
@@ -26,6 +31,12 @@ class StreamSubsriberEvent(StreamSwitchEvent):
 
 
 class StreamInfoEvent(StreamSwitchEvent):
+    """ Stream Info receving event
+
+    When a stream info message is handling by the stream, this
+    event would be passed to the event listener after processing
+
+    """
     def __init__(self, info, stream, stream_info):
         super(StreamSubsriberEvent, self).__init__(info)
         self.stream = stream
