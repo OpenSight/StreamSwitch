@@ -13,8 +13,8 @@ requires = [
     'PyYaml>=3.11',
     'pyramid_chameleon>=0.3',
     'gevent>=1.1b1',
-    'pyzmq>=14.0'
-    'protobuf>=3.0.0a3', 
+    'pyzmq>=14.0',
+    'protobuf>=3.0.0a3',
 ]
 
 if sys.version_info < (2,7):
