@@ -49,8 +49,8 @@ class ProcWatcher(object):
         self.process_exit_time = 0
         self.restart_count = 0
         self._proc_start_time = 0
-        self._error_restart_interval = error_restart_interval
-        self._success_restart_interval = success_restart_interval
+        self._error_restart_interval = float(error_restart_interval)
+        self._success_restart_interval = float(success_restart_interval)
         self._popen = None
         self._started = False
         self._process_status_cb = process_status_cb
@@ -80,12 +80,12 @@ class ProcWatcher(object):
                                        stderr=DEVNULL,
                                        close_fds=True,
                                        shell=False)
-        print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
+        # print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
         self._proc_start_time = time.time()
         self._on_process_status_change()
 
     def _on_process_terminate(self, ret):
-        print("process pid:%d terminated with returncode:%d" % (self._popen.pid, ret))
+        # print("process pid:%d terminated with returncode:%d" % (self._popen.pid, ret))
         self._popen = None
         self.process_return_code = ret
         self.process_exit_time = time.time()
@@ -171,6 +171,9 @@ class ProcWatcher(object):
     def restart_process(self):
         if self._popen is not None:
             self._popen.terminate()
+        else:
+            self._launch_process()   # start up the process
+            self.restart_count += 1
             
     def is_started(self):
         return self._started
@@ -271,7 +274,7 @@ class ProcWatcher(object):
 
 
 def spawn_watcher(args, 
-                  error_restart_interval=30, success_restart_interval=1, 
+                  error_restart_interval=30.0, success_restart_interval=1.0,
                   process_status_cb=None):
     """ create asd start a process watcher instance
 
@@ -306,6 +309,15 @@ def list_all_waitcher():
 def find_watcher_by_wid(wid):
     return _watchers.get(wid)
 
+
+def kill_all(name):
+    kill_all_popen = subprocess.Popen(["killall", "-9", name],
+                                       stdin=DEVNULL,
+                                       stdout=DEVNULL,
+                                       stderr=DEVNULL,
+                                       close_fds=True,
+                                       shell=False)
+    kill_all_popen.wait(5)
 
 def test_main():
     print("create ls watcher")

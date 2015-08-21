@@ -12,6 +12,7 @@ This module implements the input stream management
 from __future__ import unicode_literals, division
 from ..utils.exceptions import StreamSwitchError
 from ..utils.events import StreamSubsriberEvent, StreamInfoEvent
+from ..utils.process_mngr import spawn_watcher, PROC_STOP, kill_all
 from ..pb import pb_packet_pb2
 from ..pb import pb_stream_info_pb2
 from ..pb import pb_metadata_pb2
@@ -22,10 +23,7 @@ from ..pb import pb_client_heartbeat_pb2
 import zmq.green as zmq
 import gevent
 from gevent import sleep
-import sys
-import os
 import time
-import pprint
 
 DEFAULT_LOG_SIZE = 1024 * 1024
 DEFAULT_LOG_ROTATE = 3
@@ -42,16 +40,13 @@ STREAM_STATE_ERR_TIMEOUT = pb_stream_info_pb2.PROTO_SOURCE_STREAM_STATE_ERR_TIME
 PLAY_TYPE_LIVE = pb_metadata_pb2.PROTO_PLAY_TYPE_LIVE
 PLAY_TYPE_REPLAY = pb_metadata_pb2.PROTO_PLAY_TYPE_REPLAY
 
-
 STREAM_MODE_ACTIVE = "active"
 STREAM_MODE_PASSIVE = "passive"
-
 
 SUB_STREAM_MEIDA_TYPE_VIDEO = pb_metadata_pb2.PROTO_SUB_STREAM_MEIDA_TYPE_VIDEO
 SUB_STREAM_MEIDA_TYPE_AUDIO = pb_metadata_pb2.PROTO_SUB_STREAM_MEIDA_TYPE_AUDIO
 SUB_STREAM_MEIDA_TYPE_TEXT = pb_metadata_pb2.PROTO_SUB_STREAM_MEIDA_TYPE_TEXT
 SUB_STREAM_MEIDA_TYPE_PRIVATE = pb_metadata_pb2.PROTO_SUB_STREAM_MEIDA_TYPE_PRIVATE
-
 
 SUB_STREAM_DIRECTION_OUTBOUND = pb_metadata_pb2.PROTO_SUB_STREAM_DIRECTION_OUTBOUND
 SUB_STREAM_DIRECTION_INBOUND = pb_metadata_pb2.PROTO_SUB_STREAM_DIRECTION_INBOUND
@@ -150,9 +145,10 @@ class StreamBase(object):
     API_SEQ_MASK = 0xffffffff
     STSW_STREAM_STATE_TIMEOUT_TIME = 300
     STSW_STREAM_INFO_SENDTIME_VALID_TIMESLOT = 300
+    SUBSCRIBER_QUEUE_SIZE = 8
 
     def __init__(self, stream_name, manager, source_type, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30, extra_args={}, event_listener=None, *args, **kargs):
+                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_args={}, event_listener=None, *args, **kargs):
         self._mngr = manager
         self._stream_name = stream_name  # stream_name cannot be modified
         self._event_listener = event_listener
@@ -188,6 +184,17 @@ class StreamBase(object):
     def stream_name(self):
         return self._stream_name
 
+    def __str__(self):
+        return ('Stream %s (source_type:%s, url:%s, api_tcp_port:%d, log_file:%s,'
+                'log_size:%d, log_rotate:%d err_restart_interval:%d, mode:%s, '
+                'state:%d, play_type:%d, source_protocol:%s, ssrc:%d, cur_bps:%d, '
+                'last_frame_time:%f, update_time:%f, client_num:%d)') % \
+               (self.stream_name, self.source_type, self.url, self.api_tcp_port,
+                self.log_file, self.log_size, self.log_rotate,
+                self.err_restart_interval, self.mode, self.state, self.play_type,
+                self.source_protocol, self.ssrc, self.cur_bps,
+                self.last_frame_time, self.update_time, self.client_num)
+
     def start(self):
         """ start the stream instance
 
@@ -208,6 +215,24 @@ class StreamBase(object):
 
         self._has_started = True
 
+    def restart(self):
+        """ restart the stream
+
+        This method would restart this stream, the underlying
+        implementation would reconnect the stream source, and retrieve the stream data
+        with a different ssrc
+
+        """
+        if self._has_destroy:
+            raise StreamSwitchError("Stream Already Destroy", 503)
+        if not self._has_started:
+            raise StreamSwitchError("Stream Not Start", 503)
+
+        self._restart_internal()
+        if self.state >= 0:
+            self.state = STREAM_STATE_CONNECTING
+            self.update_time = time.time() + 1 # trick: ignore stream info update in next 1 sec
+
     def destroy(self):
         if self._has_destroy:
             return
@@ -225,7 +250,7 @@ class StreamBase(object):
         except Exception:
             pass
 
-    def get_stream_metadata(self, timeout):
+    def get_stream_metadata(self, timeout=5.0):
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
         request = self._new_request(pb_packet_pb2.PROTO_PACKET_CODE_METADATA)
@@ -271,7 +296,7 @@ class StreamBase(object):
 
         return metadata
 
-    def key_frame(self, timeout):
+    def key_frame(self, timeout=5.0):
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
         request = self._new_request(pb_packet_pb2.PROTO_PACKET_CODE_KEY_FRAME)
@@ -284,7 +309,7 @@ class StreamBase(object):
         if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_API) != 0:
             print("Decode no body from a PROTO_PACKET_CODE_KEY_FRAME reply")
 
-    def get_stream_statistic(self, timeout):
+    def get_stream_statistic(self, timeout=5.0):
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
         request = self._new_request(pb_packet_pb2.PROTO_PACKET_CODE_MEDIA_STATISTIC)
@@ -317,7 +342,7 @@ class StreamBase(object):
             stream_statistic.sub_stream_stats.append(sub_stream_statistic)
         return stream_statistic
 
-    def get_client_list(self, start_index, max_client_num, timeout):
+    def get_client_list(self, start_index, max_client_num, timeout=5.0):
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
 
@@ -380,7 +405,7 @@ class StreamBase(object):
 
             api_socket.send_multipart(send_bytes_list)
 
-            event = api_socket.poll(timeout)   # wait for timeout
+            event = api_socket.poll(int(timeout * 1000))   # wait for timeout
             if event != zmq.POLLIN:
                 raise StreamSwitchError("Requet Timeout", 503)
             recv_bytes_list = api_socket.recv_multipart(zmq.NOBLOCK)
@@ -405,12 +430,15 @@ class StreamBase(object):
             raise StreamSwitchError("Reply invalid", 500)
 
         if rep_packet.header.status < 200 or \
-            rep_packet.header.stauts >= 300:
+            rep_packet.header.status >= 300:
             raise StreamSwitchError(rep_packet.header.info, rep_packet.header.status)
 
         return rep_packet, blob
 
     def _start_internal(self):
+        pass
+
+    def _restart_internal(self):
         pass
 
     def _destroy_internal(self):
@@ -423,6 +451,7 @@ class StreamBase(object):
 
         while (not self._has_destroy) and (current == self._subscriber_greenlet):
             try:
+                # print("subscriber_run is running")
                 if subscriber_socket is None:
                     subscriber_socket = self._create_subsriber_socket()
 
@@ -432,6 +461,10 @@ class StreamBase(object):
                     try:
                         channel, packet, blob = self._parse_sub_bytes(bytes_list)
                         self._handle_sub_packet(channel, packet, blob)
+                        if self._event_listener is not None and callable(self._event_listener):
+                            self._event_listener(
+                                StreamSubsriberEvent("Stream Subsriber event",
+                                                     self, channel, packet, blob))
                     except Exception:
                         # ignore handler exception
                         pass
@@ -458,6 +491,8 @@ class StreamBase(object):
             "/" + self.stream_name + "/" + STSW_SOCKET_NAME_STREAM_PUBLISH
         subscriber_socket = self._mngr.zmq_ctx.socket(zmq.SUB)
         subscriber_socket.setsockopt(zmq.LINGER, 0)
+        subscriber_socket.setsockopt(zmq.RCVHWM, self.SUBSCRIBER_QUEUE_SIZE)
+        subscriber_socket.setsockopt(zmq.SNDHWM, self.SUBSCRIBER_QUEUE_SIZE)
         subscriber_socket.set_string(zmq.SUBSCRIBE, STSW_PUBLISH_INFO_CHANNEL)   # only recv the stream info
         subscriber_socket.connect(subscriber_endpoint)
         return subscriber_socket
@@ -497,18 +532,17 @@ class StreamBase(object):
             if packet.header.code == pb_packet_pb2.PROTO_PACKET_CODE_STREAM_INFO:
                 self._handle_stream_info(packet, blob)
 
-        if self._event_listener is not None and callable(self._event_listener):
-            self._event_listener(
-                StreamSubsriberEvent("Stream Subsriber event",
-                                     self, channel, packet, blob))
-
     def _handle_stream_info(self, packet, blob=None):
         now = time.time()
         stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
-        if (stream_info.send_time < now) and \
-                (now - stream_info.send_time >
-                 self.STSW_STREAM_INFO_SENDTIME_VALID_TIMESLOT):
-            return  # ignore the too old stream info
+        send_time = float(stream_info.send_time) / 1000.0
+        if (time.time() - send_time >=
+                self.STSW_STREAM_STATE_TIMEOUT_TIME):
+            return    # ignore the too old info
+
+        if stream_info.ssrc == self.ssrc and \
+           send_time < self.update_time:
+            return  # ignore the out-time stream info
 
         self.state = stream_info.state
         self.play_type = stream_info.play_type
@@ -518,7 +552,7 @@ class StreamBase(object):
         self.last_frame_time = \
             float(stream_info.last_frame_sec) + \
             float(stream_info.last_frame_usec) / 1000000.0
-        self.update_time = time.time()
+        self.update_time = send_time
         self.client_num = stream_info.client_num
 
         if self._event_listener is not None and callable(self._event_listener):
@@ -531,6 +565,60 @@ class StreamBase(object):
         return seq
 
 
+class SourceProcessStream(StreamBase):
+    program_name = None
+
+    def __init__(self, *args, **kargs):
+        super(SourceProcessStream, self).__init__(*args, **kargs)
+        self.cmd_args = self._generate_cmd_args()
+        self.proc_watcher = None
+
+    def _generate_cmd_args(self):
+        if self.program_name is None or len(self.program_name) == 0:
+            program_name = self.source_type
+        else:
+            program_name = self.program_name
+
+        cmd_args = [program_name, "-s", self.stream_name]
+
+        if self.api_tcp_port != 0:
+            cmd_args.extend(["-p", "%d" % self.api_tcp_port])
+        if self.log_file is not None:
+            cmd_args.extend(["-l", self.log_file])
+            cmd_args.extend(["-L", "%d" % self.log_size])
+            cmd_args.extend(["-r", "%d" % self.log_rotate])
+
+        cmd_args.extend(["-u", self.url])
+
+        for k, v in self.extra_conf.items():
+            cmd_args.append("--%s=%s" % (k, v))
+
+        return cmd_args
+
+    def _start_internal(self):
+        if self.proc_watcher is not None:
+            self.proc_watcher.destroy()
+
+        self.proc_watcher = spawn_watcher(self.cmd_args,
+                                          error_restart_interval=self.err_restart_interval,
+                                          process_status_cb=self._process_status_cb)
+
+    def _restart_internal(self):
+        if self.proc_watcher is not None:
+            self.proc_watcher.restart_process()
+
+    def _destroy_internal(self):
+        if self.proc_watcher is not None:
+            self.proc_watcher.stop()
+            self.proc_watcher.destroy()
+            self.proc_watcher = None
+
+    def _process_status_cb(self, proc_watcher):
+        if proc_watcher.process_status == PROC_STOP:
+            if (proc_watcher.process_return_code != 0) and (self.state >= 0):
+                self.state = STREAM_STATE_ERR
+
+
 class StreamManager(object):
     def __init__(self):
         self.zmq_ctx = zmq.Context.instance()
@@ -539,6 +627,11 @@ class StreamManager(object):
         self._tmp_creating_stream = set()
 
     def register_source_type(self, source_type, stream_factory):
+        if source_type is None or len(source_type) == 0:
+            raise StreamSwitchError("source_type invalid", 400)
+        if stream_factory is None or (not callable(stream_factory)):
+            raise StreamSwitchError("stream_factory invalid", 400)
+
         self._source_type_map[source_type] = stream_factory
 
     def unregister_source_type(self, source_type):
@@ -550,7 +643,7 @@ class StreamManager(object):
         return list(self._source_type_map.keys())
 
     def new_stream(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30, extra_args={}, event_listener=None):
+                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_args={}, event_listener=None):
         # check params
         if source_type is None or stream_name is None:
             raise StreamSwitchError("Param error" % source_type, 404)
@@ -577,6 +670,8 @@ class StreamManager(object):
         self._stream_map[stream_name] = stream
         self._tmp_creating_stream.discard(stream_name)
 
+        return stream
+
     def list_streams(self):
         return list(self._stream_map.values())
 
@@ -593,25 +688,85 @@ class StreamManager(object):
 StreamManager = StreamManager()
 
 
-def test_main():
+def test_source_process_stream():
+    # clear up
+    kill_all("file_live_source")
+
+    StreamManager.register_source_type("file_live_source", SourceProcessStream)
+    test_stream = StreamManager.new_stream("file_live_source", "test_file_stream", "/dev/zero")
+    print("new test_file_stream:")
+    print(test_stream)
+    print("cmd_args: %s" % test_stream.cmd_args)
+    assert(test_stream.state == STREAM_STATE_CONNECTING)
+
+    gevent.sleep(2)
+    print("after 2 sec, test_file_stream:")
+    print(test_stream)
+    assert(test_stream.state == STREAM_STATE_OK)
+
+    metadata = test_stream.get_stream_metadata()
+    assert(metadata.source_protocol == "FileSystem")
+    assert(metadata.play_type == PLAY_TYPE_LIVE)
+
+    test_stream.key_frame()
+
+    statistic = test_stream.get_stream_statistic()
+    assert(statistic.ssrc != 0)
+    assert(statistic.sum_bytes > 0)
+    assert(statistic.timestamp != 0)
+    assert(metadata.ssrc == statistic.ssrc)
+
+    print("restart test_file_stream")
+    test_stream.restart()
+    assert(test_stream.state == STREAM_STATE_CONNECTING)
+    print(test_stream)
+    gevent.sleep(0.1)
+    print("after restart 0.1 sec, test_file_stream:")
+    print(test_stream)
+    assert(test_stream.state == STREAM_STATE_CONNECTING)
+    gevent.sleep(3)
+    print("after restart 3 sec, test_file_stream:")
+    print(test_stream)
+    assert(test_stream.state == STREAM_STATE_OK)
+    new_metadata = test_stream.get_stream_metadata()
+    assert(metadata.ssrc != new_metadata.ssrc)
+    test_stream.destroy()
+    StreamManager.unregister_source_type("file_live_source")
+
+
+def test_stream_base():
+
+
     StreamManager.register_source_type("base_stream", StreamBase)
     print("Source type list:")
     print(StreamManager.list_source_types())
     assert(StreamManager.list_source_types() == ["base_stream"])
     test_stream = StreamManager.new_stream("base_stream", "test_stream", "stsw://123")
+    assert(test_stream == StreamManager.get_stream("test_stream"))
+    assert(len(StreamManager.list_streams()) == 1)
+    print("new test_stream:")
+    print(test_stream)
     assert(test_stream.stream_name == "test_stream")
     assert(test_stream.state == STREAM_STATE_CONNECTING)
     gevent.sleep(1)
+    print("after 1 sec, test_stream:")
+    print(test_stream)
     assert(test_stream.state == STREAM_STATE_CONNECTING)
     StreamBase.STSW_STREAM_STATE_TIMEOUT_TIME = 5   # modify a constant for test
     gevent.sleep(10)
+    print("after 10 sec, test_stream:")
+    print(test_stream)
     assert(test_stream.state == STREAM_STATE_ERR_TIMEOUT)
+
+    test_stream.destroy()
+
+    assert(len(StreamManager.list_streams()) == 0)
 
     StreamManager.unregister_source_type("base_stream")
     assert(len(StreamManager.list_source_types()) == 0)
 
 
-
 if __name__ == "__main__":
-    # test_main()
+    # test_stream_base()
+    # test_source_process_stream
     pass
