@@ -298,7 +298,13 @@ void FileLiveSource::SendNextFrame()
 
     gettimeofday(&(frame.timestamp), NULL);
     
+
     ret = source_.SendLiveMediaFrame(frame, frame_buf_, frame_size_, &err_info);
+    if(ret){
+        fprintf(stderr, "SendLiveMediaFrame() failed(%d): %s", 
+        ret, err_info.c_str());
+        exit(-1);
+    }
     
 }
 
@@ -412,6 +418,7 @@ int main(int argc, char *argv[])
                 next_send_tv.tv_sec += next_send_tv.tv_usec / 1000000;
                 next_send_tv.tv_usec =  next_send_tv.tv_usec % 1000000;
             }
+
             source.SendNextFrame();
         }
         
