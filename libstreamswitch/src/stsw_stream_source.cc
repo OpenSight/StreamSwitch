@@ -1231,7 +1231,7 @@ void StreamSource::SendStreamInfo(void)
     stream_info.set_cur_bps(cur_bps_);
     stream_info.set_last_frame_sec(last_frame_sec_);
     stream_info.set_last_frame_usec(last_frame_usec_);
-    stream_info.set_send_time(time(NULL));
+    stream_info.set_send_time((int64_t)zclock_time());
     stream_info.set_stream_name(stream_name_);
     stream_info.set_client_num((int32_t)receivers_info_->receiver_list.size());
     
