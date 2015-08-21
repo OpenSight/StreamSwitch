@@ -429,8 +429,13 @@ int main(int argc, char *argv[])
         }else if (waittime > 100000){
             waittime = 100000; //at most 100 ms
         }
-        
-        usleep(waittime);                
+        {
+            struct timespec req;
+            req.tv_sec = 0;
+            req.tv_nsec = waittime * 1000;            
+            nanosleep(&req, NULL);
+
+        }           
     }
     
  

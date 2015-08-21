@@ -1140,11 +1140,15 @@ int StreamSource::Heartbeat(int64_t now)
     }
 
     LockGuard guard(&lock_);
-    
-    int64_t elapse = now - last_heartbeat_time_;
-    last_heartbeat_time_ = now;   
-    if(elapse != 0){
-        cur_bps_ = cur_bytes_ * 8 * 1000 / elapse;
+    if(last_heartbeat_time_ != 0){
+        int64_t elapse = now - last_heartbeat_time_;
+        last_heartbeat_time_ = now;   
+        if(elapse != 0){
+            cur_bps_ = cur_bytes_ * 8 * 1000 / elapse;
+            cur_bytes_ = 0;
+        }
+    }else{
+        last_heartbeat_time_ = now;   
         cur_bytes_ = 0;
     }
     
