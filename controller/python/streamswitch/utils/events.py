@@ -2,8 +2,8 @@
 streamswitch.utils.events
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This module defines the events class used in StreamSwitch Controller project.
-The other event used by other modules should inherit these event
+This module defines the event classes used in StreamSwitch Controller project.
+The other events used by the extension should inherit these event
 
 :copyright: (c) 2015 by OpenSight (www.opensight.cn).
 :license: AGPLv3, see LICENSE for more details.
