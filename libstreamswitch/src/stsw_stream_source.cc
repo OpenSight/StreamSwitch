@@ -1185,7 +1185,7 @@ void StreamSource::InternalRoutine()
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_SOURCE_HEARTBEAT_INT;
     
-#define MAX_POLLER_WAIT_TIME    100
+#define MAX_POLLER_WAIT_TIME    10
     
     while(IsStarted()){
         int64_t now = zclock_mono();

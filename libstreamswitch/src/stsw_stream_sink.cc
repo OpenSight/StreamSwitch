@@ -805,7 +805,7 @@ void StreamSink::InternalRoutine()
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_RECEIVER_HEARTBEAT_INT;
     
-#define MAX_POLLER_WAIT_TIME    100
+#define MAX_POLLER_WAIT_TIME    10
     
     while(flags_ & STREAM_RECEIVER_FLAG_STARTED){
         int64_t now = zclock_mono();
