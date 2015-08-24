@@ -566,17 +566,22 @@ class BaseStream(object):
 
 
 class SourceProcessStream(BaseStream):
-    program_name = None
+    executable_name = None
 
     def __init__(self, *args, **kargs):
         super(SourceProcessStream, self).__init__(*args, **kargs)
         self.proc_watcher = None
+        self.mode = STREAM_MODE_ACTIVE
+
+    @property
+    def cmd_args(self):
+        return self._generate_cmd_args()
 
     def _generate_cmd_args(self):
-        if self.program_name is None or len(self.program_name) == 0:
+        if self.executable_name is None or len(self.executable_name) == 0:
             program_name = self.source_type
         else:
-            program_name = self.program_name
+            program_name = self.executable_name
 
         cmd_args = [program_name, "-s", self.stream_name]
 
@@ -597,7 +602,7 @@ class SourceProcessStream(BaseStream):
     def _start_internal(self):
         if self.proc_watcher is not None:
             self.proc_watcher.destroy()
-        self.proc_watcher = spawn_watcher(self._generate_cmd_args(),
+        self.proc_watcher = spawn_watcher(self.cmd_args,
                                           error_restart_interval=self.err_restart_interval,
                                           process_status_cb=self._process_status_cb)
 
@@ -613,7 +618,7 @@ class SourceProcessStream(BaseStream):
 
     def _process_status_cb(self, proc_watcher):
         if self.proc_watcher is proc_watcher and \
-            proc_watcher.process_status == PROC_STOP:
+                proc_watcher.process_status == PROC_STOP:
             if (proc_watcher.process_return_code != 0) and (self.state >= 0):
                 self.state = STREAM_STATE_ERR
 
@@ -621,8 +626,9 @@ class SourceProcessStream(BaseStream):
 # private repo variable used by this module
 _source_type_map = {}
 _stream_map = {}
-_tmp_create_stream = set()
+_tmp_creating_stream = set()
 _zmq_ctx = zmq.Context.instance()
+
 
 def register_source_type(source_type, stream_factory):
     if source_type is None or len(source_type) == 0:
@@ -672,16 +678,16 @@ def new_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, log
 
     return stream
 
+
 def list_streams():
-     return list(_stream_map.values())
+    return list(_stream_map.values())
+
 
 def find_stream(stream_name):
-    stream = self._stream_map.get(stream_name)
+    stream = _stream_map.get(stream_name)
     if stream is None:
         raise StreamSwitchError("Stream(%s) Not Found" % stream_name, 404)
     return stream
-
-
 
 
 def _test_source_process_stream():
@@ -692,7 +698,7 @@ def _test_source_process_stream():
     test_stream = new_stream("file_live_source", "test_file_stream", "/dev/zero")
     print("new test_file_stream:")
     print(test_stream)
-    print("cmd_args: %s" % test_stream.proc_watcher.args)
+    print("cmd_args: %s" % test_stream.cmd_args)
     assert(test_stream.state == STREAM_STATE_CONNECTING)
 
     gevent.sleep(2)
@@ -731,8 +737,6 @@ def _test_source_process_stream():
 
 
 def _test_base_stream():
-
-
     register_source_type("base_stream", BaseStream)
     print("Source type list:")
     print(list_source_types())
