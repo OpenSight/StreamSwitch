@@ -331,7 +331,7 @@ int StreamProxySource::UpdateStreamMetaData(int timeout, stream_switch::StreamMe
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         return -1;        
     }
-    
+    tmp_metadata.source_proto = "STSW";
     source_->set_stream_meta(tmp_metadata);
     
     if(metadata != NULL){
