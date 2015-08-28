@@ -317,7 +317,16 @@ def kill_all(name):
                                        stderr=DEVNULL,
                                        close_fds=True,
                                        shell=False)
-    kill_all_popen.wait(5)
+
+    try:
+        ret = kill_all_popen.wait(DEFAULT_STOP_WAIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        ret = None
+
+    if ret is None:
+        kill_all_popen.kill()
+        kill_all_popen.wait()
+
 
 def test_main():
     print("create ls watcher")

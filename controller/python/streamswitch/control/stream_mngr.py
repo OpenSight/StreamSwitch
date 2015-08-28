@@ -147,7 +147,8 @@ class BaseStream(object):
     SUBSCRIBER_QUEUE_SIZE = 16
 
     def __init__(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_args={}, event_listener=None, *args, **kargs):
+                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
+                 **kargs):
         self._stream_name = stream_name  # stream_name cannot be modified
         self._event_listener = event_listener
         self._has_destroy = False
@@ -164,9 +165,8 @@ class BaseStream(object):
         self.log_size = log_size
         self.log_rotate = log_rotate
         self.err_restart_interval = err_restart_interval
-        self.extra_conf = extra_args
+        self.extra_options = extra_options
         self.mode = STREAM_MODE_ACTIVE
-
 
         # status
         self.state = STREAM_STATE_CONNECTING
@@ -177,6 +177,14 @@ class BaseStream(object):
         self.last_frame_time = 0.0
         self.update_time = time.time()
         self.client_num = 0
+
+        # add to the global manager
+        if stream_name in _started_stream_map:
+            raise StreamSwitchError("Stream(%s) already exists" % stream_name, 400)
+        if stream_name in _tmp_creating_streams:
+            raise StreamSwitchError("Stream(%s) Creating Conflict" % stream_name, 400)
+        _tmp_creating_streams.add(stream_name)
+
 
     @property
     def stream_name(self):
@@ -212,6 +220,8 @@ class BaseStream(object):
             raise
 
         self._has_started = True
+        _started_stream_map[self._stream_name] = self
+        _tmp_creating_streams.discard(self._stream_name)
 
     def restart(self):
         """ restart the stream
@@ -236,8 +246,9 @@ class BaseStream(object):
             return
         self._has_destroy = True
 
-        if self.stream_name in _stream_map:
-            del _stream_map[self.stream_name]
+        if self.stream_name in _started_stream_map:
+            del _started_stream_map[self.stream_name]
+        _tmp_creating_streams.discard(self._stream_name)
 
         self._subscriber_greenlet = None
 
@@ -390,6 +401,8 @@ class BaseStream(object):
             raise StreamSwitchError("packet type invalid", 400)
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
+        if not self._has_started:
+            raise StreamSwitchError("stream not start", 500)
 
         api_socket = self._api_client_socket
         self._api_client_socket = None
@@ -533,7 +546,6 @@ class BaseStream(object):
                 self._handle_stream_info(packet, blob)
 
     def _handle_stream_info(self, packet, blob=None):
-        now = time.time()
         stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
         send_time = float(stream_info.send_time) / 1000.0
         if (time.time() - send_time >=
@@ -568,14 +580,11 @@ class BaseStream(object):
 class SourceProcessStream(BaseStream):
     executable_name = None
 
-    def __init__(self, *args, **kargs):
-        super(SourceProcessStream, self).__init__(*args, **kargs)
+    def __init__(self, **kargs):
+        super(SourceProcessStream, self).__init__(**kargs)
         self.proc_watcher = None
         self.mode = STREAM_MODE_ACTIVE
-
-    @property
-    def cmd_args(self):
-        return self._generate_cmd_args()
+        self.cmd_args = self._generate_cmd_args()
 
     def _generate_cmd_args(self):
         if self.executable_name is None or len(self.executable_name) == 0:
@@ -594,7 +603,7 @@ class SourceProcessStream(BaseStream):
 
         cmd_args.extend(["-u", self.url])
 
-        for k, v in self.extra_conf.items():
+        for k, v in self.extra_options.items():
             cmd_args.append("--%s=%s" % (k, v))
 
         return cmd_args
@@ -625,8 +634,8 @@ class SourceProcessStream(BaseStream):
 
 # private repo variable used by this module
 _source_type_map = {}
-_stream_map = {}
-_tmp_creating_stream = set()
+_started_stream_map = {}
+_tmp_creating_streams = set()
 _zmq_ctx = zmq.Context.instance()
 
 
@@ -648,8 +657,9 @@ def list_source_types():
     return list(_source_type_map.keys())
 
 
-def new_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_args={}, event_listener=None):
+def create_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
+                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0,
+                     extra_options={}, event_listener=None, **kwargs):
     # check params
     if source_type is None or stream_name is None:
         raise StreamSwitchError("Param error" % source_type, 404)
@@ -657,37 +667,38 @@ def new_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, log
     stream_factory = _source_type_map.get(source_type)
     if stream_factory is None:
         raise StreamSwitchError("source_type(%s) Not Register" % source_type, 404)
-    if stream_name in _stream_map:
-        raise StreamSwitchError("Stream(%s) already exists" % stream_name, 400)
-    if stream_name in _tmp_creating_stream:
-        raise StreamSwitchError("Stream(%s) Creating Conflict" % stream_name, 400)
 
-    _tmp_creating_stream.add(stream_name)
+    stream = stream_factory(source_type=source_type, stream_name=stream_name,
+                            url=url, api_tcp_port=api_tcp_port,
+                            log_file=log_file, log_size=log_size,
+                            log_rotate=log_rotate,
+                            err_restart_interval=err_restart_interval,
+                            extra_options=extra_options,
+                            event_listener=event_listener, **kwargs)
 
     # the third-party factory would block
     try:
-        stream = stream_factory(source_type, stream_name, url, api_tcp_port, log_file, log_size,
-                                log_rotate, err_restart_interval, extra_args, event_listener)
         stream.start()
     except Exception:
-        _tmp_creating_stream.discard(stream_name)
+        stream.destroy()
         raise
-
-    _stream_map[stream_name] = stream
-    _tmp_creating_stream.discard(stream_name)
 
     return stream
 
 
-def list_streams():
-    return list(_stream_map.values())
+def list_streams(source_type=None):
+    if source_type is None:
+        return list(_started_stream_map.values())
+
+    stream_list = []
+    for stream_name, stream in _started_stream_map.items():
+        if stream.source_type == source_type:
+            stream_list.append(stream)
+    return stream_list
 
 
 def find_stream(stream_name):
-    stream = _stream_map.get(stream_name)
-    if stream is None:
-        raise StreamSwitchError("Stream(%s) Not Found" % stream_name, 404)
-    return stream
+    return _started_stream_map.get(stream_name)
 
 
 def _test_source_process_stream():
@@ -695,7 +706,9 @@ def _test_source_process_stream():
     kill_all("file_live_source")
 
     register_source_type("file_live_source", SourceProcessStream)
-    test_stream = new_stream("file_live_source", "test_file_stream", "/dev/zero")
+    test_stream = create_stream(source_type="file_live_source",
+                                stream_name="test_file_stream",
+                                url="/dev/zero")
     print("new test_file_stream:")
     print(test_stream)
     print("cmd_args: %s" % test_stream.cmd_args)
@@ -741,7 +754,9 @@ def _test_base_stream():
     print("Source type list:")
     print(list_source_types())
     assert(list_source_types() == ["base_stream"])
-    test_stream = new_stream("base_stream", "test_stream", "stsw://123")
+    test_stream = create_stream(source_type="base_stream",
+                                stream_name="test_stream",
+                                url="stsw://123")
     assert(test_stream == find_stream("test_stream"))
     assert(len(list_streams()) == 1)
     print("new test_stream:")
@@ -767,6 +782,6 @@ def _test_base_stream():
 
 
 if __name__ == "__main__":
-    # _test_stream_base()
-    # _test_source_process_stream
+    _test_base_stream()
+    _test_source_process_stream()
     pass
