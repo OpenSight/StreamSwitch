@@ -148,8 +148,8 @@ class BaseStream(object):
 
     def __init__(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
-                 **kargs):
-        self._stream_name = stream_name  # stream_name cannot be modified
+                 **kwargs):
+        self.__stream_name = stream_name  # stream_name cannot be modified
         self._event_listener = event_listener
         self._has_destroy = False
         self._has_started = False
@@ -158,6 +158,7 @@ class BaseStream(object):
         self._api_seq = 1
 
         # config
+        self.stream_name = stream_name
         self.source_type = source_type
         self.url = url
         self.api_tcp_port = api_tcp_port
@@ -185,10 +186,6 @@ class BaseStream(object):
             raise StreamSwitchError("Stream(%s) Creating Conflict" % stream_name, 400)
         _tmp_creating_streams.add(stream_name)
 
-
-    @property
-    def stream_name(self):
-        return self._stream_name
 
     def __str__(self):
         return ('Stream %s (source_type:%s, url:%s, api_tcp_port:%d, log_file:%s,'
@@ -220,8 +217,8 @@ class BaseStream(object):
             raise
 
         self._has_started = True
-        _started_stream_map[self._stream_name] = self
-        _tmp_creating_streams.discard(self._stream_name)
+        _started_stream_map[self.__stream_name] = self
+        _tmp_creating_streams.discard(self.__stream_name)
 
     def restart(self):
         """ restart the stream
@@ -246,9 +243,9 @@ class BaseStream(object):
             return
         self._has_destroy = True
 
-        if self.stream_name in _started_stream_map:
-            del _started_stream_map[self.stream_name]
-        _tmp_creating_streams.discard(self._stream_name)
+        if self.__stream_name in _started_stream_map:
+            del _started_stream_map[self.__stream_name]
+        _tmp_creating_streams.discard(self.__stream_name)
 
         self._subscriber_greenlet = None
 
@@ -580,8 +577,8 @@ class BaseStream(object):
 class SourceProcessStream(BaseStream):
     executable_name = None
 
-    def __init__(self, **kargs):
-        super(SourceProcessStream, self).__init__(**kargs)
+    def __init__(self, **kwargs):
+        super(SourceProcessStream, self).__init__(**kwargs)
         self.proc_watcher = None
         self.mode = STREAM_MODE_ACTIVE
         self.cmd_args = self._generate_cmd_args()

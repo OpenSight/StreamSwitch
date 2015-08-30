@@ -30,12 +30,9 @@ TRANSPORT_UDP= 2
 class BasePortServer(object):
 
     DEBUG_FLAGS = 0    # no debug
-    API_SEQ_MASK = 0xffffffff
-    STSW_STREAM_STATE_TIMEOUT_TIME = 300
-    SUBSCRIBER_QUEUE_SIZE = 16
 
     def __init__(self, port_name, port_type, listen_port, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_conf={}, event_listener=None, **kargs):
+                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None, **kargs):
         self.port_name = port_name
         self.port_type = port_type
         self.listen_port = int(listen_port)
@@ -45,7 +42,8 @@ class BasePortServer(object):
         self.log_size = log_size
         self.log_rotate = log_rotate
         self.err_restart_interval = err_restart_interval
-        self.extra_conf = extra_conf
+        self.extra_options = extra_options
+
         self.event_listener = event_listener
 
     def __del__(self):
@@ -53,8 +51,8 @@ class BasePortServer(object):
 
     def __str__(self):
         return ('Port Server %s (port_type:%s, listen_port:%s, transport:%d, ipv6:%s,'
-                'log_file:%s, log_size:%d, log_rotate:%d err_restart_interval:%d') % \
-               (self.stream_name, self.source_type, self.url, self.api_tcp_port,
+                'log_file:%s, log_size:%d, log_rotate:%d err_restart_interval:%d, extra_options:%s') % \
+               (self.port_name, self.port_type, self.listen_port, self.api_tcp_port,
                 self.log_file, self.log_size, self.log_rotate,
                 self.err_restart_interval, self.mode, self.state, self.play_type,
                 self.source_protocol, self.ssrc, self.cur_bps,
@@ -64,16 +62,18 @@ class BasePortServer(object):
         pass
 
     def restart(self):
-        pass
+        self.stop()
+        self.start()
 
     def stop(self):
         pass
 
     def status(self):
-        pass
+        return False
 
-    def config(self):
-        pass
+    def reload(self):
+        self.restart(self)
+
 
 
 class ProcessPortServer(BasePortServer):
