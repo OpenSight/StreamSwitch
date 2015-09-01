@@ -22,10 +22,10 @@ class RtspSourceStream(SourceProcessStream):
     executable_name = RTSP_SOURCE_PROGRAM_NAME
 
 
-def register_rtsp_source_type():
+def register_rtsp_source_type(type_name="rtsp"):
     if find_executable(RTSP_SOURCE_PROGRAM_NAME) is None:
         raise ExecutableNotFoundError(RTSP_SOURCE_PROGRAM_NAME)
-    register_source_type("rtsp", RtspSourceStream)
+    register_source_type(type_name, RtspSourceStream)
     try:
         kill_all(RTSP_SOURCE_PROGRAM_NAME)
     except Exception:

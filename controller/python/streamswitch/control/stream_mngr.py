@@ -13,6 +13,7 @@ from __future__ import unicode_literals, division
 from ..utils.exceptions import StreamSwitchError
 from ..utils.events import StreamSubsriberEvent, StreamInfoEvent
 from ..utils.process_mngr import spawn_watcher, PROC_STOP, kill_all
+from ..utils.utils import import_method, is_str
 from ..pb import pb_packet_pb2
 from ..pb import pb_stream_info_pb2
 from ..pb import pb_metadata_pb2
@@ -639,7 +640,12 @@ _zmq_ctx = zmq.Context.instance()
 def register_source_type(source_type, stream_factory):
     if source_type is None or len(source_type) == 0:
         raise StreamSwitchError("source_type invalid", 400)
-    if stream_factory is None or (not callable(stream_factory)):
+    if is_str(stream_factory):
+        try:
+            stream_factory = import_method(stream_factory)
+        except Exception:
+            raise StreamSwitchError("stream_factory invalid", 400)
+    elif not callable(stream_factory):
         raise StreamSwitchError("stream_factory invalid", 400)
     _source_type_map[source_type] = stream_factory
 

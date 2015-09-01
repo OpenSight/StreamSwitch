@@ -15,17 +15,17 @@ from ...utils.exceptions import ExecutableNotFoundError
 from ...utils.utils import find_executable
 from ...utils.process_mngr import kill_all
 
-PROXY_SOURCE_PROGRAM_NAME = "stsw_rtsp_source"
+PROXY_SOURCE_PROGRAM_NAME = "stsw_proxy_source"
 
 
 class ProxySourceStream(SourceProcessStream):
     executable_name = PROXY_SOURCE_PROGRAM_NAME
 
 
-def register_proxy_source_type():
+def register_proxy_source_type(type_name="proxy"):
     if find_executable(PROXY_SOURCE_PROGRAM_NAME) is None:
         raise ExecutableNotFoundError(PROXY_SOURCE_PROGRAM_NAME)
-    register_source_type("proxy", ProxySourceStream)
+    register_source_type(type_name, ProxySourceStream)
     try:
         kill_all(PROXY_SOURCE_PROGRAM_NAME)
     except Exception:
