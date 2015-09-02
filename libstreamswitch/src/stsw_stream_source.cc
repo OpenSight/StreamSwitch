@@ -169,6 +169,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
         goto error_2;            
     }
     zsock_set_linger(api_socket_, 0); //no linger 
+    zsock_set_tcp_keepalive(api_socket_, 1); //enable keepalive for tcp
     if(zsock_attach((zsock_t *)api_socket_, tmp_addr, true)){
         ret = ERROR_CODE_SYSTEM;
         SET_ERR_INFO(err_info, "zsock_attach() failed for the api socket: maybe address error");          
@@ -225,7 +226,7 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
     }    
     //wait for 100 ms to send the remaining packet before close
     zsock_set_linger(publish_socket_, STSW_PUBLISH_SOCKET_LINGER);
- 
+    zsock_set_tcp_keepalive(publish_socket_, 1); //enable keepalive for tcp
     zsock_set_sndhwm(publish_socket_, pub_queue_size);   
     zsock_set_rcvhwm(publish_socket_, pub_queue_size);  
     if(zsock_attach((zsock_t *)publish_socket_, tmp_addr, false)){
