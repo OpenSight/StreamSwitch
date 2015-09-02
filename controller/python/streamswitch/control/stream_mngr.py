@@ -576,19 +576,19 @@ class BaseStream(object):
 
 
 class SourceProcessStream(BaseStream):
-    executable_name = None
+    _executable = None
 
     def __init__(self, **kwargs):
         super(SourceProcessStream, self).__init__(**kwargs)
-        self.proc_watcher = None
+        self._proc_watcher = None
         self.mode = STREAM_MODE_ACTIVE
         self.cmd_args = self._generate_cmd_args()
 
     def _generate_cmd_args(self):
-        if self.executable_name is None or len(self.executable_name) == 0:
+        if self._executable is None or len(self._executable) == 0:
             program_name = self.source_type
         else:
-            program_name = self.executable_name
+            program_name = self._executable
 
         cmd_args = [program_name, "-s", self.stream_name]
 
@@ -607,24 +607,24 @@ class SourceProcessStream(BaseStream):
         return cmd_args
 
     def _start_internal(self):
-        if self.proc_watcher is not None:
-            self.proc_watcher.destroy()
-        self.proc_watcher = spawn_watcher(self.cmd_args,
-                                          error_restart_interval=self.err_restart_interval,
-                                          process_status_cb=self._process_status_cb)
+        if self._proc_watcher is not None:
+            self._proc_watcher.destroy()
+        self._proc_watcher = spawn_watcher(self.cmd_args,
+                                           error_restart_interval=self.err_restart_interval,
+                                           process_status_cb=self._process_status_cb)
 
     def _restart_internal(self):
-        if self.proc_watcher is not None:
-            self.proc_watcher.restart_process()
+        if self._proc_watcher is not None:
+            self._proc_watcher.restart_process()
 
     def _destroy_internal(self):
-        if self.proc_watcher is not None:
-            self.proc_watcher.stop()
-            self.proc_watcher.destroy()
-            self.proc_watcher = None
+        if self._proc_watcher is not None:
+            self._proc_watcher.stop()
+            self._proc_watcher.destroy()
+            self._proc_watcher = None
 
     def _process_status_cb(self, proc_watcher):
-        if self.proc_watcher is proc_watcher and \
+        if self._proc_watcher is proc_watcher and \
                 proc_watcher.process_status == PROC_STOP:
             if (proc_watcher.process_return_code != 0) and (self.state >= 0):
                 self.state = STREAM_STATE_ERR

@@ -11,8 +11,11 @@ This module implements the port server management
 
 from __future__ import unicode_literals, division
 from ..utils.exceptions import StreamSwitchError
-from ..utils.process_mngr import spawn_watcher, PROC_STOP, kill_all, PROC_RUNNING
+from ..utils.process_mngr import spawn_watcher, PROC_RUNNING
 from ..utils.events import PortStatusChangeEvent
+import gevent
+
+
 
 DEFAULT_LOG_SIZE = 1024 * 1024
 DEFAULT_LOG_ROTATE = 3
@@ -23,7 +26,7 @@ TRANSPORT_UDP = 2
 
 class BasePort(object):
 
-    def __init__(self, port_name, port_type, listen_port, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
+    def __init__(self, port_name, port_type, listen_port=0, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, desc="", extra_options={}, event_listener=None, **kargs):
         self.port_name = port_name
         self.port_type = port_type
@@ -56,7 +59,7 @@ class BasePort(object):
     def stop(self):
         pass
 
-    def status(self):
+    def is_running(self):
         return False
 
     def reload(self):
@@ -108,33 +111,33 @@ class BasePort(object):
 
 
 class SubProcessPort(BasePort):
-    executable_name = None
 
-    def __init__(self, *args, **kargs):
+    def __init__(self, executable=None, *args, **kargs):
         super(SubProcessPort, self).__init__(*args, **kargs)
-        self.proc_watcher = None
+        self._executable = executable
+        self._proc_watcher = None
         self.cmd_args = self._generate_cmd_args()
 
     def __del__(self):
-        super(SubProcessPort, self).__del__()
         self.stop()
 
     def start(self):
-        if self.proc_watcher is not None:
-            self.proc_watcher.destroy()
-        self.proc_watcher = spawn_watcher(self._generate_cmd_args(),
-                                          error_restart_interval=self.err_restart_interval,
-                                          process_status_cb=self._process_status_cb)
+        if self._proc_watcher is not None:
+            self._proc_watcher.destroy()
+        self._proc_watcher = spawn_watcher(self.cmd_args,
+                                           error_restart_interval=self.err_restart_interval,
+                                           process_status_cb=self._process_status_cb)
 
     def stop(self):
-        if self.proc_watcher is not None:
-            self.proc_watcher.stop()
-            self.proc_watcher.destroy()
-            self.proc_watcher = None
+        if self._proc_watcher is not None:
+            proc_watcher = self._proc_watcher
+            self._proc_watcher = None
+            proc_watcher.stop()
+            proc_watcher.destroy()
 
-    def status(self):
-        if self.proc_watcher is not None:
-            if self.proc_watcher.process_status == PROC_RUNNING:
+    def is_running(self):
+        if self._proc_watcher is not None:
+            if self._proc_watcher.process_status == PROC_RUNNING:
                 return True
             else:
                 return False
@@ -142,7 +145,7 @@ class SubProcessPort(BasePort):
             return False
 
     def reload(self):
-        if self.proc_watcher is not None:
+        if self._proc_watcher is not None:
             self.restart()
 
     def configure(self, **kargs):
@@ -155,14 +158,15 @@ class SubProcessPort(BasePort):
             return False
 
     def _generate_cmd_args(self):
-        if self.executable_name is None or len(self.executable_name) == 0:
+        if self._executable is None or len(self._executable) == 0:
             program_name = self.port_type
         else:
-            program_name = self.executable_name
+            program_name = self._executable
 
         cmd_args = [program_name]
 
-        cmd_args.extend(["-p", "%d" % self.listen_port])
+        if self.listen_port != 0:
+            cmd_args.extend(["-p", "%d" % self.listen_port])
 
         if self.log_file is not None:
             cmd_args.extend(["-l", self.log_file])
@@ -208,10 +212,29 @@ def find_port(port_name):
     return _port_map.get(port_name)
 
 
+def _test_sink_port():
+    port = SubProcessPort(port_name="test_port", port_type="stsw_rtsp_port")
+    register_port(port)
+    assert(len(list_ports()) == 1)
+    test_port = find_port("test_port")
+    print("before start")
+    print(test_port)
+    test_port.start()
+    print("after start")
+    print(test_port)
+    assert(test_port.is_running())
+    gevent.sleep(3)
+    test_port.restart()
 
-
+    print("after restart")
+    print(test_port)
+    gevent.sleep(3)
+    test_port.stop()
+    assert(not test_port.is_running())
+    unregister_port("test_port")
+    assert(len(list_ports()) == 0)
 
 
 if __name__ == "__main__":
-
+    _test_sink_port()
     pass

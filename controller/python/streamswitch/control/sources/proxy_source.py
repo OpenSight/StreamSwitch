@@ -19,7 +19,7 @@ PROXY_SOURCE_PROGRAM_NAME = "stsw_proxy_source"
 
 
 class ProxySourceStream(SourceProcessStream):
-    executable_name = PROXY_SOURCE_PROGRAM_NAME
+    _executable = PROXY_SOURCE_PROGRAM_NAME
 
 
 def register_proxy_source_type(type_name="proxy"):

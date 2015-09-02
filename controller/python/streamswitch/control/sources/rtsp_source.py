@@ -19,7 +19,7 @@ RTSP_SOURCE_PROGRAM_NAME = "stsw_rtsp_source"
 
 
 class RtspSourceStream(SourceProcessStream):
-    executable_name = RTSP_SOURCE_PROGRAM_NAME
+    _executable = RTSP_SOURCE_PROGRAM_NAME
 
 
 def register_rtsp_source_type(type_name="rtsp"):
