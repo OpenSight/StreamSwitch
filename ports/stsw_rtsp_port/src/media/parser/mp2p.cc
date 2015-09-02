@@ -645,9 +645,12 @@ int StreamParser::Parse(Track *tr, uint8_t *data, size_t len)
     timestamp = pts2PSTimpstamp(tr, tr->properties.pts);
 
     
-    /* add pack header */
-    retSize = put_pack_header(priv, buf+bufSize, maxBufSize - bufSize, timestamp);
-    bufSize += retSize;
+    /* add pack header for only video, 
+     * audio sub stream should not contais the pack header*/
+    if(media_type_ == SUB_STREAM_MEIDA_TYPE_VIDEO){
+        retSize = put_pack_header(priv, buf+bufSize, maxBufSize - bufSize, timestamp);
+        bufSize += retSize;        
+    }
 
     /* check if key frame, then add system header and map header */
     is_key_frame = IsKeyFrame(data, len);
