@@ -237,7 +237,7 @@ class BaseStream(object):
         self._restart_internal()
         if self.state >= 0:
             self.state = STREAM_STATE_CONNECTING
-            self.update_time = time.time() + 1 # trick: ignore stream info update in next 1 sec
+            self.update_time = time.time()
 
     def destroy(self):
         if self._has_destroy:
@@ -615,7 +615,10 @@ class SourceProcessStream(BaseStream):
 
     def _restart_internal(self):
         if self._proc_watcher is not None:
-            self._proc_watcher.restart_process()
+            self._proc_watcher.stop() # may sleep
+
+        if self._proc_watcher is not None:
+            self._proc_watcher.start()
 
     def _destroy_internal(self):
         if self._proc_watcher is not None:

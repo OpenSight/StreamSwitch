@@ -41,13 +41,24 @@ def _get_next_watcher_id():
 
 class ProcWatcher(object):
     def __init__(self, args, 
-                 error_restart_interval, success_restart_interval, 
-                 process_status_cb):
+                 error_restart_interval=30.0, success_restart_interval=1.0,
+                 poll_interval = 0.1, process_status_cb=None):
+        """ ProcWatcher constructor
+
+        Args:
+        args: the process command args. args should be a sequence of program
+            arguments or else a single string. By default, the program to
+            execute is the first item in args if args is a sequence.
+            If args is a string, the interpretation is platform-dependent.
+            Unless otherwise stated, it is recommended to pass args as a
+            sequence.
+
+        """
         self.wid = _get_next_watcher_id()
         self.args = args
         self.process_return_code = 0
         self.process_exit_time = 0
-        self.restart_count = 0
+        self.auto_restart_count = 0
         self._proc_start_time = 0
         self._error_restart_interval = float(error_restart_interval)
         self._success_restart_interval = float(success_restart_interval)
@@ -55,7 +66,7 @@ class ProcWatcher(object):
         self._started = False
         self._process_status_cb = process_status_cb
         self._poll_greenlet_id = 1
-        self._watcher_start_time = 0
+        self._poll_interval = poll_interval
 
         # add to the manager
         global _watchers
@@ -69,8 +80,13 @@ class ProcWatcher(object):
                 'process_running_time:%f, restart_count:%d, is_started:%s)') % \
                (self.wid, self.args, self.pid, self.process_status,
                 self.process_return_code, self.process_exit_time,
-                self.process_running_time, self.restart_count,
+                self.process_running_time, self.auto_restart_count,
                 self.is_started())
+
+    def __del__(self):
+        if self._popen is not None:
+            self._popen.kill()
+            self._popen = None
 
     def _launch_process(self):
 
@@ -108,7 +124,7 @@ class ProcWatcher(object):
                 if self._popen is None:
                     if time.time() >= next_open_time:
                         # restart
-                        self.restart_count += 1
+                        self.auto_restart_count += 1
                         self._launch_process()
                 else:
                     # check the child process
@@ -127,7 +143,7 @@ class ProcWatcher(object):
             except Exception:
                 pass
 
-            sleep(POLL_INTERVAL_SEC)      # next time to check
+            sleep(self._poll_interval)      # next time to check
 
     @staticmethod
     def _terminate_run(popen, wait_timeout):
@@ -168,13 +184,7 @@ class ProcWatcher(object):
         else:
             return 0
             
-    def restart_process(self):
-        if self._popen is not None:
-            self._popen.terminate()
-        else:
-            self._launch_process()   # start up the process
-            self.restart_count += 1
-            
+
     def is_started(self):
         return self._started
 
@@ -185,6 +195,10 @@ class ProcWatcher(object):
         if self._started:
             return
 
+        if self._popen is not None:
+            # other greenlet is stopping this watcher
+            raise StreamSwitchError("ProcWatcher (%d) in Stopping" % self.wid, 500)
+
         try:
 
             self._launch_process()   # start up the process
@@ -194,8 +208,7 @@ class ProcWatcher(object):
             self._poll_greenlet_id += 1
             gevent.spawn(self._polling_run, self._poll_greenlet_id)
 
-            self._watcher_start_time = 0
-            self.restart_count = 0
+            self.auto_restart_count = 0
 
         except Exception:
             self._started = False
@@ -211,7 +224,8 @@ class ProcWatcher(object):
         wait until the process exits or wait_timeout is due, 
         if the process has not yet terminated, kill it. 
     
-        After this function return, the process should have been terminated
+        After this function return, the process should have been terminated,
+        and process_return_code would be set to the actual value
     
         Args:
             self: watcher instance
@@ -225,10 +239,12 @@ class ProcWatcher(object):
 
         if self._popen is not None:
             # terminate the process normally at first
-            self._popen.terminate()
+            popen = self._popen
+            popen.terminate()
+
             ret = None
             try:
-                ret = self._popen.wait(wait_timeout)
+                ret = popen.wait(wait_timeout)
             except subprocess.TimeoutExpired:
                 ret = None
             except Exception:
@@ -237,21 +253,21 @@ class ProcWatcher(object):
             #check terminated successfully, if not, kill it
             if ret is None:
                 # time out, force child process terminate
-                self._popen.kill()
-                self._popen.wait()
-                ret = -1
+                popen.kill()
+                ret = popen.wait()
 
-            self._on_process_terminate(ret)
+            if popen is self._popen: # the same process after wait
+                self._on_process_terminate(ret)
     
     def async_stop(self, wait_timeout=DEFAULT_STOP_WAIT_TIMEOUT):
         """ Stop the watcher, and terminate the process async
     
         After this function return, the watcher has been stopped, but the process 
         may or may not have been terminated. It postpone the process termination 
-        waiting operation in another new greenlet
+        waiting operation in another new greenlet. The process_return_code attribute
+        would be set to 0.
     
         Args:
-            self: watcher instance
             wait_timeout: the time to wait for the process's termination before kill it
         
         """
@@ -273,12 +289,12 @@ class ProcWatcher(object):
             del _watchers[self.wid]
 
 
-def spawn_watcher(args, 
-                  error_restart_interval=30.0, success_restart_interval=1.0,
-                  process_status_cb=None):
+def spawn_watcher(*args, **kwargs):
     """ create asd start a process watcher instance
 
     Args:
+        The arguments are passed to `ProcWatcher.__init__`
+
         args: the process command args. args should be a sequence of program
             arguments or else a single string. By default, the program to
             execute is the first item in args if args is a sequence.
@@ -295,15 +311,18 @@ def spawn_watcher(args,
     Raises:
         OSError: when trying to execute a non-existent file
     """
-    watcher = ProcWatcher(args, 
-                          error_restart_interval, success_restart_interval, 
-                          process_status_cb)
-    watcher.start()
+    watcher = ProcWatcher(*args, **kwargs)
+    try:
+        watcher.start()
+    except Exception:
+        watch.destroy()
+        raise
+
     return watcher
 
 
 def list_all_waitcher():
-    return _watchers.values()
+    return list(_watchers.values())
 
 
 def find_watcher_by_wid(wid):
@@ -352,7 +371,7 @@ def test_main():
     # the process should restart
     print("after 1.5s:")
     print(ls_watcher)
-    assert(ls_watcher.restart_count > 0)
+    assert(ls_watcher.auto_restart_count > 0)
     ls_watcher.stop()
     ls_watcher.destroy()
     del ls_watcher
@@ -366,7 +385,9 @@ def test_main():
     assert(sleep_watcher.process_running_time > 0)
     assert(sleep_watcher.is_started())
     print("restart process")
-    sleep_watcher.restart_process()
+    sleep_watcher.stop()
+    sleep_watcher.start()
+
     print("enter sleep")
     sleep(0.5)
     # the process should terminated
@@ -380,7 +401,7 @@ def test_main():
     sleep(1)
     print("after 1.5s:")
     print(sleep_watcher)
-    assert(sleep_watcher.restart_count > 0)
+    assert(sleep_watcher.auto_restart_count > 0)
     assert(sleep_watcher.pid != org_pid)
     assert(sleep_watcher.pid is not None)
     assert(sleep_watcher.process_status == PROC_RUNNING)
