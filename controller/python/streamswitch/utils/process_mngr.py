@@ -16,6 +16,7 @@ from gevent import subprocess, sleep
 import sys
 import os
 import time
+from .exceptions import StreamSwitchError
 
 PROC_STOP = 0
 PROC_RUNNING = 1
@@ -315,7 +316,7 @@ def spawn_watcher(*args, **kwargs):
     try:
         watcher.start()
     except Exception:
-        watch.destroy()
+        watcher.destroy()
         raise
 
     return watcher

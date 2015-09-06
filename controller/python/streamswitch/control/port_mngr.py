@@ -112,8 +112,8 @@ class BasePort(object):
 
 class SubProcessPort(BasePort):
 
-    def __init__(self, executable=None, *args, **kargs):
-        super(SubProcessPort, self).__init__(*args, **kargs)
+    def __init__(self, executable=None, **kargs):
+        super(SubProcessPort, self).__init__(**kargs)
         self._executable = executable
         self._proc_watcher = None
         self.cmd_args = self._generate_cmd_args()

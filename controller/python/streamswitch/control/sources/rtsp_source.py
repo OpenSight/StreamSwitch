@@ -16,21 +16,9 @@ from ...utils.utils import find_executable
 from ...utils.process_mngr import kill_all
 
 RTSP_SOURCE_PROGRAM_NAME = "stsw_rtsp_source"
-
+RTSP_SOURCE_TYPE_NAME = "rtsp"
 
 class RtspSourceStream(SourceProcessStream):
     _executable = RTSP_SOURCE_PROGRAM_NAME
 
 
-def register_rtsp_source_type(type_name="rtsp"):
-    if find_executable(RTSP_SOURCE_PROGRAM_NAME) is None:
-        raise ExecutableNotFoundError(RTSP_SOURCE_PROGRAM_NAME)
-    register_source_type(type_name, RtspSourceStream)
-    try:
-        kill_all(RTSP_SOURCE_PROGRAM_NAME)
-    except Exception:
-        pass
-
-
-if __name__ == "__main__":
-    register_rtsp_source_type()
