@@ -17,15 +17,21 @@ RTSP_PORT_PROGRAM_NAME = "stsw_rtsp_port"
 
 
 class RtspPort(SubProcessPort):
-    def __init__(self, transport=TRANSPORT_TCP, ipv6=False, **kwargs):
+    def __init__(self, port_name, port_type=RTSP_PORT_PROGRAM_NAME,
+                 listen_port=554,
+                 transport=TRANSPORT_TCP, ipv6=False, **kwargs):
         if transport != TRANSPORT_TCP:
             raise StreamSwitchError("RTSP Port Only Support TCP")
         if ipv6:
             raise StreamSwitchError("RTSP Port Not Support IPv6")
-        super(RtspPort, self).__init__(executable=RTSP_PORT_PROGRAM_NAME,
-                                       transport=transport,
-                                       ipv6=ipv6,
-                                       **kwargs)
+        super(RtspPort, self).__init__(
+            port_name=port_name,
+            port_type=port_type,
+            listen_port=listen_port,
+            executable=RTSP_PORT_PROGRAM_NAME,
+            transport=transport,
+            ipv6=ipv6,
+            **kwargs)
 
 
 

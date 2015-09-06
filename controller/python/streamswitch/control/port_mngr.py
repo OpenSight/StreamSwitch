@@ -26,7 +26,7 @@ TRANSPORT_UDP = 2
 
 class BasePort(object):
 
-    def __init__(self, port_name, port_type, listen_port=0, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
+    def __init__(self, port_name, port_type="base", listen_port=0, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, desc="", extra_options={}, event_listener=None, **kargs):
         self.port_name = port_name
         self.port_type = port_type
