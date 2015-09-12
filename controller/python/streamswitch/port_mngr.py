@@ -10,9 +10,9 @@ This module implements the port server management
 """
 
 from __future__ import unicode_literals, division
-from ..utils.exceptions import StreamSwitchError
-from ..utils.process_mngr import spawn_watcher, PROC_RUNNING
-from ..utils.events import PortStatusChangeEvent
+from .exceptions import StreamSwitchError
+from .process_mngr import spawn_watcher, PROC_RUNNING
+from .events import PortStatusChangeEvent
 import gevent
 
 
@@ -234,7 +234,3 @@ def _test_sink_port():
     unregister_port("test_port")
     assert(len(list_ports()) == 0)
 
-
-if __name__ == "__main__":
-    _test_sink_port()
-    pass

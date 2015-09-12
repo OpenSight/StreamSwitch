@@ -11,9 +11,9 @@ This module implements the stream factory of the default RTSP source type
 
 from __future__ import unicode_literals, division
 from ..stream_mngr import register_source_type, SourceProcessStream
-from ...utils.exceptions import ExecutableNotFoundError
-from ...utils.utils import find_executable
-from ...utils.process_mngr import kill_all
+from ..exceptions import ExecutableNotFoundError
+from ..utils import find_executable
+from ..process_mngr import kill_all
 
 RTSP_SOURCE_PROGRAM_NAME = "stsw_rtsp_source"
 RTSP_SOURCE_TYPE_NAME = "rtsp"

@@ -2,7 +2,7 @@
 streamswitch.utils.exception
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This module defines the exception class which should be
+This module defines the base exception class which should be
 sub-classed from by all other Exception used in StreamSwitch Controller project.
 
 :copyright: (c) 2014 by OpenSight (www.opensight.cn).

@@ -10,16 +10,16 @@ This module implements the input stream management
 """
 
 from __future__ import unicode_literals, division
-from ..utils.exceptions import StreamSwitchError
-from ..utils.events import StreamSubsriberEvent, StreamInfoEvent
-from ..utils.process_mngr import spawn_watcher, PROC_STOP, kill_all
-from ..utils.utils import import_method, is_str
-from ..pb import pb_packet_pb2
-from ..pb import pb_stream_info_pb2
-from ..pb import pb_metadata_pb2
-from ..pb import pb_client_list_pb2
-from ..pb import pb_media_statistic_pb2
-from ..pb import pb_client_heartbeat_pb2
+from .exceptions import StreamSwitchError
+from .events import StreamSubsriberEvent, StreamInfoEvent
+from .process_mngr import spawn_watcher, PROC_STOP, kill_all
+from .utils import import_method, is_str
+from .pb import pb_packet_pb2
+from .pb import pb_stream_info_pb2
+from .pb import pb_metadata_pb2
+from .pb import pb_client_list_pb2
+from .pb import pb_media_statistic_pb2
+from .pb import pb_client_heartbeat_pb2
 
 import zmq.green as zmq
 import gevent
