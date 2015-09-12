@@ -11,7 +11,7 @@ This module implements the stream factory of the proxy source type
 
 from __future__ import unicode_literals, division
 from ..port_mngr import TRANSPORT_TCP, SubProcessPort
-from ...utils.exceptions import StreamSwitchError
+from ..exceptions import StreamSwitchError
 
 RTSP_PORT_PROGRAM_NAME = "stsw_rtsp_port"
 

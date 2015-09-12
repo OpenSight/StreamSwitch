@@ -3,7 +3,7 @@ from .sources.proxy_source import PROXY_SOURCE_PROGRAM_NAME, \
 from .sources.rtsp_source import RTSP_SOURCE_PROGRAM_NAME, \
     RTSP_SOURCE_TYPE_NAME, RtspSourceStream
 from .stream_mngr import register_source_type
-from ..utils.utils import find_executable
+from .utils import find_executable
 
 
 def _register_builtin_source_type():
