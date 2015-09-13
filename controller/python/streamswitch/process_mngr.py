@@ -1,5 +1,5 @@
 """
-streamswitch.utils.process_mngr
+streamswitch.process_mngr
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module implements the process watchers and some related

@@ -1,5 +1,5 @@
 """
-streamswitch.control.sources.proxy_source
+streamswitch.sources.proxy_source
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module implements the stream factory of the proxy source type

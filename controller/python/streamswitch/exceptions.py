@@ -1,5 +1,5 @@
 """
-streamswitch.utils.exception
+streamswitch.exceptions
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module defines the base exception class which should be

@@ -53,8 +53,10 @@ setup(name='streamswitch',
       zip_safe=False,
       install_requires=requires,
       tests_require=requires, 
-#      entry_points="""\
-#      [paste.app_factory]
-#      main = streamswitch.app:main
-#      """,
+      entry_points="""\
+      [paste.app_factory]
+      main = streamswitch.wsgiapp.app_main:make_wsgi_app
+      [paste.server_runner]
+      gevent = streamswitch.scripts.stsw_web:gevent_pywsgi_server_runner
+      """,
       )

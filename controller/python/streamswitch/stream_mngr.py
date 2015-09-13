@@ -1,5 +1,5 @@
 """
-streamswitch.control.stream_mngr
+streamswitch.stream_mngr
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module implements the input stream management

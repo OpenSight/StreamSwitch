@@ -1,6 +1,6 @@
 
 """
-streamswitch.utils.utils
+streamswitch.utils
 ~~~~~~~~~~~~~~~~
 
 This module provide some utils function for streamswitch

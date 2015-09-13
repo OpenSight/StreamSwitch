@@ -1,8 +1,8 @@
 """
-streamswitch.control.sources.proxy_source
+streamswitch.rtsp_port
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This module implements the stream factory of the proxy source type
+This module implements the rtsp port class
 
 :copyright: (c) 2015 by OpenSight (www.opensight.cn).
 :license: AGPLv3, see LICENSE for more details.

@@ -1,5 +1,5 @@
 """
-streamswitch.control.sources.rtsp_source
+streamswitch.sources.rtsp_source
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module implements the stream factory of the default RTSP source type

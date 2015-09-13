@@ -1,5 +1,5 @@
 """
-streamswitch.utils.events
+streamswitch.events
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module defines the event classes used in StreamSwitch Controller project.

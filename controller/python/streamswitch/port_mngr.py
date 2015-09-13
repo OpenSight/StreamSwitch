@@ -1,5 +1,5 @@
 """
-streamswitch.control.port_mngr
+streamswitch.port_mngr
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This module implements the port server management
