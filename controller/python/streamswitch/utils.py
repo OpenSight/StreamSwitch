@@ -50,7 +50,7 @@ def encode_json(o):
 
 
 def is_str(s):
-    if sys.version_info[:1] < 3:
+    if sys.version_info[:1] < (3, ):
         isinstance(s, unicode)
     else:
         isinstance(s, str)

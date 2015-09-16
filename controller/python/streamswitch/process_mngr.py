@@ -408,5 +408,3 @@ def test_main():
 
     sleep_watcher.destroy()
 
-if __name__ == "__main__":
-    test_main()

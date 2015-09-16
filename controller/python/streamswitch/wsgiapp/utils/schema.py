@@ -20,7 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
+from __future__ import unicode_literals, division
 import re
+import sys
 from inspect import getargspec
 from functools import wraps
 
@@ -184,29 +187,10 @@ class StrRe(object):
     def validate(self, data):
         if not isinstance(data, str):
             try:
-                data = str(data)
-            except Exception:
-                raise SchemaError('%s is not valid string' % data, self._error)
-
-        if self.pattern.match(data) is None:
-            raise SchemaError('%s does not match regular express(%s)' % (data, self.pattern_str), self._error)
-        else:
-            return data
-
-class UnicodeRe(object):
-    """
-    schema to Validate string against to regular express, return unicode type
-    @data should be string which can match the given regular express
-    """
-    def __init__(self, pattern="", error=None):
-        self._error = error
-        self.pattern = re.compile(pattern)
-        self.pattern_str = pattern
-
-    def validate(self, data):
-        if not isinstance(data, unicode):
-            try:
-                data = unicode(data)
+                if sys.version_info[:1] < (3, ):
+                    data = unicode(data)
+                else:
+                    data = str(data)
             except Exception:
                 raise SchemaError('%s is not valid string' % data, self._error)
 
@@ -430,7 +414,7 @@ if __name__ == '__main__':
         schema.validate({"key1": "value1"})   # missing key
     except Exception as e:
         # print traceback.format_exc()
-        print e
+        print(e)
 
     try:
         schema.validate({"key1": "value1",
@@ -438,7 +422,7 @@ if __name__ == '__main__':
                          "key3": 333,
                          "key4": 444})   # number too large
     except Exception as e:
-        print e
+        print(e)
 
     try:
         schema.validate({"key1": "value1",
@@ -446,7 +430,7 @@ if __name__ == '__main__':
                          "key3": 333,
                          "key4": 0})   # not int
     except Exception as e:
-        print e
+        print(e)
 
     try:
         schema.validate({"key1": "value1",
@@ -455,4 +439,4 @@ if __name__ == '__main__':
                          "key4": 44,
                          "key5": 555})   # wrong type
     except Exception as e:
-        print e
+        print(e)

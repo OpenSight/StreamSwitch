@@ -8,9 +8,11 @@ StorLever's main file to make a WSGI application.
 :license: AGPLv3, see LICENSE for more details.
 
 """
-
+from __future__ import unicode_literals, division
 import pkg_resources
 
+from .services.stream_service import StreamService
+from .. import stream_mngr
 
 
 
@@ -18,7 +20,10 @@ STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
 
 
 def configure_services(config):
-    pass
+    stream_service = StreamService(stream_mngr=stream_mngr)
+    stream_service.load()
+    config.add_settings(stream_service=stream_service)
+
 
 
 
@@ -31,7 +36,7 @@ def make_wsgi_app(global_config, **settings):
     from pyramid.config import Configurator
     from pyramid.renderers import JSON
 
-    # from pyramid.session import UnencryptedCookieSessionFactoryConfig
+    from pyramid.session import UnencryptedCookieSessionFactoryConfig
     # from pyramid.authentication import SessionAuthenticationPolicy
     # from pyramid.authorization import ACLAuthorizationPolicy
 

@@ -8,6 +8,8 @@ This module implements some common API for REST of streamswtich controller.
 :license: AGPLv3, see LICENSE for more details.
 
 """
+
+from __future__ import unicode_literals, division
 import sys
 import traceback
 
@@ -17,7 +19,7 @@ from pyramid.response import Response
 from pyramid.events import subscriber, NewResponse
 from pyramid.renderers import render_to_response
 
-from storlever.lib.schema import SchemaError as ValidationFailure
+from ..utils.schema import SchemaError as ValidationFailure
 from ...exceptions import StreamSwitchError
 
 class _rest_view(view_config):
@@ -53,7 +55,7 @@ def failed_validation(exc, request):
 
 
 @view_config(context=StreamSwitchError)
-def storlever_error_view(exc, request):
+def stsw_error_view(exc, request):
     response = request.response
     response.status_int = exc.http_status_code
     type, dummy, tb = sys.exc_info()
@@ -76,8 +78,12 @@ def not_found_view(exc, request):
     response.status_int = exc.status_code
     type, dummy, tb = sys.exc_info()
     if not request.path.startswith('/stsw/api/'):
-        return render_to_response('streamswitch.wsgiapp:templates/404.pt', {},
+
+        response = render_to_response('streamswitch.wsgiapp:templates/404.pt', {},
                               request=request)
+        response.status_int = 404
+        return response
+
     else:
         return {'info': 'Resource {0} not found or method {1} not supported'.format(request.path, request.method),
                 'exception': str(type),
