@@ -29,16 +29,14 @@ class StreamService(object):
         stream = self.stream_mngr.find_stream(stream_name)
         if stream is None:
             raise StreamSwitchError(
-                "Stream (%s) Not Found" % stream_name,
-                404)
+                "Stream (%s) Not Found" % stream_name, 404)
         return stream
 
     def del_stream(self, stream_name):
         stream = self.stream_mngr.find_stream(stream_name)
         if stream is None:
             raise StreamSwitchError(
-                "Stream (%s) Not Found" % stream_name,
-                404)
+                "Stream (%s) Not Found" % stream_name, 404)
         stream.destroy()
 
     def new_stream(self, stream_config):
@@ -53,7 +51,8 @@ class StreamService(object):
                 log_rotate=stream_config.log_rotate,
                 err_restart_interval=stream_config.err_restart_interval,
                 extra_options=stream_config.extra_options,
-                event_listener=None)
+                event_listener=None,
+                **stream_config.other_params)
         return stream
 
     def get_source_type_list(self):
@@ -62,9 +61,8 @@ class StreamService(object):
     def restart_stream(self, stream_name):
         stream = self.stream_mngr.find_stream(stream_name)
         if stream is None:
-            raise StreamSwitchError(
-                "Stream (%s) Not Found" % stream_name,
-                404)
+            raise \
+                StreamSwitchError( "Stream (%s) Not Found" % stream_name, 404)
         stream.restart()
 
     def get_stream_metadata(self, stream_name, timeout=5.0):

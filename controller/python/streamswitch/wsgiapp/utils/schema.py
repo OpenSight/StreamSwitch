@@ -31,6 +31,11 @@ from functools import wraps
 __version__ = '0.2.0'
 
 
+if sys.version_info[:1] < (3, ):
+    STRING = unicode
+else:
+    STRING = str
+
 class SchemaError(Exception):
 
     """Error during Schema validation."""
@@ -128,7 +133,7 @@ class IntVal(object):
     def validate(self, data):
         if not isinstance(data, int):
             try:
-                if (isinstance(data, str) or isinstance(data, unicode)):
+                if isinstance(data, STRING):
                     data = int(data, 0)
                 else:
                     data = int(data)
@@ -145,6 +150,34 @@ class IntVal(object):
                 raise SchemaError('%d is larger than %d' % (data, self._max), self._error)
         if self._min is None and self._max is None and self._values:
             raise SchemaError('%s is not in %s' % data, self._values)
+        return data
+
+
+class FloatVal(object):
+    """
+    schema to Validate integer
+    @data should be either integer or numeric string like "123"
+    @data should be in @values set OR in range of @min and @max
+    """
+    def __init__(self, min=None, max=None, error=None):
+        self._min = min
+        self._max = max
+        self._error = error
+
+    def validate(self, data):
+        if not isinstance(data, float):
+            try:
+                data = float(data)
+            except Exception:
+                raise SchemaError('%s is not float' % data, self._error)
+
+        if self._min:
+            if data < self._min:
+                raise SchemaError('%f is smaller than %f' % (data, self._min), self._error)
+        if self._max:
+            if data > self._max:
+                raise SchemaError('%f is larger than %f' % (data, self._max), self._error)
+
         return data
 
 
@@ -185,12 +218,9 @@ class StrRe(object):
         self.pattern_str = pattern
 
     def validate(self, data):
-        if not isinstance(data, str):
+        if not isinstance(data, STRING):
             try:
-                if sys.version_info[:1] < (3, ):
-                    data = unicode(data)
-                else:
-                    data = str(data)
+                data = STRING(data)
             except Exception:
                 raise SchemaError('%s is not valid string' % data, self._error)
 
@@ -215,9 +245,9 @@ class Use(object):
         try:
 
             if self._callable == int and \
-               (isinstance(data, str) or isinstance(data, unicode)):
-                return self._callable(data,0)
-            if self._callable == str or self._callable == unicode:
+               isinstance(data, STRING) :
+                return self._callable(data ,0)
+            if self._callable == STRING:
                 return self._callable(data).strip()
 
             return self._callable(data)
@@ -297,7 +327,7 @@ class Schema(object):
                     svalue = s[skey]
                     try:
                         nkey = Schema(skey, error=e).validate(key)
-                        if isinstance(skey, str) or isinstance(skey, Optional):
+                        if isinstance(skey, STRING) or isinstance(skey, Optional):
                             must_match = True
                         try:
                             nvalue = Schema(svalue, error=e).validate(value)
@@ -389,13 +419,13 @@ class Default(Schema):
 
 if __name__ == '__main__':
     # example
-    schema = Schema({"key1": str,       # key1 should be string
-                     "key2": int,       # key2 should be int
+    schema = Schema({"key1": STRING,       # key1 should be string
+                     "key2": STRING,       # key2 should be int
                      "key3": Use(int),  # key3 should be in or int in string
                      "key4": IntVal(1, 99),   # key4 should be int between 1-99
-                     Optional("key5"): Default(str, default="value5"),  # key5 is optional,
+                     Optional("key5"): Default(STRING, default="value5"),  # key5 is optional,
                                                                         # should be str and default value is "value 5"
-                     DoNotCare(str): object})      # for keys we don't care
+                     DoNotCare(STRING): object})      # for keys we don't care
 
     from pprint import pprint
 

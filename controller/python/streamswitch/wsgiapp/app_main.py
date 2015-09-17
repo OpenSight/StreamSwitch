@@ -13,7 +13,7 @@ import pkg_resources
 
 from .services.stream_service import StreamService
 from .. import stream_mngr
-
+from gevent import reinit
 
 
 STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
@@ -30,6 +30,10 @@ def configure_services(config):
 def make_wsgi_app(global_config, **settings):
     """ This function returns a Pyramid WSGI application.
     """
+
+    #reinit the gevent lib at first
+    reinit()
+
     # from storlever.lib.lock import set_lock_factory_from_name
     # from storlever.lib.security import AclRootFactory
     from ..utils import CustomJSONEncoder

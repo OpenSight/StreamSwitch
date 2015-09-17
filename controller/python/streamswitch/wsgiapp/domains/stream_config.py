@@ -16,9 +16,9 @@ from streamswitch.stream_mngr import DEFAULT_LOG_ROTATE
 
 
 class StreamConfig(object):
-    def __init__(self, stream_name="", source_type="unknown", url="", api_tcp_port=0,
+    def __init__(self, stream_name, source_type="unknown", url="", api_tcp_port=0,
                  log_file=None, log_size=DEFAULT_LOG_SIZE, log_rotate=DEFAULT_LOG_ROTATE,
-                 err_restart_interval=30.0, extra_options={}, other_params={}):
+                 err_restart_interval=30.0, extra_options={}, **kwargs):
         self.stream_name = stream_name
         self.source_type = source_type
         self.url = url
@@ -28,4 +28,4 @@ class StreamConfig(object):
         self.log_rotate = log_rotate
         self.err_restart_interval = err_restart_interval
         self.extra_options = extra_options
-        self.other_params = other_params
+        self.other_params = kwargs
