@@ -38,7 +38,7 @@ class StreamInfoEvent(StreamSwitchEvent):
 
     """
     def __init__(self, info, stream, stream_info):
-        super(StreamSubsriberEvent, self).__init__(info)
+        super(StreamInfoEvent, self).__init__(info)
         self.stream = stream
         self.stream_info = stream_info
 

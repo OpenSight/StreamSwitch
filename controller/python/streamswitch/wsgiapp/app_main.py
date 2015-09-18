@@ -14,16 +14,16 @@ import pkg_resources
 from .services.stream_service import StreamService
 from .. import stream_mngr
 from gevent import reinit
-
+from pyramid.events import ApplicationCreated
 
 STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
 
 
-def configure_services(config):
+def set_services(config):
     stream_service = StreamService(stream_mngr=stream_mngr)
-    stream_service.load()
     config.add_settings(stream_service=stream_service)
-
+    config.add_subscriber(stream_service.on_application_created,
+                          ApplicationCreated)
 
 
 
@@ -69,9 +69,9 @@ def make_wsgi_app(global_config, **settings):
     config.include('streamswitch.wsgiapp.views', route_prefix='stsw/api/v1')
 
     # configure the services into deploy setting
-    configure_services(config)
+    set_services(config)
 
-    # loads all the extensions with entry point group "storlever.extenstions"
+    # loads all the extensions with entry point group "streamswitch.wsgiapp.extensions"
     launch_extensions(config)
 
     return config.make_wsgi_app()

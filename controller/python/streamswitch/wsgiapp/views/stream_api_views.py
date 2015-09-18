@@ -31,6 +31,7 @@ def includeme(config):
     config.add_route('stream_metadata', '/streams/{stream_name}/metadata')
     config.add_route('stream_statistic', '/streams/{stream_name}/statistic')
     config.add_route('stream_key_frames', '/streams/{stream_name}/key_frames')
+    config.add_route('stream_subsequent_stream_info', '/streams/{stream_name}/subsequent_stream_info')
 
 
 def get_stream_service_from_request(request):
@@ -128,3 +129,11 @@ def post_stream_key_frames(request):
     stream_service = get_stream_service_from_request(request)
     stream_service.key_frame(stream_name, **params)
     return Response(status=200)
+
+
+@get_view(route_name='stream_subsequent_stream_info')
+def get_stream_subsequent_stream_info(request):
+    stream_name = request.matchdict['stream_name']
+    params = get_params_from_request(request, timeout_schema)
+    stream_service = get_stream_service_from_request(request)
+    return stream_service.wait_subsequent_stream_info(stream_name, **params)

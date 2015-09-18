@@ -10,6 +10,39 @@ This module implements the service class for stream management
 """
 from __future__ import unicode_literals, division
 from ...exceptions import StreamSwitchError
+from gevent.event import AsyncResult
+from ...events import StreamInfoEvent
+import gevent
+
+
+class StreamInfoNotifier(object):
+
+    MAX_WAITER = 1000
+
+    def __init__(self, stream_name):
+        self.waiters = set()
+        self.stream_name = stream_name
+
+    def wait_stream_info(self, timeout):
+        if len(self.waiters) > self.MAX_WAITER:
+            raise StreamSwitchError("Too Many Waiter for Stream Info (%s)" %
+                                    self.stream_name, 503)
+        async_result = AsyncResult()
+        self.waiters.add(async_result)
+        try:
+            stream_info = async_result.get(timeout=timeout)
+        except gevent.timeout.Timeout:
+            raise StreamSwitchError(
+                "Stream Info (%s) Not Ready" % self.stream_name, 408)
+        finally:
+            self.waiters.discard(async_result)
+
+        # print("return:" + str(stream_info))
+        return stream_info
+
+    def put_stream_info(self, stream_info):
+        for waiter in self.waiters:
+            waiter.set(stream_info)
 
 
 class StreamService(object):
@@ -18,9 +51,20 @@ class StreamService(object):
         self.stream_mngr = stream_mngr
         self.stream_dao = stream_dao
         self.tx_ctx_factory = tx_ctx_factory
+        self._stream_info_notifier = {}
+
+    def on_application_created(self, event):
+        self.load()
 
     def load(self):
         pass
+
+    def on_stream_event(self, event):
+        #print("on stream event")
+        if isinstance(event, StreamInfoEvent):
+            notifier = self._stream_info_notifier.pop(event.stream.stream_name, None)
+            if notifier is not None:
+                notifier.put_stream_info(event.stream_info)
 
     def get_stream_list(self):
         return self.stream_mngr.list_streams()
@@ -38,6 +82,7 @@ class StreamService(object):
             raise StreamSwitchError(
                 "Stream (%s) Not Found" % stream_name, 404)
         stream.destroy()
+        self._stream_info_notifier.pop(stream_name, None)
 
     def new_stream(self, stream_config):
         stream = \
@@ -51,7 +96,7 @@ class StreamService(object):
                 log_rotate=stream_config.log_rotate,
                 err_restart_interval=stream_config.err_restart_interval,
                 extra_options=stream_config.extra_options,
-                event_listener=None,
+                event_listener=self.on_stream_event,
                 **stream_config.other_params)
         return stream
 
@@ -98,3 +143,17 @@ class StreamService(object):
         return stream.get_client_list(start_index=0,
                                        max_client_num=100000,
                                        timeout=timeout).client_list
+
+    def wait_subsequent_stream_info(self, stream_name, timeout=5.0):
+        stream = self.stream_mngr.find_stream(stream_name)
+        if stream is None:
+            raise StreamSwitchError(
+                "Stream (%s) Not Found" % stream_name,
+                404)
+
+        notifier = self._stream_info_notifier.get(stream_name)
+        if notifier is None:
+            notifier = StreamInfoNotifier(stream_name)
+            self._stream_info_notifier[stream_name] = notifier
+
+        return notifier.wait_stream_info(timeout)

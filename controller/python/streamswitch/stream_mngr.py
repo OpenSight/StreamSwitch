@@ -25,6 +25,7 @@ import zmq.green as zmq
 import gevent
 from gevent import sleep
 import time
+import traceback
 
 DEFAULT_LOG_SIZE = 1024 * 1024
 DEFAULT_LOG_ROTATE = 3
@@ -140,6 +141,25 @@ class ClientList(object):
         self.client_list = []
 
 
+class StreamInfo(object):
+    def __init__(self):
+        self.state = STREAM_STATE_CONNECTING
+        self.play_type = PLAY_TYPE_LIVE
+        self.source_proto = ""
+        self.ssrc = 0
+        self.cur_bps = 0
+        self.last_frame_sec = 0
+        self.last_frame_usec = 0
+        self.send_time = 0
+        self.stream_name = ""
+        self.client_num = 0
+
+    def from_pb(self, pb_stream_info):
+        for k, v in vars(self).items():
+            if (not k.startswith('_')) and hasattr(pb_stream_info, k):
+                setattr(self, k, getattr(pb_stream_info, k))
+
+
 class BaseStream(object):
 
     DEBUG_FLAGS = 0    # no debug
@@ -186,7 +206,6 @@ class BaseStream(object):
         if stream_name in _tmp_creating_streams:
             raise StreamSwitchError("Stream(%s) Creating Conflict" % stream_name, 400)
         _tmp_creating_streams.add(stream_name)
-
 
     def __str__(self):
         return ('Stream %s (source_type:%s, url:%s, api_tcp_port:%d, log_file:%s,'
@@ -477,8 +496,9 @@ class BaseStream(object):
                             self._event_listener(
                                 StreamSubsriberEvent("Stream Subsriber event",
                                                      self, channel, packet, blob))
-                    except Exception:
+                    except Exception as e:
                         # ignore handler exception
+                        traceback.print_exc()
                         pass
             except Exception:
                 if subscriber_socket is not None:
@@ -545,28 +565,32 @@ class BaseStream(object):
                 self._handle_stream_info(packet, blob)
 
     def _handle_stream_info(self, packet, blob=None):
-        stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
-        send_time = float(stream_info.send_time) / 1000.0
+        # print('_handle_stream_info')
+        pb_stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
+        send_time = float(pb_stream_info.send_time) / 1000.0
+
         if (time.time() - send_time >=
                 self.STSW_STREAM_STATE_TIMEOUT_TIME):
             return    # ignore the too old info
 
-        if stream_info.ssrc == self.ssrc and \
+        if pb_stream_info.ssrc == self.ssrc and \
            send_time < self.update_time:
             return  # ignore the out-time stream info
 
-        self.state = stream_info.state
-        self.play_type = stream_info.play_type
-        self.source_protocol = stream_info.source_proto
-        self.ssrc = stream_info.ssrc
-        self.cur_bps = stream_info.cur_bps
+        self.state = pb_stream_info.state
+        self.play_type = pb_stream_info.play_type
+        self.source_protocol = pb_stream_info.source_proto
+        self.ssrc = pb_stream_info.ssrc
+        self.cur_bps = pb_stream_info.cur_bps
         self.last_frame_time = \
-            float(stream_info.last_frame_sec) + \
-            float(stream_info.last_frame_usec) / 1000000.0
+            float(pb_stream_info.last_frame_sec) + \
+            float(pb_stream_info.last_frame_usec) / 1000000.0
         self.update_time = send_time
-        self.client_num = stream_info.client_num
+        self.client_num = pb_stream_info.client_num
 
         if self._event_listener is not None and callable(self._event_listener):
+            stream_info = StreamInfo()
+            stream_info.from_pb(pb_stream_info)
             self._event_listener(
                 StreamInfoEvent("Stream info event", self, stream_info))
 
