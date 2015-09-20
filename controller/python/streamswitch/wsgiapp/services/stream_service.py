@@ -13,7 +13,10 @@ from ...exceptions import StreamSwitchError
 from gevent.event import AsyncResult
 from ...events import StreamInfoEvent
 import gevent
-
+from ...process_mngr import kill_all
+from ...sources.file_live_source import FILE_LIVE_SOURCE_PROGRAM_NAME
+from ...sources.proxy_source import PROXY_SOURCE_PROGRAM_NAME
+from ...sources.rtsp_source import RTSP_SOURCE_PROGRAM_NAME
 
 class StreamInfoNotifier(object):
 
@@ -54,6 +57,9 @@ class StreamService(object):
         self._stream_info_notifier = {}
 
     def on_application_created(self, event):
+        kill_all(RTSP_SOURCE_PROGRAM_NAME)
+        kill_all(PROXY_SOURCE_PROGRAM_NAME)
+        kill_all(FILE_LIVE_SOURCE_PROGRAM_NAME)
         self.load()
 
     def load(self):
@@ -84,20 +90,9 @@ class StreamService(object):
         stream.destroy()
         self._stream_info_notifier.pop(stream_name, None)
 
-    def new_stream(self, stream_config):
+    def new_stream(self, stream_configs):
         stream = \
-            self.stream_mngr.create_stream(
-                source_type=stream_config.source_type,
-                stream_name=stream_config.stream_name,
-                url=stream_config.url,
-                api_tcp_port=stream_config.api_tcp_port,
-                log_file=stream_config.log_file,
-                log_size=stream_config.log_size,
-                log_rotate=stream_config.log_rotate,
-                err_restart_interval=stream_config.err_restart_interval,
-                extra_options=stream_config.extra_options,
-                event_listener=self.on_stream_event,
-                **stream_config.other_params)
+            self.stream_mngr.create_stream(**stream_configs)
         return stream
 
     def get_source_type_list(self):

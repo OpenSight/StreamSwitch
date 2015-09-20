@@ -21,7 +21,10 @@ else:
     def find_executable(name):
         return shutil.which(name)
 
-
+if sys.version_info[:1] < (3, ):
+    STRING = unicode
+else:
+    STRING = str
 
 class CustomJSONEncoder(json.JSONEncoder):
     def __init__(self, *args, **kwargs):

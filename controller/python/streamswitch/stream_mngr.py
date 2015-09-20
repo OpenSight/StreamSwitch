@@ -13,7 +13,7 @@ from __future__ import unicode_literals, division
 from .exceptions import StreamSwitchError
 from .events import StreamSubsriberEvent, StreamInfoEvent
 from .process_mngr import spawn_watcher, PROC_STOP, kill_all
-from .utils import import_method, is_str
+from .utils import import_method, is_str, STRING
 from .pb import pb_packet_pb2
 from .pb import pb_stream_info_pb2
 from .pb import pb_metadata_pb2
@@ -170,7 +170,7 @@ class BaseStream(object):
     def __init__(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
                  **kwargs):
-        self.__stream_name = stream_name  # stream_name cannot be modified
+        self.__stream_name = STRING(stream_name)  # stream_name cannot be modified
         self._event_listener = event_listener
         self._has_destroy = False
         self._has_started = False
@@ -179,15 +179,18 @@ class BaseStream(object):
         self._api_seq = 1
 
         # config
-        self.stream_name = stream_name
-        self.source_type = source_type
-        self.url = url
-        self.api_tcp_port = api_tcp_port
-        self.log_file = log_file
-        self.log_size = log_size
-        self.log_rotate = log_rotate
-        self.err_restart_interval = err_restart_interval
-        self.extra_options = extra_options
+        self.stream_name = STRING(stream_name)
+        self.source_type = STRING(source_type)
+        self.url = STRING(url)
+        self.api_tcp_port = int(api_tcp_port)
+        if log_file is not None:
+            self.log_file = STRING(log_file)
+        else:
+            self.log_file = None
+        self.log_size = int(log_size)
+        self.log_rotate = int(log_rotate)
+        self.err_restart_interval = float(err_restart_interval)
+        self.extra_options = dict(extra_options)
         self.mode = STREAM_MODE_ACTIVE
 
         # status

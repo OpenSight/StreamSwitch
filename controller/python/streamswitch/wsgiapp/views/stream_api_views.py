@@ -32,6 +32,7 @@ def includeme(config):
     config.add_route('stream_statistic', '/streams/{stream_name}/statistic')
     config.add_route('stream_key_frames', '/streams/{stream_name}/key_frames')
     config.add_route('stream_subsequent_stream_info', '/streams/{stream_name}/subsequent_stream_info')
+    config.add_route('stream_operations', '/streams/{stream_name}/operations')
 
 
 def get_stream_service_from_request(request):
@@ -67,10 +68,9 @@ new_stream_schema = Schema({
 
 @post_view(route_name='streams')
 def add_stream(request):
-    params = get_params_from_request(request, new_stream_schema)
-    stream_config = StreamConfig(**params)
+    stream_configs = get_params_from_request(request, new_stream_schema)
     stream_service = get_stream_service_from_request(request)
-    stream = stream_service.new_stream(stream_config)
+    stream = stream_service.new_stream(stream_configs)
 
     # setup reponse
     response = request.response
@@ -137,3 +137,19 @@ def get_stream_subsequent_stream_info(request):
     params = get_params_from_request(request, timeout_schema)
     stream_service = get_stream_service_from_request(request)
     return stream_service.wait_subsequent_stream_info(stream_name, **params)
+
+
+
+stream_op_schema = Schema({
+    "op":  StrRe(r"^restart$"),   # not em
+    DoNotCare(Use(STRING)): object  # for all other key we don't care
+})
+@post_view(route_name='stream_operations')
+def post_stream_operations(request):
+    stream_name = request.matchdict['stream_name']
+    params = get_params_from_request(request, stream_op_schema)
+    stream_service = get_stream_service_from_request(request)
+    op = params["op"]
+    if op == "restart":
+        stream_service.restart_stream(stream_name)
+    return Response(status=200)

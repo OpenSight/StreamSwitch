@@ -13,6 +13,7 @@ from __future__ import unicode_literals, division
 from .exceptions import StreamSwitchError
 from .process_mngr import spawn_watcher, PROC_RUNNING
 from .events import PortStatusChangeEvent
+from .utils import STRING
 import gevent
 
 
@@ -28,17 +29,17 @@ class BasePort(object):
 
     def __init__(self, port_name, port_type="base", listen_port=0, transport=TRANSPORT_TCP, ipv6=False, log_file=None, log_size=DEFAULT_LOG_SIZE,
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, desc="", extra_options={}, event_listener=None, **kargs):
-        self.port_name = port_name
-        self.port_type = port_type
+        self.port_name = STRING(port_name)
+        self.port_type = STRING(port_type)
         self.listen_port = int(listen_port)
-        self.transport = transport
-        self.ipv6 = ipv6
+        self.transport = int(transport)
+        self.ipv6 = bool(ipv6)
         self.log_file = log_file
-        self.log_size = log_size
-        self.log_rotate = log_rotate
-        self.err_restart_interval = err_restart_interval
-        self.extra_options = extra_options
-        self.desc = desc
+        self.log_size = int(log_size)
+        self.log_rotate = int(log_rotate)
+        self.err_restart_interval = float(err_restart_interval)
+        self.extra_options = dict(extra_options)
+        self.desc = STRING(desc)
         self._event_listener = event_listener
 
     def __str__(self):
@@ -65,49 +66,29 @@ class BasePort(object):
     def reload(self):
         pass
 
-    def _setattr(self, attr_name, attr_value):
-        """ set attribute if not None
 
-        return True if attribute changes, otherwise return False
-
-        """
-        if attr_value is not None and \
-                getattr(self, attr_name) != attr_value:
-            setattr(self, attr_name, attr_value)
-            return True
-        else:
-            return False
 
     def configure(self, listen_port=None, transport=None, ipv6=None, log_file=None, log_size=None,
-                 log_rotate=None, err_restart_interval=None, extra_options=None, event_listener=None, **kargs):
-        need_reload = False
-        if self._setattr("listen_port", listen_port):
-            need_reload = True
+                 log_rotate=None, err_restart_interval=None, extra_options=None, desc=None, **kargs):
+        if listen_port is not None:
+            self.listen_port = int(listen_port)
+        if transport is not None:
+            self.transport = int(transport)
+        if ipv6 is not None:
+            self.ipv6 = bool(ipv6)
+        if log_file is not None:
+            self.log_file = STRING(log_file)
+        if log_size is not None:
+            self.log_size = int(log_size)
+        if log_rotate is not None:
+            self.log_rotate = int(log_rotate)
+        if err_restart_interval is not None:
+            self.err_restart_interval = float(err_restart_interval)
+        if extra_options is not None:
+            self.extra_options = dict(extra_options)
+        if desc is not None:
+            self.desc = STRING(desc)
 
-        if self._setattr("transport", transport):
-            need_reload = True
-
-        if self._setattr("ipv6", ipv6):
-            need_reload = True
-
-        if self._setattr("log_file", log_file):
-            need_reload = True
-
-        if self._setattr("log_size", log_size):
-            need_reload = True
-
-        if self._setattr("log_rotate", log_rotate):
-            need_reload = True
-
-        if self._setattr("err_restart_interval", err_restart_interval):
-            need_reload = True
-
-        if self._setattr("extra_options", extra_options):
-            need_reload = True
-
-        self._setattr("event_listener", event_listener)
-
-        return need_reload
 
 
 class SubProcessPort(BasePort):
@@ -123,7 +104,7 @@ class SubProcessPort(BasePort):
 
     def start(self):
         if self._proc_watcher is not None:
-            self._proc_watcher.destroy()
+            return    # alread start
         self._proc_watcher = spawn_watcher(self.cmd_args,
                                            error_restart_interval=self.err_restart_interval,
                                            process_status_cb=self._process_status_cb)
@@ -150,12 +131,8 @@ class SubProcessPort(BasePort):
 
     def configure(self, **kargs):
         super(SubProcessPort, self).configure(**kargs)
-        old_cmd_args = self.cmd_args
         self.cmd_args = self._generate_cmd_args()
-        if old_cmd_args != self.cmd_args:
-            return True
-        else:
-            return False
+
 
     def _generate_cmd_args(self):
         if self._executable is None or len(self._executable) == 0:
@@ -169,7 +146,7 @@ class SubProcessPort(BasePort):
             cmd_args.extend(["-p", "%d" % self.listen_port])
 
         if self.log_file is not None:
-            cmd_args.extend(["-l", self.log_file])
+            cmd_args.extend(["-l", STRING(self.log_file)])
             cmd_args.extend(["-L", "%d" % self.log_size])
             cmd_args.extend(["-r", "%d" % self.log_rotate])
 

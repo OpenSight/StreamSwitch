@@ -19,6 +19,8 @@ from pyramid.events import ApplicationCreated
 STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
 
 
+
+
 def set_services(config):
     stream_service = StreamService(stream_mngr=stream_mngr)
     config.add_settings(stream_service=stream_service)
