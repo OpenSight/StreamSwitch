@@ -11,6 +11,10 @@ This module implements the DAO for port configuration's persistence
 
 from ..utils.config import Config
 from gevent.threadpool import ThreadPool
+from ..utils.schema import Schema, Optional, IntVal, BoolVal, StrRe, \
+    Use, DoNotCare, STRING, AutoDel
+from ...port_mngr import TRANSPORT_TCP, TRANSPORT_UDP
+from ...exceptions import StreamSwitchError
 
 conf_file_schema = Schema([{
     Optional("listen_port"): IntVal(0, 65535),
@@ -60,7 +64,6 @@ class PortDao(object):
     def get_port_conf_list(self):
         return self.threadpool.apply(self._get_port_conf_list)
 
-
     def _get_port_conf(self, port_name):
         config = Config.from_file(self.conf_file, conf_file_schema)
         for port_config in config.conf:
@@ -68,12 +71,11 @@ class PortDao(object):
                 break
         else:
             raise StreamSwitchError("Port (%s) Not Exist in config file(%)" %
-                                    (port_name, self_conf_file),  404)
+                                    (port_name, self.self_conf_file),  404)
         return port_config
 
     def get_port_conf(self, port_name):
         return self.threadpool.apply(self._get_port_conf, port_name)
-
 
     def _update_port_conf(self, port_name, new_port_config):
         config = Config.from_file(self.conf_file, conf_file_schema)
@@ -82,7 +84,7 @@ class PortDao(object):
                 break
         else:
             raise StreamSwitchError("Port (%s) Not Exist in config file(%)" %
-                                    (port_name, self_conf_file),  404)
+                                    (port_name, self.self_conf_file),  404)
 
         new_port_config = new_port_config_schema.validate(new_port_config)
         port_config.update(new_port_config)

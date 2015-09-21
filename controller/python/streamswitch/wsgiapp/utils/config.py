@@ -31,7 +31,7 @@ class Config(object):
                 self.conf is not None:
             try:
                 with open(self.conf_file, "w") as f:
-                    os.chmod(self.conf_file, 0600) # make config file is r/w only for root
+                    os.chmod(self.conf_file, 0o600)   # make config file is r/w only for root
                     yaml.dump(self.conf, f, default_flow_style=False)
             except Exception:
                 raise ConfigError(str(Exception))

@@ -20,7 +20,6 @@ from ..utils.schema import Schema, Optional, DoNotCare, \
     FloatVal, AutoDel
 from .common import get_params_from_request
 import gevent
-from ..domains.stream_config import StreamConfig
 from ...port_mngr import TRANSPORT_TCP, TRANSPORT_UDP
 
 
@@ -28,7 +27,6 @@ def includeme(config):
     config.add_route('ports', '/ports')
     config.add_route('port', '/ports/{port_name}')
     config.add_route('port_operations', '/ports/{port_name}/operations')
-
 
 
 def get_port_service_from_request(request):
@@ -77,7 +75,7 @@ def put_port(request):
 
 
 port_op_schema = Schema({
-    "op":  StrRe(r"^(start|stop|restart|reload)$"),   # not em
+    "op":  StrRe(r"^(start|stop|restart|reload)$"),
     DoNotCare(Use(STRING)): object  # for all other key we don't care
 })
 

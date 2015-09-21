@@ -279,10 +279,13 @@ class ListVal(object):
 
         return self._schema.validate(data)
 
+
 def priority(s):
+    if isinstance(s, DoNotCare):
+        return 9
     if isinstance(s, AutoDel):
         return 8
-    if isinstance(s, DoNotCare):
+    if isinstance(s, Optional):
         return 7
     if type(s) in (list, tuple, set, frozenset):
         return 6
