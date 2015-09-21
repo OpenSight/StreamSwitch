@@ -30,7 +30,7 @@ class PortService(object):
             constructor_params = dict(port_conf)
             port_factory = import_method(constructor_params.pop("port_factory"))
             auto_start = constructor_params.pop("auto_start", False)
-            port =port_factory(**constructor_params)
+            port = port_factory(**constructor_params)
             if auto_start:
                 port.start()
             self.port_mngr.register_port(port)

@@ -15,6 +15,8 @@ from ..utils.schema import Schema, Optional, IntVal, BoolVal, StrRe, \
     Use, DoNotCare, STRING, AutoDel
 from ...port_mngr import TRANSPORT_TCP, TRANSPORT_UDP
 from ...exceptions import StreamSwitchError
+import os
+import copy
 
 conf_file_schema = Schema([{
     Optional("listen_port"): IntVal(0, 65535),
@@ -53,44 +55,45 @@ new_port_config_schema = Schema({
 
 
 class PortDao(object):
-    def __init__(self, config_file=None):
-        self.conf_file = config_file
-        self.threadpool = ThreadPool(1)
+    def __init__(self, config_file):
+        self.conf_file = STRING(config_file)
+        self._threadpool = ThreadPool(1)
+        self._cached_port_conf_list = []
+        self._load_conf()
 
-    def _get_port_conf_list(self):
-        config = Config.from_file(self.conf_file, conf_file_schema)
-        return config.conf
+    def _load_conf(self):
+        if os.path.isfile(self.conf_file):
+            config = self._threadpool.apply(
+                Config.from_file,
+                self.conf_file,
+                conf_file_schema)
+            self._cached_port_conf_list = config.conf
 
     def get_port_conf_list(self):
-        return self.threadpool.apply(self._get_port_conf_list)
-
-    def _get_port_conf(self, port_name):
-        config = Config.from_file(self.conf_file, conf_file_schema)
-        for port_config in config.conf:
-            if port_config.get("port_name") == port_name:
-                break
-        else:
-            raise StreamSwitchError("Port (%s) Not Exist in config file(%)" %
-                                    (port_name, self.self_conf_file),  404)
-        return port_config
+        return copy.deepcopy(self._cached_port_conf_list)
 
     def get_port_conf(self, port_name):
-        return self.threadpool.apply(self._get_port_conf, port_name)
-
-    def _update_port_conf(self, port_name, new_port_config):
-        config = Config.from_file(self.conf_file, conf_file_schema)
-        for port_config in config.conf:
+        for port_config in self._cached_port_conf_list:
             if port_config.get("port_name") == port_name:
                 break
         else:
             raise StreamSwitchError("Port (%s) Not Exist in config file(%)" %
                                     (port_name, self.self_conf_file),  404)
-
-        new_port_config = new_port_config_schema.validate(new_port_config)
-        port_config.update(new_port_config)
-        config.write()
+        return copy.deepcopy(port_config)
 
     def update_port_conf(self, port_name, new_port_config):
-        return self.threadpool.apply(self._update_port_conf,
-                                     port_name,
-                                     new_port_config)
+
+        new_port_config = new_port_config_schema.validate(new_port_config)
+
+        for port_config in self._cached_port_conf_list:
+            if port_config.get("port_name") == port_name:
+                break
+        else:
+            raise StreamSwitchError("Port (%s) Not Exist in config file(%)" %
+                                    (port_name, self.self_conf_file),  404)
+        port_config.update(new_port_config)
+
+        save_port_conf_list = copy.deepcopy(self._cached_port_conf_list)
+        self._threadpool.apply(Config.to_file,
+                              self.conf_file,
+                              save_port_conf_list)

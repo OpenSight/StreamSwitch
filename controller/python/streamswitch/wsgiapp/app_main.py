@@ -12,19 +12,32 @@ from __future__ import unicode_literals, division
 import pkg_resources
 
 from .services.stream_service import StreamService
-from .. import stream_mngr
+from .daos.port_dao import PortDao
+from .services.port_service import PortService
+from .. import stream_mngr, port_mngr
 from gevent import reinit
 from pyramid.events import ApplicationCreated
 
 STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
 
 
-
-
 def set_services(config):
+    """ constructs every service used in this WSGI application """
+
+    settings = config.get_settings()
+
     stream_service = StreamService(stream_mngr=stream_mngr)
     config.add_settings(stream_service=stream_service)
     config.add_subscriber(stream_service.on_application_created,
+                          ApplicationCreated)
+
+
+    port_conf_file = settings.get("port_conf_file",
+                                  "/etc/streamswitch/ports.yaml")
+    port_dao = PortDao(port_conf_file)
+    port_service = PortService(port_mngr=port_mngr, port_dao=port_dao)
+    config.add_settings(port_service=port_service)
+    config.add_subscriber(port_service.on_application_created,
                           ApplicationCreated)
 
 
