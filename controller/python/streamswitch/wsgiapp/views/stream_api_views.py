@@ -20,9 +20,11 @@ from ..utils.schema import Schema, Optional, DoNotCare, \
     FloatVal, AutoDel
 from .common import get_params_from_request
 import gevent
-
+from ..utils import logger
+import logging
 
 def includeme(config):
+    config.add_route('test', '/test')
     config.add_route('streams', '/streams')
     config.add_route('stream', '/streams/{stream_name}')
     config.add_route('source_types', '/source_types')
@@ -38,6 +40,10 @@ def get_stream_service_from_request(request):
     registry = request.registry
     return registry.settings['stream_service']
 
+@get_view(route_name='test')
+def get_test(request):
+    logger.log(logging.INFO, logger.LOG_TYPE_CONFIG, "test logger")
+    return Response(status=200)
 
 @get_view(route_name='source_types')
 def get_source_type_list(request):
