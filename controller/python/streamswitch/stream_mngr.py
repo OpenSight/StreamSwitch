@@ -622,7 +622,7 @@ class SourceProcessStream(BaseStream):
 
         cmd_args.extend(["-p", "%d" % self.api_tcp_port])
 
-        if self.log_file is not None:
+        if self.log_file is not None and self.log_file != "":
             cmd_args.extend(["-l", self.log_file])
             cmd_args.extend(["-L", "%d" % self.log_size])
             cmd_args.extend(["-r", "%d" % self.log_rotate])

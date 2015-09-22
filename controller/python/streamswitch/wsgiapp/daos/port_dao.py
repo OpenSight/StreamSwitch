@@ -30,7 +30,7 @@ conf_file_schema = Schema([{
     Optional("desc"): Use(STRING),
     Optional("auto_start"): BoolVal(),
     "port_name": StrRe(r"^\S+$"),
-    "port_type": StrRe(r"^\S+$"),
+    Optional("port_type"): StrRe(r"^\S+$"),
     "port_factory": StrRe(r"^\S+$"),
     DoNotCare(Use(STRING)): object  # for all other key we don't care
 }])
@@ -65,8 +65,7 @@ class PortDao(object):
         if os.path.isfile(self.conf_file):
             config = self._threadpool.apply(
                 Config.from_file,
-                self.conf_file,
-                conf_file_schema)
+                (self.conf_file, conf_file_schema))
             self._cached_port_conf_list = config.conf
 
     def get_port_conf_list(self):
@@ -95,5 +94,4 @@ class PortDao(object):
 
         save_port_conf_list = copy.deepcopy(self._cached_port_conf_list)
         self._threadpool.apply(Config.to_file,
-                              self.conf_file,
-                              save_port_conf_list)
+                               (self.conf_file, save_port_conf_list))

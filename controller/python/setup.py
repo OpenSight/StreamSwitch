@@ -57,6 +57,6 @@ setup(name='streamswitch',
       [paste.app_factory]
       main = streamswitch.wsgiapp.app_main:make_wsgi_app
       [paste.server_runner]
-      gevent = streamswitch.scripts.stsw_deploy_web:gevent_pywsgi_server_runner
+      gevent = streamswitch.scripts.stsw_web_deploy:gevent_pywsgi_server_runner
       """,
       )

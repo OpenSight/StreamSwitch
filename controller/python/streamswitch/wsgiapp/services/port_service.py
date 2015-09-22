@@ -44,10 +44,10 @@ class PortService(object):
             port_name = port_conf["port_name"]
             port_conf_dict[port_name] = port_conf
 
-        port_info_list =[]
+        port_info_list = []
         for port in port_list:
             port_conf = port_conf_dict[port.port_name]
-            port_list.append(
+            port_info_list.append(
                 PortInfo(port=port,
                          auto_start=port_conf.get("auto_start", False)))
         return port_info_list

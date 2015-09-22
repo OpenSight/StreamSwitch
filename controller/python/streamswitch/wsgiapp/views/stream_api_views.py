@@ -20,7 +20,6 @@ from ..utils.schema import Schema, Optional, DoNotCare, \
     FloatVal, AutoDel
 from .common import get_params_from_request
 import gevent
-from ..domains.stream_config import StreamConfig
 
 
 def includeme(config):

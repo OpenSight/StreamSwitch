@@ -1,0 +1,5 @@
+- extra_options: {}
+  port_factory: streamswitch.ports.rtsp_port:RtspPort
+  port_name: rtsp_port
+  listen_port: 554
+  desc: Port of the standard RTSP Service to provide the live and replay media streams

@@ -133,7 +133,6 @@ class SubProcessPort(BasePort):
         super(SubProcessPort, self).configure(**kargs)
         self.cmd_args = self._generate_cmd_args()
 
-
     def _generate_cmd_args(self):
         if self._executable is None or len(self._executable) == 0:
             program_name = self.port_type
@@ -145,7 +144,7 @@ class SubProcessPort(BasePort):
         if self.listen_port != 0:
             cmd_args.extend(["-p", "%d" % self.listen_port])
 
-        if self.log_file is not None:
+        if self.log_file is not None and self.log_file != "":
             cmd_args.extend(["-l", STRING(self.log_file)])
             cmd_args.extend(["-L", "%d" % self.log_size])
             cmd_args.extend(["-r", "%d" % self.log_rotate])

@@ -32,7 +32,8 @@ class RtspPort(SubProcessPort):
             transport=transport,
             ipv6=ipv6,
             **kwargs)
-    def configure(self, transport=None, ipv6=None, **kargs):
+
+    def configure(self, transport=None, ipv6=None, **kwargs):
         if transport is not None and \
             transport != TRANSPORT_TCP:
             raise StreamSwitchError("RTSP Port Only Support TCP")
