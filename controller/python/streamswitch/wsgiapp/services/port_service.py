@@ -11,8 +11,14 @@ This module implements the service class for port management
 from __future__ import unicode_literals, division
 from ...exceptions import StreamSwitchError
 import gevent
-from ..domains.port_info import PortInfo
 from ...utils import import_method
+
+
+class PortInfo(object):
+    def __init__(self, port, auto_start=False):
+        self.__dict__.update(port.__dict__)
+        self.is_running = port.is_running()
+        self.auto_start = auto_start
 
 
 class PortService(object):
