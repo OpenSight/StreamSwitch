@@ -9,6 +9,8 @@ This module implements the DAO for port configuration's persistence
 
 """
 
+
+from __future__ import unicode_literals, division
 from ..utils.config import Config
 from gevent.threadpool import ThreadPool
 from ..utils.schema import Schema, Optional, IntVal, BoolVal, StrRe, \

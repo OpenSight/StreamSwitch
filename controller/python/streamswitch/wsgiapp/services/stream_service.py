@@ -92,7 +92,8 @@ class StreamService(object):
 
     def new_stream(self, stream_configs):
         stream = \
-            self.stream_mngr.create_stream(**stream_configs)
+            self.stream_mngr.create_stream(event_listener=self.on_stream_event,
+                                           **stream_configs)
         return stream
 
     def get_source_type_list(self):
