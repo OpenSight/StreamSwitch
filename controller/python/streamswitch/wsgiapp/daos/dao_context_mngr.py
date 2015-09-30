@@ -24,5 +24,5 @@ class DaoContext(object):
 
 
 class DaoContextMngr(object):
-    def context(self, type=CONTEXT_TYPE_TRANSACTION, **kwargs):
+    def context(self, context_type=CONTEXT_TYPE_TRANSACTION, **kwargs):
         pass

@@ -1,11 +1,27 @@
 from __future__ import unicode_literals, division
-from gevent.pywsgi import WSGIServer
 import sys
-import os
+from pyramid.paster import (
+    get_appsettings,
+    setup_logging,
+    )
+from sqlalchemy import engine_from_config
+from sqlalchemy.schema import MetaData
+from ..wsgiapp.models import Base
 
-def gevent_pywsgi_server_runner(wsgi_app, global_conf, host="0.0.0.0", port=8088, **kwargs):
-    port = int(port)
-    WSGIServer(listener=(host, port), application=wsgi_app, **kwargs).serve_forever()
+
+def initialize_db(config_uri, options={}):
+
+    setup_logging(config_uri)
+    settings = get_appsettings(config_uri, options=options)
+    engine = engine_from_config(settings, 'sqlalchemy.')
+    # delete all tables
+
+    meta = MetaData()
+    meta.reflect(bind=engine)
+    meta.drop_all(engine)
+
+    # create the empty tables
+    Base.metadata.create_all(engine)
 
 
 def main(argv=sys.argv):

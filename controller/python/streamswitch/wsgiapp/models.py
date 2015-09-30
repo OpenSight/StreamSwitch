@@ -10,11 +10,16 @@ based on the SQLAlchemy's ORM
 
 """
 from __future__ import unicode_literals, division
-from sqlalchemy import Column, Integer, String, declarative_base, Float, Text, \
+from sqlalchemy import Column, Integer, String, Float, Text, \
     orm
+from sqlalchemy.ext.declarative import declarative_base
 from ..stream_mngr import DEFAULT_LOG_ROTATE, DEFAULT_LOG_SIZE
 from ..utils import STRING, encode_json
 import json
+
+print("who import me !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
+
+
 
 Base = declarative_base()
 

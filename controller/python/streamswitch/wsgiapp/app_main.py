@@ -9,20 +9,23 @@ the Controller wsgi application's main file to make a WSGI application.
 
 """
 from __future__ import unicode_literals, division
-import pkg_resources
 
-from .services.stream_service import StreamService
-from .daos.port_dao import PortDao
-from .services.port_service import PortService
-from .. import stream_mngr, port_mngr
 from gevent import reinit
-from pyramid.events import ApplicationCreated
+# from gevent import monkey;monkey.patch_all()
+
 
 STORLEVER_ENTRY_POINT_GROUP = 'streamswitch.wsgiapp.extensions'
 
 
 def set_services(config):
     """ constructs every service used in this WSGI application """
+
+    from .services.stream_service import StreamService
+    from .daos.port_dao import PortDao
+    from .services.port_service import PortService
+    from .. import stream_mngr, port_mngr
+    from pyramid.events import ApplicationCreated
+
 
     settings = config.get_settings()
 
@@ -39,7 +42,6 @@ def set_services(config):
     config.add_settings(port_service=port_service)
     config.add_subscriber(port_service.on_application_created,
                           ApplicationCreated)
-
 
 
 def make_wsgi_app(global_config, **settings):
@@ -93,7 +95,7 @@ def make_wsgi_app(global_config, **settings):
 
 
 def launch_extensions(config):
-
+    import pkg_resources
     for entry_point in pkg_resources.iter_entry_points(group=STORLEVER_ENTRY_POINT_GROUP):
         try:
             # Grab the function that is the actual plugin.

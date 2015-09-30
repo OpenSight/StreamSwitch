@@ -15,7 +15,7 @@ requires = [
     'gevent>=1.1b1',
     'pyzmq>=14.0',
     'protobuf>=3.0.0a3',
-    'sqlachemy>=1.0.8', 
+    #'sqlachemy>=1.0.8',
 ]
 
 if sys.version_info < (2,7):
@@ -58,6 +58,6 @@ setup(name='streamswitch',
       [paste.app_factory]
       main = streamswitch.wsgiapp.app_main:make_wsgi_app
       [paste.server_runner]
-      gevent = streamswitch.scripts.stsw_web_deploy:gevent_pywsgi_server_runner
+      gevent = streamswitch.wsgiapp.server_main:gevent_pywsgi_server_runner
       """,
       )
