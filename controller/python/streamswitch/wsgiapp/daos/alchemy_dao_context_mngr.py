@@ -26,16 +26,17 @@ class AlchemyDaoContext(DaoContext):
         self._is_session_owner = False
         self.session = None
         self.thread_pool = mngr.thread_pool
+        self._commit_thread_pool = mngr.commit_thread_pool
 
     def __enter__(self):
-        if self._mngr.local.current_session is None:
-            session = self._mngr.session_maker(autocommit=True,
-                                               **self._session_kwargs)
+        self.session = self._mngr.local.current_session
 
-            self._mngr.local.current_session = session
+        if self.session is None:
+            self.session = self._mngr.session_maker(autocommit=True,
+                                               **self._session_kwargs)
+            self._mngr.local.current_session = self.session
             self._is_session_owner = True
 
-        self.session = self._mngr.local.current_session
         if self._type == CONTEXT_TYPE_NESTED:
             self.session.begin_nested()
         elif self._type == CONTEXT_TYPE_TRANSACTION:
@@ -48,8 +49,8 @@ class AlchemyDaoContext(DaoContext):
         if self._is_session_owner:
             self._mngr.local.current_session = None
 
-        self._mngr.thread_pool.apply(self._exit_in_thread,
-                                     (exc_type, exc_val, exc_tb))
+        self._commit_thread_pool.apply(self._exit_in_thread,
+                                       (exc_type, exc_val, exc_tb))
         self.session = None
         self._is_session_owner = False
 
@@ -80,6 +81,7 @@ class AlchemyDaoContextMngr(DaoContextMngr):
         self.session_maker = sessionmaker(bind=engine)
         self.local = ContextMngrLocal()
         self.thread_pool = ThreadPool(thread_pool_size)
+        self.commit_thread_pool = ThreadPool(1)
 
     def context(self, context_type=CONTEXT_TYPE_TRANSACTION, **kwargs):
         return AlchemyDaoContext(self, context_type, **kwargs)
