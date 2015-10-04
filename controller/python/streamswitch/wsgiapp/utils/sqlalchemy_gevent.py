@@ -93,7 +93,6 @@ def dialect_maker(db, driver):
 		"_context": context })
 
 bundled_drivers = {
-	"drizzle":"mysqldb".split(),
 	"firebird":"kinterbasdb fdb".split(),
 	"mssql":"pyodbc adodbapi pymssql zxjdbc mxodbc".split(),
 	"mysql":"mysqldb oursql pyodbc zxjdbc mysqlconnector pymysql gaerdbms cymysql".split(),
