@@ -11,77 +11,78 @@ This module implements the DAO context manager of SQLAlchemy ORM
 from __future__ import unicode_literals, division
 from sqlalchemy.orm import sessionmaker
 from .dao_context_mngr import DaoContextMngr, DaoContext, \
-    CONTEXT_TYPE_AUTOCOMMIT, CONTEXT_TYPE_TRANSACTION, CONTEXT_TYPE_NESTED
+    CONTEXT_TYPE_TRANSACTION, CONTEXT_TYPE_NESTED
 from gevent.local import local
-from gevent.threadpool import ThreadPool
-
-Session = sessionmaker()
 
 
 class AlchemyDaoContext(DaoContext):
-    def __init__(self, mngr, context_type, **kwargs):
+    def __init__(self, mngr, context_type, session_kwargs):
         self._mngr = mngr
         self._context_type = context_type
-        self._session_kwargs = kwargs
-        self._is_session_owner = False
-        self.session = None
-        self.thread_pool = mngr.thread_pool
-        self._commit_thread_pool = mngr.commit_thread_pool
+        self.session = mngr.session_maker(autocommit=True,
+                                          expire_on_commit=False,
+                                          **session_kwargs)
+        self._enter_count = 0
+
+        print("init session")
+
+    def close(self):
+        if self._mngr.local.context_in_active is self:
+            self._mngr.local.context_in_active = None
+        self.session.close()
+
+        print("close session")
+
+
 
     def __enter__(self):
-        self.session = self._mngr.local.current_session
 
-        if self.session is None:
-            self.session = self._mngr.session_maker(autocommit=True,
-                                               **self._session_kwargs)
-            self._mngr.local.current_session = self.session
-            self._is_session_owner = True
 
-        if self._type == CONTEXT_TYPE_NESTED:
-            self.session.begin_nested()
-        elif self._type == CONTEXT_TYPE_TRANSACTION:
-            self.session.begin(subtransactions=True)
+        try:
+            if self._context_type == CONTEXT_TYPE_NESTED:
+                self.session.begin_nested()
+            elif self._context_type == CONTEXT_TYPE_TRANSACTION:
+                self.session.begin(subtransactions=True)
+        except Exception:
+            if self._enter_count == 0:
+                self.close()
+            raise
+
+        self._enter_count += 1
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
 
-        if self._is_session_owner:
-            self._mngr.local.current_session = None
-
-        self._commit_thread_pool.apply(self._exit_in_thread,
-                                       (exc_type, exc_val, exc_tb))
-        self.session = None
-        self._is_session_owner = False
-
-        return False
-
-    def _exit_in_thread(self, exc_type, exc_val, exc_tb):
+        self._enter_count -= 1
         try:
             if exc_val is None:
                 # successful
-                if self._type != CONTEXT_TYPE_AUTOCOMMIT:
-                    self.session.commit()
+                self.session.commit()
             else:
                 # exception
-                if self._type != CONTEXT_TYPE_AUTOCOMMIT:
-                    self.session.rollback()
+                self.session.rollback()
         finally:
-            if self._is_session_owner:
-                self.session.close()
+            if self._enter_count == 0:
+                self.close()
+
+        return False
 
 
 
 class ContextMngrLocal(local):
-    current_session = None
+    context_in_active = None
 
 
 class AlchemyDaoContextMngr(DaoContextMngr):
-    def __init__(self, engine, thread_pool_size=1):
+    def __init__(self, engine):
         self.session_maker = sessionmaker(bind=engine)
         self.local = ContextMngrLocal()
-        self.thread_pool = ThreadPool(thread_pool_size)
-        self.commit_thread_pool = ThreadPool(1)
+
 
     def context(self, context_type=CONTEXT_TYPE_TRANSACTION, **kwargs):
-        return AlchemyDaoContext(self, context_type, **kwargs)
+        if self.local.context_in_active is None:
+            # create a new context
+            self.local.context_in_active = \
+                AlchemyDaoContext(self, context_type, kwargs)
+        return self.local.context_in_active

@@ -22,14 +22,27 @@ def set_services(config):
 
     from .services.stream_service import StreamService
     from .daos.port_dao import PortDao
+    from .daos.stream_conf_dao import StreamConfDao
+    from .daos.alchemy_dao_context_mngr import AlchemyDaoContextMngr
     from .services.port_service import PortService
     from .. import stream_mngr, port_mngr
     from pyramid.events import ApplicationCreated
-
+    from sqlalchemy import engine_from_config, dialects
 
     settings = config.get_settings()
 
-    stream_service = StreamService(stream_mngr=stream_mngr)
+    # patch the sqlite dialect to make it compatible with gevent
+    dialects.registry.register("sqlite", "streamswitch.wsgiapp.utils.sqlalchemy_gevent", "SqliteDialect")
+
+    engine = engine_from_config(settings, 'sqlalchemy.')
+    dao_context_mngr = AlchemyDaoContextMngr(engine)
+    stream_conf_dao = StreamConfDao(dao_context_mngr)
+
+
+    stream_service = StreamService(stream_mngr=stream_mngr,
+                                   stream_conf_dao=stream_conf_dao,
+                                   dao_context_mngr=dao_context_mngr)
+    # stream_service = StreamService(stream_mngr=stream_mngr)
     config.add_settings(stream_service=stream_service)
     config.add_subscriber(stream_service.on_application_created,
                           ApplicationCreated)

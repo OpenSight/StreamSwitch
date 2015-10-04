@@ -11,7 +11,6 @@ This module defines the base class of DAO context manager
 
 from __future__ import unicode_literals, division
 
-CONTEXT_TYPE_AUTOCOMMIT = 0
 CONTEXT_TYPE_TRANSACTION = 1
 CONTEXT_TYPE_NESTED = 2
 
