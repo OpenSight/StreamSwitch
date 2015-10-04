@@ -7,6 +7,8 @@ This module is a fork from sqlalchemy_gevent project
 
 but we change problems:
 1) use a single thread pool for all connections of sqlite
+2) make compatible with python2 and python3
+3) use another thread pool for the DB dialects except sqlite
 
 """
 
