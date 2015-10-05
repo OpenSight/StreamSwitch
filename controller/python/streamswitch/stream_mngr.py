@@ -630,6 +630,7 @@ class SourceProcessStream(BaseStream):
         cmd_args.extend(["-u", self.url])
 
         for k, v in self.extra_options.items():
+            k = k.replace("_", "-")
             cmd_args.append("--%s=%s" % (k, v))
 
         return cmd_args

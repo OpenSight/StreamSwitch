@@ -150,6 +150,7 @@ class SubProcessPort(BasePort):
             cmd_args.extend(["-r", "%d" % self.log_rotate])
 
         for k, v in self.extra_options.items():
+            k = k.replace("_", "-")
             cmd_args.append("--%s=%s" % (k, v))
 
         return cmd_args
