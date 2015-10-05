@@ -24,14 +24,14 @@ class AlchemyDaoContext(DaoContext):
                                           **session_kwargs)
         self._enter_count = 0
 
-        print("init session")
+        # print("init session")
 
     def close(self):
         if self._mngr.local.context_in_active is self:
             self._mngr.local.context_in_active = None
         self.session.close()
 
-        print("close session")
+        # print("close session")
 
 
 

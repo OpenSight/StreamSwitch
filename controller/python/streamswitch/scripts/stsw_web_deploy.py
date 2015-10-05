@@ -13,7 +13,8 @@ import os
 import stat
 import shutil
 from pkg_resources import resource_filename
-
+from alembic.config import Config
+from alembic import command
 
 STREAMSWITCH_CONF_DIR = "/etc/streamswitch"
 
@@ -29,11 +30,13 @@ def initialize_db(config_uri, options={}):
     meta.reflect(bind=engine)
     meta.drop_all(engine)
 
-    # create the empty tables
-    Base.metadata.create_all(engine)
 
-def upgrade_db(config_uri, options={}):
-    pass
+    upgrade_db(config_uri)
+
+
+def upgrade_db(config_uri):
+    alembic_cfg = Config(config_uri)
+    command.upgrade(alembic_cfg, "head")
 
 
 class DeloyCommand(object):
@@ -110,6 +113,7 @@ to print the options description for each command
                 raise StreamSwitchError("streamswitch conf path(%s) is not a directory" % STREAMSWITCH_CONF_DIR)
             else:
                 print("Create dir %s." % STREAMSWITCH_CONF_DIR, end='......')
+                sys.stdout.flush()
                 os.makedirs(STREAMSWITCH_CONF_DIR)
                 print("Done")
 
@@ -118,6 +122,7 @@ to print the options description for each command
         if not os.path.exists(conf_file_dest) \
             or args.force:
             print("Install file %s " % conf_file_dest, end="......")
+            sys.stdout.flush()
             src_file = resource_filename("streamswitch.wsgiapp", "conf/streamswitch.ini")
             shutil.copy(src_file, conf_file_dest)
             os.chmod(conf_file_dest,
@@ -130,6 +135,7 @@ to print the options description for each command
         if not os.path.exists(ports_file_dest) \
             or args.force:
             print("Install file %s " % ports_file_dest, end="......")
+            sys.stdout.flush()
             src_file = resource_filename("streamswitch.wsgiapp", "conf/ports.yaml")
             shutil.copy(src_file, ports_file_dest)
             os.chmod(ports_file_dest,
@@ -140,7 +146,7 @@ to print the options description for each command
         # upgrade db
         if not args.no_upgrade:
             settings = get_appsettings(conf_file_dest)
-            print("Upgrade DB %s " % settings["sqlalchemy.url"], end="......")
+            print("Upgrade DB %s " % settings["sqlalchemy.url"], end="......\n")
             upgrade_db(conf_file_dest)
             print("Done")
 
@@ -150,16 +156,26 @@ to print the options description for each command
         # remove etc conf dir
         if os.path.exists(STREAMSWITCH_CONF_DIR):
             print("Remove %s " % STREAMSWITCH_CONF_DIR, end="......")
+            sys.stdout.flush()
             shutil.rmtree(STREAMSWITCH_CONF_DIR)
             print("Done")
 
     def initdb(self, args):
-        print(args)
-        pass
+        # print(args)
+        ini_conf_file = args.ini_file
+        settings = get_appsettings(ini_conf_file)
+        print("Initialize DB %s " % settings["sqlalchemy.url"], end="......\n")
+        initialize_db(ini_conf_file)
+        print("Done")
 
     def upgradedb(self, args):
-        print(args)
-        pass
+        # print(args)
+        ini_conf_file = args.ini_file
+        settings = get_appsettings(ini_conf_file)
+        print("Upgrade DB %s " % settings["sqlalchemy.url"], end="......\n")
+        upgrade_db(ini_conf_file)
+        print("Done")
+
 
     def run(self):
 
