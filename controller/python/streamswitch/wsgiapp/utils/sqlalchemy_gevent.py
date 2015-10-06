@@ -13,14 +13,18 @@ but we change problems:
 """
 
 
-from __future__ import unicode_literals, division
+# from __future__ import unicode_literals, division
 
 from sqlalchemy.engine import default
 from sqlalchemy.dialects import registry
 import sqlalchemy.dialects.sqlite
 import gevent
 import gevent.threadpool
-import importlib
+import traceback
+
+
+
+
 
 class FuncProxy(object):
 	def __init__(self, func, threadpool):
@@ -79,7 +83,7 @@ def dialect_maker(db, driver):
 	if driver is None:
 		driver = "base"
 	
-	dialect = importlib.import_module("sqlalchemy.dialects.%s.%s" % (db, driver)).dialect
+	dialect = __import__("sqlalchemy.dialects.%s.%s" % (db, driver), fromlist=['__name__'], level=0).dialect
 	
 	context = {}
 	if db == "sqlite": # pysqlite dbapi connection requires single threaded
@@ -107,9 +111,14 @@ for db, drivers in bundled_drivers.items():
 		globals()[dialect_name(db)] = dialect_maker(db, None)
 		for driver in drivers:
 			globals()[dialect_name(db,driver)] = dialect_maker(db, driver)
-	except:
+	except Exception as e:
 		# drizzle was removed in sqlalchemy v1.0
+		# ignore handler exception
+		traceback.print_exc()
 		pass
+
+# import pprint
+# pprint.pprint(globals())
 
 def patch_all():
 	for db, drivers in bundled_drivers.items():

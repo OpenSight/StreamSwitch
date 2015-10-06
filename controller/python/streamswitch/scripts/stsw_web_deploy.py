@@ -143,6 +143,19 @@ to print the options description for each command
                      | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             print("Done")
 
+        # copy init script
+        init_script_dest = os.path.join("/etc/init.d", "streamswitch")
+        if not os.path.exists(init_script_dest) \
+            or args.force:
+            print("Install file %s " % init_script_dest, end="......")
+            sys.stdout.flush()
+            src_file = resource_filename("streamswitch.wsgiapp", "conf/streamswitch.init_script")
+            shutil.copy(src_file, init_script_dest)
+            os.chmod(init_script_dest,
+                     stat.S_IRWXU| stat.S_IRWXG \
+                     | stat.S_IRWXO )
+            print("Done")
+
         # upgrade db
         if not args.no_upgrade:
             settings = get_appsettings(conf_file_dest)

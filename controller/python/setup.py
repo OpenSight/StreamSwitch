@@ -15,8 +15,8 @@ requires = [
     'gevent>=1.1b1',
     'pyzmq>=14.0',
     'protobuf>=3.0.0a3',
-    'sqlalchemy>=1.0.8'
-    'alembic>=0.8.0',
+    'sqlalchemy>=1.0.8',
+    'alembic>=0.8.0'
 ]
 
 if sys.version_info < (2,7):
