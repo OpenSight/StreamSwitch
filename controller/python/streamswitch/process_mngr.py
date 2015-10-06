@@ -10,7 +10,7 @@ helper functions
 
 """
 
-from __future__ import unicode_literals, division
+from __future__ import unicode_literals, division, print_function
 import gevent
 from gevent import subprocess, sleep
 import sys
@@ -356,10 +356,13 @@ def kill_all(name):
         kill_all_popen.kill()
         kill_all_popen.wait()
 
+def test_process_status_cb(watcher):
+    print("watcher status changed:", watcher)
+
 
 def test_main():
     print("create ls watcher")
-    ls_watcher = spawn_watcher(["ls"])
+    ls_watcher = spawn_watcher(["ls"], process_status_cb=test_process_status_cb)
     print(ls_watcher)
     assert(ls_watcher.pid is not None)
     assert(ls_watcher.process_status == PROC_RUNNING)

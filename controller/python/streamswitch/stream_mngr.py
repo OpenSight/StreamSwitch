@@ -11,7 +11,7 @@ This module implements the input stream management
 
 from __future__ import unicode_literals, division
 from .exceptions import StreamSwitchError
-from .events import StreamSubsriberEvent, StreamInfoEvent
+from .events import StreamSubscriberEvent, StreamInfoEvent
 from .process_mngr import spawn_watcher, PROC_STOP, kill_all
 from .utils import import_method, is_str, STRING
 from .pb import pb_packet_pb2
@@ -26,6 +26,7 @@ import gevent
 from gevent import sleep
 import time
 import traceback
+import weakref
 
 DEFAULT_LOG_SIZE = 1024 * 1024
 DEFAULT_LOG_ROTATE = 3
@@ -171,7 +172,10 @@ class BaseStream(object):
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
                  **kwargs):
         self.__stream_name = STRING(stream_name)  # stream_name cannot be modified
-        self._event_listener = event_listener
+        if event_listener is not None:
+            self._event_listener_weakref = weakref.ref(event_listener)
+        else:
+            self._event_listener_weakref = None
         self._has_destroy = False
         self._has_started = False
         self._api_client_socket = None
@@ -495,9 +499,8 @@ class BaseStream(object):
                     try:
                         channel, packet, blob = self._parse_sub_bytes(bytes_list)
                         self._handle_sub_packet(channel, packet, blob)
-                        if self._event_listener is not None and callable(self._event_listener):
-                            self._event_listener(
-                                StreamSubsriberEvent("Stream Subsriber event",
+                        # send StreamSubscriberEvent
+                        self._send_event(StreamSubscriberEvent("Stream Subsriber event",
                                                      self, channel, packet, blob))
                     except Exception as e:
                         # ignore handler exception
@@ -572,6 +575,7 @@ class BaseStream(object):
         pb_stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
         send_time = float(pb_stream_info.send_time) / 1000.0
 
+        # print('check time(now:%f, send_time:%f)' % (time.time(), send_time))
         if (time.time() - send_time >=
                 self.STSW_STREAM_STATE_TIMEOUT_TIME):
             return    # ignore the too old info
@@ -579,7 +583,7 @@ class BaseStream(object):
         if pb_stream_info.ssrc == self.ssrc and \
            send_time < self.update_time:
             return  # ignore the out-time stream info
-
+        # print('set value')
         self.state = pb_stream_info.state
         self.play_type = pb_stream_info.play_type
         self.source_protocol = pb_stream_info.source_proto
@@ -591,16 +595,22 @@ class BaseStream(object):
         self.update_time = send_time
         self.client_num = pb_stream_info.client_num
 
-        if self._event_listener is not None and callable(self._event_listener):
-            stream_info = StreamInfo()
-            stream_info.from_pb(pb_stream_info)
-            self._event_listener(
-                StreamInfoEvent("Stream info event", self, stream_info))
+        # send StreamInfoEvent
+        stream_info = StreamInfo()
+        stream_info.from_pb(pb_stream_info)
+        self._send_event(StreamInfoEvent("Stream info event", self, stream_info))
 
     def _get_next_api_seq(self):
         seq = self._api_seq & self.API_SEQ_MASK
         self._api_seq += 1
         return seq
+
+    def _send_event(self, event):
+        if self._event_listener_weakref is None:
+            return
+        event_listener = self._event_listener_weakref()
+        if event_listener is not None and callable(event_listener):
+            event_listener(event)
 
 
 class SourceProcessStream(BaseStream):
