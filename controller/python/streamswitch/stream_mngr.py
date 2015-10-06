@@ -606,10 +606,13 @@ class BaseStream(object):
         return seq
 
     def _send_event(self, event):
+        # print("_send_event")
         if self._event_listener_weakref is None:
+            # print("_event_listener_weakref is None")
             return
         event_listener = self._event_listener_weakref()
         if event_listener is not None and callable(event_listener):
+            # print("_send_event:call event_listener")
             event_listener(event)
 
 

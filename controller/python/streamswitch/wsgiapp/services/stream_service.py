@@ -57,6 +57,7 @@ class StreamService(object):
         self._stream_conf_dao = stream_conf_dao
         self._dao_context_mngr = dao_context_mngr
         self._stream_info_notifier = {}
+        self._stream_event_listener = self.on_stream_event
 
     def on_application_created(self, event):
         kill_all(RTSP_SOURCE_PROGRAM_NAME)
@@ -85,12 +86,12 @@ class StreamService(object):
                     log_rotate=stream_conf.log_rotate,
                     err_restart_interval=stream_conf.err_restart_interval,
                     extra_options=stream_conf.extra_options,
-                    event_listener=self.on_stream_event,
+                    event_listener=self._stream_event_listener,
                     **stream_conf.other_kwargs)
 
 
     def on_stream_event(self, event):
-        #print("on stream event")
+        # print("on stream event")
         if isinstance(event, StreamInfoEvent):
             notifier = self._stream_info_notifier.pop(event.stream.stream_name, None)
             if notifier is not None:
@@ -108,8 +109,6 @@ class StreamService(object):
 
     def del_stream(self, stream_name):
         with self._dao_context_mngr.context():
-
-
             stream = self._stream_mngr.find_stream(stream_name)
             if stream is None:
                 raise StreamSwitchError(
@@ -126,7 +125,7 @@ class StreamService(object):
             self._stream_conf_dao.add_stream_conf(stream_conf)
 
             stream = \
-                self._stream_mngr.create_stream(event_listener=self.on_stream_event,
+                self._stream_mngr.create_stream(event_listener=self._stream_event_listener,
                                                **stream_configs)
         return stream
 
