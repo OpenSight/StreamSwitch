@@ -17,6 +17,7 @@ import sys
 import os
 import time
 from .exceptions import StreamSwitchError
+import weakref
 
 PROC_STOP = 0
 PROC_RUNNING = 1
@@ -30,7 +31,7 @@ else:
     DEVNULL = open(os.devnull, "r+")
 
 
-_watchers = {}
+_watchers = weakref.WeakValueDictionary()
 _next_wid = 0
 
 
@@ -65,8 +66,11 @@ class ProcWatcher(object):
         self._success_restart_interval = float(success_restart_interval)
         self._popen = None
         self._started = False
-        self._process_status_cb = process_status_cb
-        self._poll_greenlet_id = 1
+        if process_status_cb is not None:
+            self._process_status_cb_weakref = weakref.ref(process_status_cb)
+        else:
+            self._process_status_cb_weakref = None
+        self._poll_greenlet = None
         self._poll_interval = poll_interval
 
         # add to the manager
@@ -85,6 +89,7 @@ class ProcWatcher(object):
                 self.is_started())
 
     def __del__(self):
+        self._started = False
         if self._popen is not None:
             self._popen.kill()
             self._popen = None
@@ -111,40 +116,47 @@ class ProcWatcher(object):
 
     def _on_process_status_change(self):
         try:
-            if self._process_status_cb is not None and \
-               callable(self._process_status_cb):
-                self._process_status_cb(self)
+            if self._process_status_cb_weakref is not None:
+                cb = self._process_status_cb_weakref()
+                if cb is not None and callable(cb):
+                    cb(self)
         except Exception:
             pass
 
-    def _polling_run(self, greenlet_id):
-        next_open_time = time.time()
+    @staticmethod
+    def _polling_run(watcher_weakref):
+        current = gevent.getcurrent()
 
-        while (greenlet_id == self._poll_greenlet_id) and self._started:
+        while True:
+            watcher = watcher_weakref()
+            if (watcher is None) \
+                or (watcher.is_started() == False) \
+                or (watcher._poll_greenlet != current):
+                return # make greenlet end
             try:
-                if self._popen is None:
-                    if time.time() >= next_open_time:
-                        # restart
-                        self.auto_restart_count += 1
-                        self._launch_process()
+                sleep_time = watcher._poll_interval
+                if watcher._popen is None:
+                    # restart
+                    watcher.auto_restart_count += 1
+                    watcher._launch_process()
                 else:
                     # check the child process
-                    ret = self._popen.poll()
+                    ret = watcher._popen.poll()
                     if ret is not None:
                         # the process terminate
-                        self._on_process_terminate(ret)
+                        watcher._on_process_terminate(ret)
 
                         if ret != 0:
                             # exit with error
-                            next_open_time = time.time() + self._error_restart_interval
+                            sleep_time = watcher._error_restart_interval
                         else:
                             # exit normally
-                            next_open_time = time.time() + self._success_restart_interval
+                            sleep_time = watcher._success_restart_interval
 
             except Exception:
                 pass
-
-            sleep(self._poll_interval)      # next time to check
+            del watcher
+            sleep(sleep_time)      # next time to check
 
     @staticmethod
     def _terminate_run(popen, wait_timeout):
@@ -184,7 +196,6 @@ class ProcWatcher(object):
             return time.time() - self._proc_start_time
         else:
             return 0
-            
 
     def is_started(self):
         return self._started
@@ -201,18 +212,17 @@ class ProcWatcher(object):
             raise StreamSwitchError("ProcWatcher (%d) in Stopping" % self.wid, 500)
 
         try:
-
             self._launch_process()   # start up the process
 
-            # spawn a poll greenlet to watch it
-            self._started = True
-            self._poll_greenlet_id += 1
-            gevent.spawn(self._polling_run, self._poll_greenlet_id)
-
             self.auto_restart_count = 0
+            self._started = True
+
+            # spawn a poll greenlet to watch it
+            self._poll_greenlet = gevent.spawn(self._polling_run, weakref.ref(self))
 
         except Exception:
             self._started = False
+            self._poll_greenlet = None
             if self._popen is not None:
                 self._popen.kill()
                 self._on_process_terminate(-1)
@@ -236,7 +246,8 @@ class ProcWatcher(object):
         if not self._started:
             return
 
-        self._started = False   # make poll greenlet exit
+        self._started = False
+        self._poll_greenlet = None # detach the polling greenlet
 
         if self._popen is not None:
             # terminate the process normally at first
@@ -275,7 +286,8 @@ class ProcWatcher(object):
         if not self._started:
             return
 
-        self._started = False   # make poll greenlet exit
+        self._started = False
+        self._poll_greenlet = None # detach the polling greenlet
 
         if self._popen is not None:     
             self._popen.terminate()            
@@ -285,9 +297,6 @@ class ProcWatcher(object):
     def destroy(self):
         self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)
 
-        global _watchers
-        if self.wid in _watchers:
-            del _watchers[self.wid]
 
 
 def spawn_watcher(*args, **kwargs):
