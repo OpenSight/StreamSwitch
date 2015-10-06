@@ -12,7 +12,7 @@
 # Description:       The Web application of StreamSwitch Controller, providing RESTful APIs of controller library
 #                    to manage the streams, ports, Recorder in the StreamSwitch
 ### END INIT INFO
-
+ 
 if [ -e /lib/lsb/init-functions ]; then
     . /lib/lsb/init-functions
     
@@ -76,9 +76,9 @@ case "$1" in
         ;;
     status)
         if pidofproc -p $PIDFILE $DAEMON > /dev/null; then
-            log_success "$NAME is running"
+            echo "$NAME is running"
         else
-            log_success "$NAME is not running"
+            echo "$NAME is not running"
             RETVAL=1
         fi
         ;;
