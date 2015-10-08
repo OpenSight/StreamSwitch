@@ -9,7 +9,7 @@ The other events used by the extension should inherit these event
 :license: AGPLv3, see LICENSE for more details.
 
 """
-
+from __future__ import unicode_literals, division
 
 class StreamSwitchEvent(object):
     def __init__(self, info):
