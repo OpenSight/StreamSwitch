@@ -336,7 +336,7 @@ class BaseStream(object):
             sub_stream_metadata.media_type = sub_stream.media_type
             sub_stream_metadata.codec_name = sub_stream.codec_name
             sub_stream_metadata.direction = sub_stream.direction
-            sub_stream_metadata.extra_data = b"123456" # sub_stream.extra_data
+            sub_stream_metadata.extra_data = sub_stream.extra_data
             sub_stream_metadata.height = sub_stream.height
             sub_stream_metadata.width = sub_stream.width
             sub_stream_metadata.fps = sub_stream.fps

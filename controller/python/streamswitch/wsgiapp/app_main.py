@@ -31,6 +31,16 @@ def set_services(config):
 
     settings = config.get_settings()
 
+
+    port_conf_file = settings.get("port_conf_file",
+                                  "/etc/streamswitch/ports.yaml")
+    port_dao = PortDao(port_conf_file)
+    port_service = PortService(port_mngr=port_mngr, port_dao=port_dao)
+    config.add_settings(port_service=port_service)
+    config.add_subscriber(port_service.on_application_created,
+                          ApplicationCreated)
+
+
     # patch the sqlite dialect to make it compatible with gevent
     dialects.registry.register("sqlite", "streamswitch.wsgiapp.utils.sqlalchemy_gevent", "SqliteDialect")
 
@@ -48,13 +58,7 @@ def set_services(config):
                           ApplicationCreated)
 
 
-    port_conf_file = settings.get("port_conf_file",
-                                  "/etc/streamswitch/ports.yaml")
-    port_dao = PortDao(port_conf_file)
-    port_service = PortService(port_mngr=port_mngr, port_dao=port_dao)
-    config.add_settings(port_service=port_service)
-    config.add_subscriber(port_service.on_application_created,
-                          ApplicationCreated)
+
 
 
 def make_wsgi_app(global_config, **settings):

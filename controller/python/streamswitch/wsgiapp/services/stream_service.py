@@ -60,6 +60,7 @@ class StreamService(object):
         self._stream_list = []
 
     def on_application_created(self, event):
+        # print("stream service ........load")
         kill_all(RTSP_SOURCE_PROGRAM_NAME)
         kill_all(PROXY_SOURCE_PROGRAM_NAME)
         kill_all(FILE_LIVE_SOURCE_PROGRAM_NAME)
