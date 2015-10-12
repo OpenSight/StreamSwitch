@@ -457,6 +457,15 @@ class BaseStream(object):
         if api_socket is None:
             api_socket = self._create_api_socket()
 
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_API) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Send out the following packet (with blob size: %d)  to api socket (timestamp:%f s):" % \
+                   (blob_size, time.time()))
+            print(request_packet)
+
         # send request
         try:
             send_bytes_list = [request_packet.SerializeToString()]
@@ -484,6 +493,17 @@ class BaseStream(object):
 
         # parse the reply
         rep_packet, blob = self._parse_rep_bytes(recv_bytes_list)
+
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_API) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Receive the following packet (with blob size: %d) from api socket (timestamp:%f s):" % \
+                   (blob_size, time.time()))
+            print(rep_packet)
+
+
         if rep_packet.header.type != pb_packet_pb2.PROTO_PACKET_TYPE_REPLY or \
            rep_packet.header.seq != request_packet.header.seq or \
            rep_packet.header.code != request_packet.header.code:
@@ -583,6 +603,9 @@ class BaseStream(object):
         blob = None
         if len(bytes_list) > 2:
             blob = bytes_list[2]
+
+
+
         return channel, packet, blob
 
     def _parse_rep_bytes(self, bytes_list):
@@ -602,6 +625,16 @@ class BaseStream(object):
     def _handle_sub_bytes(self, bytes_list):
 
         channel, packet, blob = self._parse_sub_bytes(bytes_list)
+
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_PUBLISH) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Receive the following packet (with blob size: %d) from subsriber socket channel %s (timestamp:%f s):" % \
+                   (blob_size, channel, time.time()))
+            print(packet)
+
         self._handle_sub_packet(channel, packet, blob)
         self._send_subscriber_event(channel, packet, blob)
 
