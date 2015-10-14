@@ -82,7 +82,9 @@ public:
     virtual Boolean IsVCL(u_int8_t nal_unit_type);
     virtual Boolean IsIDR(u_int8_t nal_unit_type);    
     
-    
+protected:
+    // redefined virtual functions:
+    virtual Boolean continuePlaying();    
 
 protected:
 
