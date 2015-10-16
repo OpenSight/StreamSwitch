@@ -1617,7 +1617,7 @@ Optional Packages:
   --with-rtsp-source      would contains the stsw_rtsp_source program
                           [default=yes]
   --with-rtmp-source      would contains the stsw_rtmp_source program
-                          [default=yes]
+                          [default=no]
   --with-proxy-source     would contains the stsw_proxy_source program
                           [default=yes]
   --with-rtsp-port        would contains the stsw_rtsp_port program
@@ -11293,7 +11293,7 @@ fi
 if test "${with_rtmp_source+set}" = set; then
   withval=$with_rtmp_source; rtmp_source=${withval}
 else
-  rtmp_source=yes
+  rtmp_source=no
 fi
 
 
@@ -17189,8 +17189,8 @@ fi
 done
 
   if test "x$have_libev" = "xno"; then
-  { { $as_echo "$as_me:$LINENO: error: libev not found, stsw_rtsp_port requires libev" >&5
-$as_echo "$as_me: error: libev not found, stsw_rtsp_port requires libev" >&2;}
+  { { $as_echo "$as_me:$LINENO: error: libev not found, stsw_rtsp_port requires libev, libev must be installed into default position" >&5
+$as_echo "$as_me: error: libev not found, stsw_rtsp_port requires libev, libev must be installed into default position" >&2;}
    { (exit 1); exit 1; }; }
 fi
 

@@ -31,8 +31,8 @@ AM_CONDITIONAL([INCLUDE_RTSP_SOURCE], [test "x$rtsp_source" = xyes])
 
 AC_ARG_WITH([rtmp-source], 
 [AS_HELP_STRING([--with-rtmp-source], 
-[would contains the stsw_rtmp_source program @<:@default=yes@:>@])], 
-[rtmp_source=${withval}], [rtmp_source=yes]) 
+[would contains the stsw_rtmp_source program @<:@default=no@:>@])], 
+[rtmp_source=${withval}], [rtmp_source=no]) 
 
 
 AM_CONDITIONAL([INCLUDE_RTMP_SOURCE], [test "x$rtmp_source" = xyes])
@@ -93,7 +93,7 @@ AC_SUBST(librtmp_CFLAGS)
 # Checks for stsw_rtsp_port
 if test "x$rtsp_port" = xyes; then
   AC_CHECK_HEADERS([ev.h], [have_libev=yes], [have_libev=no])
-  AS_IF([test "x$have_libev" = "xno"], [AC_MSG_ERROR([libev not found, stsw_rtsp_port requires libev])])
+  AS_IF([test "x$have_libev" = "xno"], [AC_MSG_ERROR([libev not found, stsw_rtsp_port requires libev, libev must be installed into default position])])
   
   PKG_CHECK_MODULES(libnetembryo, [libnetembryo >= 0.1.0])  
   PKG_CHECK_MODULES(glib, [glib-2.0 >= 2.16 gthread-2.0])  

@@ -23,7 +23,8 @@ enum ProtoSubStreamDirectionType{
 message ProtoSubStreamInfo{
     optional int32 index = 1; 
     optional ProtoSubStreamMediaType media_type = 2; //the type of this sub stream
-    optional string codec_name = 3 [ default = "h264" ]; //encoding name for video/audio, compatible with MINE subtype
+    optional string codec_name = 3 [ default = "H264" ]; //encoding name for video/audio, compatible with MINE subtype
+                                                         // which is case insensitive
     optional ProtoSubStreamDirectionType direction = 4;
     
     

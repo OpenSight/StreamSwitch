@@ -1,3 +1,5 @@
 This directory contains various internal source type drivers of StreamSwitch, including: 
 
-1) rtsp_source. The source type of The RTSP protocol 
+1) stsw_rtsp_source. The source type of The RTSP protocol 
+2) stsw_proxy_source. The source of a proxy transferring from another source
+3) ffmpeg_source. The source make use of ffmpeg libavformat library to get stream
