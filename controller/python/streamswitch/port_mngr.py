@@ -40,7 +40,11 @@ class BasePort(object):
         self.err_restart_interval = float(err_restart_interval)
         self.extra_options = dict(extra_options)
         self.desc = STRING(desc)
-        self._event_listener = event_listener
+        if event_listener is not None:
+            self._event_listener_weakref = weakref.ref(event_listener)
+        else:
+            self._event_listener_weakref = None
+
 
     def __str__(self):
         return ('Port Server %s (port_type:%s, listen_port:%s, transport:%d, ipv6:%s, '
@@ -89,7 +93,12 @@ class BasePort(object):
         if desc is not None:
             self.desc = STRING(desc)
 
-
+    def _send_event(self, event):
+        if self._event_listener_weakref is None:
+            return
+        event_listener = self._event_listener_weakref()
+        if event_listener is not None and callable(event_listener):
+            event_listener(event)
 
 class SubProcessPort(BasePort):
 
@@ -150,15 +159,14 @@ class SubProcessPort(BasePort):
             cmd_args.extend(["-r", "%d" % self.log_rotate])
 
         for k, v in self.extra_options.items():
+            k = k.replace("_", "-")
             cmd_args.append("--%s=%s" % (k, v))
 
         return cmd_args
 
     def _process_status_cb(self, proc_watcher):
         try:
-            if self._event_listener is not None and callable(self._event_listener):
-                self._event_listener(
-                    PortStatusChangeEvent("Port Status Change event", self))
+            self._send_event(PortStatusChangeEvent("Port Status Change event", self))
         except Exception:
             pass
 

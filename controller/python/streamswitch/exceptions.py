@@ -9,7 +9,7 @@ sub-classed from by all other Exception used in StreamSwitch Controller project.
 :license: AGPLv3, see LICENSE for more details.
 
 """
-
+from __future__ import unicode_literals, division
 
 class StreamSwitchError(Exception):
     def __init__(self, info, http_status_code=500):

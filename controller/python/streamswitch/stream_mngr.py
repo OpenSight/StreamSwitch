@@ -11,7 +11,7 @@ This module implements the input stream management
 
 from __future__ import unicode_literals, division
 from .exceptions import StreamSwitchError
-from .events import StreamSubsriberEvent, StreamInfoEvent
+from .events import StreamSubscriberEvent, StreamInfoEvent
 from .process_mngr import spawn_watcher, PROC_STOP, kill_all
 from .utils import import_method, is_str, STRING
 from .pb import pb_packet_pb2
@@ -26,6 +26,9 @@ import gevent
 from gevent import sleep
 import time
 import traceback
+import weakref
+import base64
+import sys
 
 DEFAULT_LOG_SIZE = 1024 * 1024
 DEFAULT_LOG_ROTATE = 3
@@ -91,6 +94,21 @@ class SubStreamMetaData(object):
         self.y = 0
         self.font_size = 0
         self.font_type = 0
+
+    # for python2, the bytes(str) attributes need to be changed to the
+    # base64 unicode manually for json output
+    if sys.version_info[:1] < (3, ):
+        def __json__(self):
+            # print("tttttt")
+            attr_dict = {}
+            for k, v in self.__dict__.items():
+                if not k.startswith('_'):
+                    if isinstance(v, bytes):
+                        attr_dict[k] = base64.b64encode(v).decode()
+                    else:
+                        attr_dict[k] = v
+            return attr_dict
+
 
 
 class StreamMetaData(object):
@@ -171,7 +189,10 @@ class BaseStream(object):
                  log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
                  **kwargs):
         self.__stream_name = STRING(stream_name)  # stream_name cannot be modified
-        self._event_listener = event_listener
+        if event_listener is not None:
+            self._event_listener_weakref = weakref.ref(event_listener)
+        else:
+            self._event_listener_weakref = None
         self._has_destroy = False
         self._has_started = False
         self._api_client_socket = None
@@ -203,12 +224,16 @@ class BaseStream(object):
         self.update_time = time.time()
         self.client_num = 0
 
-        # add to the global manager
-        if stream_name in _started_stream_map:
+        global _stream_map
+        if stream_name in _stream_map:
             raise StreamSwitchError("Stream(%s) already exists" % stream_name, 400)
-        if stream_name in _tmp_creating_streams:
-            raise StreamSwitchError("Stream(%s) Creating Conflict" % stream_name, 400)
-        _tmp_creating_streams.add(stream_name)
+        _stream_map[self.__stream_name] = self
+
+    def __del__(self):
+        if self._api_client_socket is not None:
+            api_socket = self._api_client_socket
+            self._api_client_socket = None
+            api_socket.close(0)
 
     def __str__(self):
         return ('Stream %s (source_type:%s, url:%s, api_tcp_port:%d, log_file:%s,'
@@ -232,16 +257,16 @@ class BaseStream(object):
         if self._has_started:
             return
 
-        self._subscriber_greenlet = gevent.spawn(self._subscriber_run)
+        self._subscriber_greenlet = gevent.spawn(self._subscriber_run, weakref.proxy(self))
+        self._has_started = True
+
         try:
             self._start_internal()
         except Exception:
             self._subscriber_greenlet = None
+            self._has_started = False
             raise
 
-        self._has_started = True
-        _started_stream_map[self.__stream_name] = self
-        _tmp_creating_streams.discard(self.__stream_name)
 
     def restart(self):
         """ restart the stream
@@ -266,10 +291,6 @@ class BaseStream(object):
             return
         self._has_destroy = True
 
-        if self.__stream_name in _started_stream_map:
-            del _started_stream_map[self.__stream_name]
-        _tmp_creating_streams.discard(self.__stream_name)
-
         self._subscriber_greenlet = None
 
         if self._api_client_socket is not None:
@@ -280,6 +301,10 @@ class BaseStream(object):
             self._destroy_internal()
         except Exception:
             pass
+
+        if self.state >= 0:
+            self.state = STREAM_STATE_ERR
+            self.update_time = time.time()
 
     def get_stream_metadata(self, timeout=5.0):
         if self._has_destroy:
@@ -299,6 +324,7 @@ class BaseStream(object):
         # construct the value object
         metadata = StreamMetaData()
         metadata.play_type = metadata_rep.play_type
+        # print(type(metadata_rep.source_proto))
         metadata.source_protocol = metadata_rep.source_proto
         metadata.stream_len = metadata_rep.stream_len
         metadata.ssrc = metadata_rep.ssrc
@@ -431,6 +457,15 @@ class BaseStream(object):
         if api_socket is None:
             api_socket = self._create_api_socket()
 
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_API) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Send out the following packet (with blob size: %d)  to api socket (timestamp:%f s):" % \
+                   (blob_size, time.time()))
+            print(request_packet)
+
         # send request
         try:
             send_bytes_list = [request_packet.SerializeToString()]
@@ -458,6 +493,17 @@ class BaseStream(object):
 
         # parse the reply
         rep_packet, blob = self._parse_rep_bytes(recv_bytes_list)
+
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_API) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Receive the following packet (with blob size: %d) from api socket (timestamp:%f s):" % \
+                   (blob_size, time.time()))
+            print(rep_packet)
+
+
         if rep_packet.header.type != pb_packet_pb2.PROTO_PACKET_TYPE_REPLY or \
            rep_packet.header.seq != request_packet.header.seq or \
            rep_packet.header.code != request_packet.header.code:
@@ -478,50 +524,61 @@ class BaseStream(object):
     def _destroy_internal(self):
         pass
 
-    def _subscriber_run(self):
+    @staticmethod
+    def _subscriber_run(stream_proxy):
 
         current = gevent.getcurrent()
         subscriber_socket = None
+        try:
+            while (not stream_proxy._has_destroy) and (current == stream_proxy._subscriber_greenlet):
 
-        while (not self._has_destroy) and (current == self._subscriber_greenlet):
-            try:
-                # print("subscriber_run is running")
                 if subscriber_socket is None:
-                    subscriber_socket = self._create_subsriber_socket()
+                    subscriber_socket = stream_proxy._create_subscriber_socket()
+                # receive the bytes from subscriber socket
+                try:
+                    event = subscriber_socket.poll(0.1)   # wait for 0.1
+                    if event == zmq.POLLIN:
+                        bytes_list = subscriber_socket.recv_multipart(zmq.NOBLOCK)
+                    else:
+                        bytes_list = None
+                except Exception:
+                    traceback.print_exc()
+                    if subscriber_socket is not None:
+                        subscriber_socket.close(0)
+                        subscriber_socket = None
+                    bytes_list = None
+                    gevent.sleep(1)
 
-                event = subscriber_socket.poll(0.1)   # wait for 0.1
-                if event == zmq.POLLIN:
-                    bytes_list = subscriber_socket.recv_multipart(zmq.NOBLOCK)
+                # handle the received bytes from subscriber socket
+                if bytes_list is not None:
                     try:
-                        channel, packet, blob = self._parse_sub_bytes(bytes_list)
-                        self._handle_sub_packet(channel, packet, blob)
-                        if self._event_listener is not None and callable(self._event_listener):
-                            self._event_listener(
-                                StreamSubsriberEvent("Stream Subsriber event",
-                                                     self, channel, packet, blob))
-                    except Exception as e:
-                        # ignore handler exception
+                        stream_proxy._handle_sub_bytes(bytes_list)
+                    except ReferenceError:
+                        raise
+                    except Exception:
+                        # if exception occurs in handling, skip this zmq message
                         traceback.print_exc()
                         pass
-            except Exception:
-                if subscriber_socket is not None:
-                    subscriber_socket.close(0)
-                    subscriber_socket = None
-                gevent.sleep(1)
 
-            # timer task
-            now = time.time()
-            self._check_stream_state(now)
+                # timer task
+                now = time.time()
+                stream_proxy._check_stream_state(now)
 
-        if subscriber_socket is not None:
-            subscriber_socket.close(0)
+        except ReferenceError:
+            # print("weakref.ReferenceError")
+            pass # if ReferenceError occurs, means the stream has been finalized,
+                  # just return from this greenlet run
+        finally:
+            if subscriber_socket is not None:
+                subscriber_socket.close(0)
+        # print("end sub run")
 
     def _check_stream_state(self, now):
         if self.state >= 0:
             if now - self.update_time >= self.STSW_STREAM_STATE_TIMEOUT_TIME:
                 self.state = STREAM_STATE_ERR_TIMEOUT
 
-    def _create_subsriber_socket(self):
+    def _create_subscriber_socket(self):
         subscriber_endpoint = "ipc://@" + STSW_SOCKET_NAME_STREAM_PREFIX + \
             "/" + self.stream_name + "/" + STSW_SOCKET_NAME_STREAM_PUBLISH
         subscriber_socket = _zmq_ctx.socket(zmq.SUB)
@@ -546,6 +603,9 @@ class BaseStream(object):
         blob = None
         if len(bytes_list) > 2:
             blob = bytes_list[2]
+
+
+
         return channel, packet, blob
 
     def _parse_rep_bytes(self, bytes_list):
@@ -562,16 +622,39 @@ class BaseStream(object):
         request.header.code = code
         return request
 
+    def _handle_sub_bytes(self, bytes_list):
+
+        channel, packet, blob = self._parse_sub_bytes(bytes_list)
+
+        if (self.DEBUG_FLAGS & STREAM_DEBUG_FLAG_DUMP_PUBLISH) != 0:
+            if blob is not None:
+                blob_size = len(blob)
+            else:
+                blob_size = 0
+            print("Receive the following packet (with blob size: %d) from subsriber socket channel %s (timestamp:%f s):" % \
+                   (blob_size, channel, time.time()))
+            print(packet)
+
+        self._handle_sub_packet(channel, packet, blob)
+        self._send_subscriber_event(channel, packet, blob)
+
+
     def _handle_sub_packet(self, channel, packet, blob):
         if channel == STSW_PUBLISH_INFO_CHANNEL:
             if packet.header.code == pb_packet_pb2.PROTO_PACKET_CODE_STREAM_INFO:
                 self._handle_stream_info(packet, blob)
+
+    def _send_subscriber_event(self, channel, packet, blob):
+        self._send_event(StreamSubscriberEvent("Stream Subscriber event",
+                                                self, channel, packet, blob))
+
 
     def _handle_stream_info(self, packet, blob=None):
         # print('_handle_stream_info')
         pb_stream_info = pb_stream_info_pb2.ProtoStreamInfoMsg.FromString(packet.body)
         send_time = float(pb_stream_info.send_time) / 1000.0
 
+        # print('check time(now:%f, send_time:%f)' % (time.time(), send_time))
         if (time.time() - send_time >=
                 self.STSW_STREAM_STATE_TIMEOUT_TIME):
             return    # ignore the too old info
@@ -579,7 +662,7 @@ class BaseStream(object):
         if pb_stream_info.ssrc == self.ssrc and \
            send_time < self.update_time:
             return  # ignore the out-time stream info
-
+        # print('set value')
         self.state = pb_stream_info.state
         self.play_type = pb_stream_info.play_type
         self.source_protocol = pb_stream_info.source_proto
@@ -591,16 +674,28 @@ class BaseStream(object):
         self.update_time = send_time
         self.client_num = pb_stream_info.client_num
 
-        if self._event_listener is not None and callable(self._event_listener):
-            stream_info = StreamInfo()
-            stream_info.from_pb(pb_stream_info)
-            self._event_listener(
-                StreamInfoEvent("Stream info event", self, stream_info))
+        # send StreamInfoEvent
+        stream_info = StreamInfo()
+        stream_info.from_pb(pb_stream_info)
+        self._send_event(StreamInfoEvent("Stream info event", self, stream_info))
 
     def _get_next_api_seq(self):
         seq = self._api_seq & self.API_SEQ_MASK
         self._api_seq += 1
         return seq
+
+    def _send_event(self, event):
+        # print("_send_event")
+        if self._event_listener_weakref is None:
+            # print("_event_listener_weakref is None")
+            return
+        event_listener = self._event_listener_weakref()
+        if event_listener is not None and callable(event_listener):
+            # print("_send_event:call event_listener")
+            try:
+                event_listener(event)
+            except Exception:
+                pass # ignore all exception throw by user's listener
 
 
 class SourceProcessStream(BaseStream):
@@ -630,6 +725,7 @@ class SourceProcessStream(BaseStream):
         cmd_args.extend(["-u", self.url])
 
         for k, v in self.extra_options.items():
+            k = k.replace("_", "-")
             cmd_args.append("--%s=%s" % (k, v))
 
         return cmd_args
@@ -663,8 +759,8 @@ class SourceProcessStream(BaseStream):
 
 # private repo variable used by this module
 _source_type_map = {}
-_started_stream_map = {}
-_tmp_creating_streams = set()
+_stream_map = weakref.WeakValueDictionary()
+
 _zmq_ctx = zmq.Context.instance()
 
 
@@ -722,17 +818,17 @@ def create_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, 
 
 def list_streams(source_type=None):
     if source_type is None:
-        return list(_started_stream_map.values())
+        return list(_stream_map.values())
 
     stream_list = []
-    for stream_name, stream in _started_stream_map.items():
+    for stream in _stream_map.values():
         if stream.source_type == source_type:
             stream_list.append(stream)
     return stream_list
 
 
 def find_stream(stream_name):
-    return _started_stream_map.get(stream_name)
+    return _stream_map.get(stream_name)
 
 
 def _test_source_process_stream():
@@ -808,9 +904,9 @@ def _test_base_stream():
     assert(test_stream.state == STREAM_STATE_ERR_TIMEOUT)
 
     test_stream.destroy()
-
+    del test_stream
+    gevent.sleep(1)
     assert(len(list_streams()) == 0)
-
     unregister_source_type("base_stream")
     # assert(len(list_source_types()) == 0)
 

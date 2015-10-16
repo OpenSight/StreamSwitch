@@ -1,3 +1,10 @@
+###
+# Sample ports configuration file for streamswitch controller web app
+# User can change the options below to adapt for his environment
+###
+
+# the top level is an array each entry of which configure a specific port server
+
 - extra_options: {}
   port_factory: streamswitch.ports.rtsp_port:RtspPort
   port_name: rtsp_port

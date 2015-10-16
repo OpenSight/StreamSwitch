@@ -108,7 +108,7 @@ public:
     void ClearQueue();
     void GetQueueFirstPts(struct timeval *presentationTime);
 
-private:
+protected:
     // redefined virtual functions:
     virtual Boolean continuePlaying();
 

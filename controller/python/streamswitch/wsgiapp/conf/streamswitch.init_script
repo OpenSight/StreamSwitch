@@ -1,0 +1,90 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          streamswitch
+# Required-Start:    $network $syslog $local_fs
+# Required-Stop:     $network $syslog $local_fs
+# Should-Start:      $local_fs
+# Should-Stop:       $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: The Web application of StreamSwitch Controller, providing RESTful APIs
+# Description:       The Web application of StreamSwitch Controller, providing RESTful APIs of controller library
+#                    to manage the streams, ports, Recorder in the StreamSwitch
+### END INIT INFO
+ 
+if [ -e /lib/lsb/init-functions ]; then
+    . /lib/lsb/init-functions
+    
+    log_success() {
+        log_success_msg "$1"
+    }
+
+    log_failure() {
+        log_failure_msg "$1"
+    }
+else
+    . /etc/rc.d/init.d/functions
+
+    log_success() {
+        echo_success
+        echo "$1"
+    }
+
+    log_failure() {
+        echo_failure
+        echo "$1"
+    }
+fi
+
+RETVAL=0
+NAME=streamswitch
+DAEMON=/usr/bin/pserve
+PIDFILE=/var/run/streamswitch.pid
+CFGFILE=/etc/streamswitch/streamswitch.ini
+LOGFILE=/dev/null
+
+case "$1" in
+    start)
+        echo "Starting $NAME:"
+        export LC_CTYPE=en_US.UTF8
+
+        if pidofproc -p $PIDFILE $DAEMON > /dev/null; then
+            log_failure "already running"
+            exit 1
+        fi
+        if $DAEMON --daemon --log-file=$LOGFILE --pid-file=$PIDFILE $CFGFILE; then
+            log_success "started"
+            RETVAL=0
+        else
+            RETVAL=$?
+            log_failure "failed"						
+        fi
+        ;;
+    stop)
+        echo "Stopping $NAME:"
+        if pidofproc -p $PIDFILE $DAEMON > /dev/null; then
+            $DAEMON --stop-daemon --pid-file=$PIDFILE;
+            /bin/rm -rf $PIDFILE
+            log_success "stopped"
+        else
+            log_failure "not running"		   
+        fi
+        ;;
+    restart)
+        $0 stop && sleep 2 && $0 start
+        ;;
+    status)
+        if pidofproc -p $PIDFILE $DAEMON > /dev/null; then
+            echo "$NAME is running"
+        else
+            echo "$NAME is not running"
+            RETVAL=1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1 
+esac
+
+exit $RETVAL

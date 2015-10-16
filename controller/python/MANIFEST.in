@@ -2,4 +2,5 @@ include README.md AUTHORS.md CHANGES.md LICENSE
 include *.txt *.ini *.cfg *.rst 
 recursive-include streamswitch *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml *.ini *.yaml
 recursive-include streamswitch/wsgiapp/conf *
-
+recursive-include streamswitch/wsgiapp/migration *
+recursive-include streamswitch/wsgiapp/static *

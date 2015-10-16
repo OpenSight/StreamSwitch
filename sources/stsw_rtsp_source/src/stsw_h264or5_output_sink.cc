@@ -34,6 +34,8 @@
 
 #include <unistd.h>
 
+char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+
 
 H264or5OutputSink* H264or5OutputSink::createNew(UsageEnvironment& env,
                                             LiveRtspClient *rtsp_client,
@@ -63,7 +65,9 @@ H264or5OutputSink::H264or5OutputSink(UsageEnvironment& env,
 : MediaOutputSink(env, rtsp_client, subsession, sub_stream_index, sink_buf_size), 
 h_number_(h_number)
 {
-
+    
+    
+    
 }
 
 
@@ -76,8 +80,7 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
                 struct timeval presentationTime, unsigned durationInMicroseconds)
 {
     using namespace stream_switch;
-    
-    
+   
     if(presentationTime.tv_sec < last_pts_.tv_sec ||
        (presentationTime.tv_sec == last_pts_.tv_sec &&
         presentationTime.tv_usec < last_pts_.tv_usec)){
@@ -96,6 +99,7 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
         
     if(source == NULL){
         //not H264or5VideoStreamFramer, just use default method
+        memmove(recv_buf_, recv_buf_ + 4, frameSize); //recover recv_buf_ by removing the prepend start code 
         MediaOutputSink::DoAfterGettingFrame(frameSize, numTruncatedBytes, 
             presentationTime, durationInMicroseconds);
         return;
@@ -131,7 +135,6 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
             
             if(h_number_ == 264){
                 if(sps != NULL && pps != NULL){
-                    char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
                     metadata->sub_streams[sub_stream_index_]. \
                       extra_data.append(start_code, 4);
                     metadata->sub_streams[sub_stream_index_]. \
@@ -147,7 +150,7 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
             
             }else if(h_number_ == 265){
                 if(vps != NULL && sps != NULL && pps != NULL){
-                    char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+                    
                     metadata->sub_streams[sub_stream_index_]. \
                       extra_data.append(start_code, 4);
                     metadata->sub_streams[sub_stream_index_]. \
@@ -177,9 +180,9 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
     //analyze the frame's type
     u_int8_t nal_unit_type;
     if (h_number_ == 264 && frameSize >= 1) {
-        nal_unit_type = recv_buf_[0]&0x1F;
+        nal_unit_type = recv_buf_[4]&0x1F;
     } else if (h_number_ == 265 && frameSize >= 2) {
-        nal_unit_type = (recv_buf_[0]&0x7E)>>1;
+        nal_unit_type = (recv_buf_[4]&0x7E)>>1;
     } else {
         // This is too short to be a valid NAL unit, so just assume a bogus nal_unit_type
         nal_unit_type = 0xFF;
@@ -208,9 +211,11 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
             }
             
             //callback the parent rtsp client frame receive interface
-            if(rtsp_client_ != NULL){
+            if(rtsp_client_ != NULL){                
+                //frameSize + 4 to include the prepend start code
                 rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
-                                                presentationTime, frameSize, (const char *)recv_buf_);
+                                                presentationTime, frameSize + 4, (const char *)recv_buf_);
+
             }
         }else{
             
@@ -218,7 +223,7 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
                 //only buffer the param frame
                 PushOneFrame(frame_type, 
                              presentationTime, 
-                             frameSize, (const char *)recv_buf_);
+                             frameSize + 4, (const char *)recv_buf_);
             }
             //drop the frame; 
         }
@@ -228,7 +233,19 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
         
 }
 
-
+Boolean H264or5OutputSink::continuePlaying() {
+    if (fSource == NULL) return False; // sanity check (should not happen)
+    
+    //h264/h265 need prepend the start code
+    memcpy(recv_buf_, start_code, 4);
+    
+    // Request the next frame of data from our input source.  
+    //"afterGettingFrame()" will get called later, when it arrives:
+    fSource->getNextFrame(recv_buf_ + 4, sink_buf_size_ - 4,
+                        afterGettingFrame, this,
+                        onSourceClosure, this);
+    return True; 
+}
 
 
 

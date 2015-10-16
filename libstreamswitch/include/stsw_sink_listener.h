@@ -61,9 +61,9 @@ public:
     //                  which codec in used. It should be the encoded raw data 
     //                  of one intact frame
     //                  Notes:
-    //                  1) For H264/h265, it's a single NAL unit 
-    //                     include a intact picture, without the start code
-    //                     - 0x00000001
+    //                  1) For H264/h265, the frame data consist of one or more
+    //                     (start code (00 00 00 01) + NAL) unit, but at most one 
+    //                     VCL which includes a intact picture. 
     //                  2) For MPEG4, it's a segment of MPEG4 bitstream 
     //                     including just one intact picture
 

@@ -28,6 +28,7 @@ class PortService(object):
         self.port_dao = port_dao
 
     def on_application_created(self, event):
+        # print("port service ........load")
         self.load()
 
     def load(self):

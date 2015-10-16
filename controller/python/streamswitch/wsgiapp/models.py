@@ -17,9 +17,6 @@ from ..stream_mngr import DEFAULT_LOG_ROTATE, DEFAULT_LOG_SIZE
 from ..utils import STRING, encode_json
 import json
 
-print("who import me !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
-
-
 
 Base = declarative_base()
 
@@ -64,3 +61,11 @@ class StreamConf(Base):
     def init_on_load(self):
         self.extra_options = json.loads(self.extra_options_json)
         self.other_kwargs = json.loads(self.other_kwargs_json)
+
+        print("init_on_load")
+
+    def __repr__(self):
+        return "StreamConf Object(stream_name:%s, source_type:%s, " \
+               "url:%s, api_tcp_port:%d)" % (
+            self.stream_name, self.source_type, self.url, self.api_tcp_port
+        )

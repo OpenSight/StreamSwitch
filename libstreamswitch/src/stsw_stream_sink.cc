@@ -1608,7 +1608,8 @@ int StreamSink::SendRpcRequest(ProtoCommonPacket * request, const char * extra_b
     }
 
     if(debug_flags() & DEBUG_FLAG_DUMP_API){
-        fprintf(stderr, "Receive the following packet from api socket (timestamp:%lld ms):\n",
+        fprintf(stderr, "Receive the following packet (with blob size: %d) from api socket (timestamp:%lld ms):\n",
+                (in_blob_frame==NULL)?0:(int)zframe_size(in_blob_frame), 
                 (long long)zclock_time());
         fprintf(stderr, "%s\n", reply->DebugString().c_str());
     }
