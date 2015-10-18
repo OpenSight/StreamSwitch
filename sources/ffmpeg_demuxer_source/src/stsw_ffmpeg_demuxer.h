@@ -24,7 +24,7 @@
  * stsw_ffmpeg_demuxer.cc
  *      FfmpegDemuxer class header file, define intefaces of the FfmpegDemuxer 
  * class. 
- *      FfmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
+ *      FFmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
  * 
  * author: jamken
  * date: 2015-10-15
@@ -42,13 +42,17 @@
 #include <stream_switch.h>
 
 
-class FfmpegDemuxer{
+class FFmpegDemuxer{
 public:
+    FFmpegDemuxer();
+    virtual ~FFmpegDemuxer();
     int Open(std::string input, 
-             std::string ffmpeg_options,
+             std::string ffmpeg_options_str,
              int io_timeout);
     int Close();
-    int ReadPacket
+    int ReadPacket();
+    void FreePacket();
+    int ReadMeta();
 
 };
     

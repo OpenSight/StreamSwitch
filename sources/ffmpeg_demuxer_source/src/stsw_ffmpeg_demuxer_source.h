@@ -21,51 +21,59 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_ffmpeg_source.h
- *      FfmpegSource class header file, define intefaces of the FfmpegSource 
- * class. 
- *      FfmpegSource is a stream source implementation which acquire the 
- * media data through ffmpeg libavformat library. only support live stream 
- * by now
+ * stsw_ffmpeg_demuxer_source.h
+ *      FfmpegDemuxerSource class header file, define intefaces of the 
+ * FfmpegDemuxerSource class. 
+ *      FfmpegDemuxerSource is a stream source implementation which acquire the 
+ * media data through the ffmpeg libavformat library with demuxing. 
+ * only support live stream by now
  * 
  * author: jamken
  * date: 2015-10-15
 **/ 
 
-#ifndef STSW_FFMPEG_SOURCE_H
-#define STSW_FFMPEG_SOURCE_H
+#ifndef STSW_FFMPEG_DEMUXER_SOURCE_H
+#define STSW_FFMPEG_DEMUXER_SOURCE_H
 
-#include "stsw_ffmpeg_source.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
 #include <unistd.h>
+#include <pthread.h>
 
 #include <stream_switch.h>
 
+#include "stsw_ffmpeg_demuxer.h"
+
+
+enum SourceMode{
+    SOURCE_MODE_LIVE = 0,    
+    SOURCE_MODE_REPLAY = 1, 
+};
 
 typedef void (*OnErrorFun)(int error_code, void *user_data);
 
 ///////////////////////////////////////////////////////////////
 //Type
 
-class FfmpegSource:public stream_switch::SourceListener{
+class FFmpegDemuxerSource:public stream_switch::SourceListener{
   
 public:
-    FfmpegSource();
-    virtual ~FfmpegSource();
+    FFmpegDemuxerSource();
+    virtual ~FFmpegDemuxerSource();
     int Init(std::string input, 
              std::string stream_name, 
-             std::string ffmpeg_options,
+             std::string ffmpeg_options_str,
              int local_gap_max_time, 
              int io_timeout,
+             bool enable_live_mock, 
              int source_tcp_port, 
              int queue_size, 
              int debug_flags);    
 
     void Uninit();
-    int Start(OnErrorFun on_error, void *user_data);
+    int Start(OnErrorFun on_error_fun, void *user_data);
     void Stop();
 
 
@@ -75,14 +83,17 @@ protected:
        
 protected: 
 
-
     stream_switch::StreamSource source_;    
+    FFmpegDemuxer * demuxer_;
+    pthread_t live_thread_id_;
     std::string input_name_;    
-    uint32_t ssrc_; 
-    int flags_;
     int io_timeout_;
-    std::string ffmpeg_options_;
-
+    std::string ffmpeg_options_str_;
+    uint32_t ssrc_;     
+    bool is_started_;
+    bool enable_live_mock_; 
+    OnErrorFun on_error_fun_; 
+    void *user_data_;
     
 };
     

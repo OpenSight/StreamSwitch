@@ -66,7 +66,14 @@ void FFmpegArgParser::RegisterSourceOptions()
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
                    "the max time gap (in sec) between the local and the received frame. "
                    "If the gap is over this limitation, this source would exit with error", NULL, NULL);
-
+                   
+    RegisterOption("live-mock", 0, 0, NULL,
+                   "enable the live-moke mode of ffmpeg_demuxer_source."
+                   "in live-mock mode, ffmpeg_demuxer_source would read input at native frame rate. "
+                   "Mainly used to simulate a live stream from a non-live input (like a media file). "
+                   "Should not be used with the actual live input streams (where it can cause packet loss). ",
+                    NULL, NULL);
+                   
     RegisterOption("ffmpeg-[NAME]",0
                    OPTION_FLAG_WITH_ARG, "VALUE",
                    "user can used --ffmpeg-[optioan]=[value] form to pass the options to the ffmpeg library. "
