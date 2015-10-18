@@ -28,7 +28,7 @@
  * "--ffmpeg-". 
  * 
  * author: jamken
- * date: 2014-10-16
+ * date: 2015-10-17
 **/ 
 
 #include "stsw_arg_parser.h"
@@ -38,20 +38,14 @@
 #include <string.h>
 
 
-
-static bool is_long(const char *str)
-{
-    char* p;
-    strtol(str, &p, 0);
-    return *p == 0;    
-}
+#define FFMPEG_OPT_PRE  "--ffmpeg-"
     
     
 FFmpegArgParser::FFmpegArgParser()
+
 {
 
 }
-
 
 
 FFmpegArgParser::~FFmpegArgParser()
@@ -60,25 +54,47 @@ FFmpegArgParser::~FFmpegArgParser()
 }
 
 
-
 void FFmpegArgParser::RegisterSourceOptions()
 {
     ArgParser::RegisterSourceOptions();
     
     //register the other options
+    RegisterOption("io_timeout", 0, 
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
+                   "timeout (in sec) for IO operation. Default is 10 sec", NULL, NULL);
+    RegisterOption("local-gap-max-time", 0, 
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
+                   "the max time gap (in sec) between the local and the received frame. "
+                   "If the gap is over this limitation, this source would exit with error", NULL, NULL);
 
-                   
+    RegisterOption("ffmpeg-[NAME]",0
+                   OPTION_FLAG_WITH_ARG, "VALUE",
+                   "user can used --ffmpeg-[optioan]=[value] form to pass the options to the ffmpeg library. "
+                   "ffmpeg_source parse the options which start with \"ffmpeg-\", and pass them to ffmpeg librarythe. "
+                   "The option name would be extracted from the string after \"ffmpeg-\", the value would be set to VALUE." ,
+                   NULL, NULL);
     
 }
     
 
-
-
-
-
 bool FFmpegArgParser::ParseUnknown(const char * unknown_arg)
 {
     //just ignore, user can override this function to print error message and exit
+    if(unknown_arg == NULL){
+        return false;
+    }
+    
+    if(strncmp(unknown_arg, FFMPEG_OPT_PRE, strlen(FFMPEG_OPT_PRE)) == 0){
+        std::string ffmpeg_option = 
+            std::string(unknown_arg + strlen(FFMPEG_OPT_PRE));
+        if(ffmpeg_option.find('=') == std::string::npos){
+            ffmpeg_option.append("=1");
+        }
+        ffmpeg_options_.append(",");
+        ffmpeg_options_.append(ffmpeg_option);  
+        return true;
+    }
+    
     return false;
 }
 

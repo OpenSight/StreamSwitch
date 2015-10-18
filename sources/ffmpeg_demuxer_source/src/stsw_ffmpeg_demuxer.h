@@ -1,5 +1,5 @@
 /**
- * This file is part of stsw_proxy_source, which belongs to StreamSwitch
+ * This file is part of libstreamswtich, which belongs to StreamSwitch
  * project. 
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
@@ -12,7 +12,6 @@
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,35 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_log.h
- *      the header file of the log module 
+ * stsw_ffmpeg_demuxer.cc
+ *      FfmpegDemuxer class header file, define intefaces of the FfmpegDemuxer 
+ * class. 
+ *      FfmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
  * 
  * author: jamken
- * date: 2015-6-24
+ * date: 2015-10-15
 **/ 
 
-#include <stream_switch.h>
+#ifndef STSW_FFMPEG_DEMUX_H
+#define STSW_FFMPEG_DEMUX_H
+
+
 #include <stdio.h>
-#include <string>
+#include <stdlib.h>
+#include <sstream>
+#include <unistd.h>
 
-int InitGlobalLogger(std::string base_name, 
-                     int file_size, int rotate_num,  
-                     int log_level);
-                     
-int UninitGlobalLogger();
-                     
-extern stream_switch::RotateLogger * global_logger;
-extern int stderr_level;
+#include <stream_switch.h>
 
-#define STDERR_LOG(level, fmt, ...)  \
-do {         \
-    if(global_logger != NULL){                  \
-        global_logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
-    }else{   \
-        if(level <= stderr_level) {\
-            fprintf(stderr, fmt, ##__VA_ARGS__);    \
-        }     \
-    }                             \
-}while(0)
 
+class FfmpegDemuxer{
+public:
+    int Open(std::string input, 
+             std::string ffmpeg_options,
+             int io_timeout);
+    int Close();
+    int ReadPacket
+
+};
     
+

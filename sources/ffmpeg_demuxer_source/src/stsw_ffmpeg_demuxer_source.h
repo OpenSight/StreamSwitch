@@ -35,6 +35,8 @@
 #ifndef STSW_FFMPEG_SOURCE_H
 #define STSW_FFMPEG_SOURCE_H
 
+#include "stsw_ffmpeg_source.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
@@ -57,7 +59,7 @@ public:
              std::string stream_name, 
              std::string ffmpeg_options,
              int local_gap_max_time, 
-             int inter_packet_gap_max_time,
+             int io_timeout,
              int source_tcp_port, 
              int queue_size, 
              int debug_flags);    
@@ -71,12 +73,15 @@ protected:
     virtual void OnKeyFrame(void);
     virtual void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic);    
        
-private: 
+protected: 
 
 
     stream_switch::StreamSource source_;    
-    std::string input_name;    
+    std::string input_name_;    
     uint32_t ssrc_; 
+    int flags_;
+    int io_timeout_;
+    std::string ffmpeg_options_;
 
     
 };

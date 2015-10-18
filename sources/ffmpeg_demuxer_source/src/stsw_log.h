@@ -22,45 +22,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_log.cc
- *      the implementation of log module
+ * stsw_log.h
+ *      the header file of the log module 
  * 
  * author: jamken
- * date: 2015-6-23
+ * date: 2015-6-24
 **/ 
 
-
-
-#include "stsw_log.h"
-
-
-
-stream_switch::RotateLogger * global_logger = NULL;
-int stderr_level = stream_switch::LOG_LEVEL_DEBUG;
-
+#include <stream_switch.h>
+#include <stdio.h>
+#include <string>
 
 int InitGlobalLogger(std::string base_name, 
                      int file_size, int rotate_num,  
-                     int log_level)
-{
-    int ret = 0;
-    global_logger = new stream_switch::RotateLogger();
-    ret = global_logger->Init("stsw_proxy_source", 
-            base_name, file_size, rotate_num, log_level, false);
-    if(ret){
-        delete global_logger;
-        global_logger = NULL;
-        fprintf(stderr, "Init Logger faile\n");
-    }     
-    stderr_level = log_level;
-    return ret;
-}
+                     int log_level);
+                     
+int UninitGlobalLogger();
+                     
+extern stream_switch::RotateLogger * global_logger;
+extern int stderr_level;
+void SetLogLevel(int log_level);
+int LogLevel2AvlogLevel(int log_level);
 
-int UninitGlobalLogger()
-{
-    if(global_logger != NULL){
-        global_logger->Uninit();
-        delete global_logger;
-        global_logger = NULL;
-    }
-}
+
+#define STDERR_LOG(level, fmt, ...)  \
+do {         \
+    if(global_logger != NULL){                  \
+        global_logger->Log(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__);   \
+    }else{   \
+        if(level <= stderr_level) {\
+            fprintf(stderr, fmt, ##__VA_ARGS__);    \
+        }     \
+    }                             \
+}while(0)
+
+    
