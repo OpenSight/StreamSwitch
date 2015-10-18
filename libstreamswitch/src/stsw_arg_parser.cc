@@ -83,6 +83,10 @@ void ArgParser::RegisterSourceOptions()
     RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "NUM",
                    "log rotate number, 0 means no rotating", NULL, NULL);  
+    RegisterOption("log-level", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "log level, compatible with syslog's log level number. "
+                   "By default, it's LOG_INFO(6)", NULL, NULL);  
     RegisterOption("queue-size", 'q', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "NUM",
                    "the size of the message queue for Pub/Sub, 0 means no limit."
@@ -383,6 +387,7 @@ bool ArgParser::ParseNonOption(const char * value)
 bool ArgParser::ParseUnknown(const char * unknown_arg)
 {
     //just ignore, user can override this function to print error message and exit
+    printf("ParseUnknown:%s\n", unknown_arg);
     return false;
 }
 
