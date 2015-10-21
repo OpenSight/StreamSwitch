@@ -34,13 +34,17 @@
 #define STSW_FFMPEG_DEMUX_H
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sstream>
-#include <unistd.h>
-
+#include <stdint.h>
+#include <string>
 #include <stream_switch.h>
 
+
+struct DemuxerPacket{
+    MediaFrameInfo frame_info;
+    uint8_t * 	data; 
+    int 	size;
+    void * priv;
+};
 
 class FFmpegDemuxer{
 public:
@@ -50,9 +54,9 @@ public:
              std::string ffmpeg_options_str,
              int io_timeout);
     int Close();
-    int ReadPacket();
-    void FreePacket();
-    int ReadMeta();
+    int ReadPacket(DemuxerPacket * packet);
+    void FreePacket(DemuxerPacket * packet);
+    int ReadMeta(stream_switch::StreamMetadata * meta);
 
 };
     

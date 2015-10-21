@@ -44,12 +44,10 @@
 
 #include <stream_switch.h>
 
-#include "stsw_ffmpeg_demuxer.h"
-
-
 enum SourceMode{
-    SOURCE_MODE_LIVE = 0,    
-    SOURCE_MODE_REPLAY = 1, 
+    SOURCE_MODE_AUTO = 0,
+    SOURCE_MODE_LIVE = 1,    
+    SOURCE_MODE_REPLAY = 2, 
 };
 
 typedef void (*OnErrorFun)(int error_code, void *user_data);
@@ -57,6 +55,7 @@ typedef void (*OnErrorFun)(int error_code, void *user_data);
 ///////////////////////////////////////////////////////////////
 //Type
 
+class FFmpegDemuxer;
 class FFmpegDemuxerSource:public stream_switch::SourceListener{
   
 public:
@@ -67,7 +66,7 @@ public:
              std::string ffmpeg_options_str,
              int local_gap_max_time, 
              int io_timeout,
-             bool enable_live_mock, 
+             bool native_frame_rate, 
              int source_tcp_port, 
              int queue_size, 
              int debug_flags);    
@@ -83,15 +82,16 @@ protected:
        
 protected: 
 
-    stream_switch::StreamSource source_;    
+    stream_switch::StreamSource source_;  
+    stream_switch::StreamMetadata meta_;
     FFmpegDemuxer * demuxer_;
     pthread_t live_thread_id_;
     std::string input_name_;    
     int io_timeout_;
     std::string ffmpeg_options_str_;
-    uint32_t ssrc_;     
+ 
     bool is_started_;
-    bool enable_live_mock_; 
+    bool native_frame_rate_; 
     OnErrorFun on_error_fun_; 
     void *user_data_;
     

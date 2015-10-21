@@ -31,4 +31,39 @@
  * author: jamken
  * date: 2015-10-18
 **/ 
+#include "stsw_ffmpeg_demuxer_source.h"
 
+FFmpegDemuxerSource::FFmpegDemuxerSource()
+demuxer_(NULL), live_thread_id_(0), io_timeout_(0), is_started_(false), 
+native_frame_rate_(false), on_error_fun_(NULL), user_data_(NULL)
+{
+    
+}
+
+
+
+FFmpegDemuxerSource::~FFmpegDemuxerSource()
+{
+    if(demuxer_ != NULL){
+        delete demuxer_;
+        demuxer_ = NULL;
+    }
+}
+
+
+FFmpegDemuxerSource::Init(std::string input, 
+             std::string stream_name, 
+             std::string ffmpeg_options_str,
+             int local_gap_max_time, 
+             int io_timeout,
+             bool native_frame_rate, 
+             int source_tcp_port, 
+             int queue_size, 
+             int debug_flags)
+{
+                 
+}
+
+void FFmpegDemuxerSource::Uninit();
+int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data);
+void FFmpegDemuxerSource::Stop();
