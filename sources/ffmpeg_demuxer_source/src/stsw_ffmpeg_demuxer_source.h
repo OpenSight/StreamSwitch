@@ -74,7 +74,9 @@ public:
     void Uninit();
     int Start(OnErrorFun on_error_fun, void *user_data);
     void Stop();
-
+    
+    static void * StaticLiveThreadRoutine(void *arg);
+    virtual void InternalLiveRoutine();  
 
 protected:
     virtual void OnKeyFrame(void);

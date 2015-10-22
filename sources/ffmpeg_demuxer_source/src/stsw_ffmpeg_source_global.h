@@ -21,48 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_ffmpeg_demuxer.cc
- *      FfmpegDemuxer class header file, define intefaces of the FfmpegDemuxer 
- * class. 
- *      FFmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
+ * stsw_ffmpeg_source_global.cc
+ *      The header file includes some global definitions and declarations
+ * used by other parts of ffmpeg_demuxer_source
  * 
  * author: jamken
- * date: 2015-10-15
+ * date: 2015-10-22
 **/ 
 
-#ifndef STSW_FFMPEG_DEMUX_H
-#define STSW_FFMPEG_DEMUX_H
+#ifndef STSW_FFMPEG_SOURCE_GLOBAL_H
+#define STSW_FFMPEG_SOURCE_GLOBAL_H
 
 
-#include <stdint.h>
-#include <string>
-#include <stream_switch.h>
-
-
-struct DemuxerPacket{
-    MediaFrameInfo frame_info;
-    uint8_t * 	data; 
-    int 	size;
-    void * priv;
-    DemuxerPacket(){
-        data = NULL;
-        size = 0;
-        priv = NULL;
-    }
+enum ExtensionErrorCode{
+    
+    ERROR_CODE_EOF = -64, 
+    ERROR_CODE_AGAIN = -65,     
+    
+    
 };
 
-class FFmpegDemuxer{
-public:
-    FFmpegDemuxer();
-    virtual ~FFmpegDemuxer();
-    int Open(const std::string &input, 
-             const std::string &ffmpeg_options_str,
-             int io_timeout);
-    int Close();
-    int ReadPacket(DemuxerPacket * packet);
-    void FreePacket(DemuxerPacket * packet);
-    int ReadMeta(stream_switch::StreamMetadata * meta);
 
-};
     
 
+#endif
