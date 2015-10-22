@@ -40,7 +40,7 @@
 
 
 struct DemuxerPacket{
-    MediaFrameInfo frame_info;
+    stream_switch::MediaFrameInfo frame_info;
     uint8_t * 	data; 
     int 	size;
     void * priv;

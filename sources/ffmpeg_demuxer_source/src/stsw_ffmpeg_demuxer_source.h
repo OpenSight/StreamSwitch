@@ -94,8 +94,10 @@ protected:
  
     bool is_started_;
     bool native_frame_rate_; 
+    int local_gap_max_time_;
     OnErrorFun on_error_fun_; 
     void *user_data_;
+    int default_stream_index_;
     
 };
     

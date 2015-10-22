@@ -33,6 +33,8 @@
 **/ 
 #include "stsw_ffmpeg_demuxer_source.h"
 
+#include <stdint.h>
+#include <time.h>
 
 #include "stsw_ffmpeg_source_global.h"
 #include "stsw_log.h"
@@ -40,7 +42,8 @@
 
 FFmpegDemuxerSource::FFmpegDemuxerSource()
 demuxer_(NULL), live_thread_id_(0), io_timeout_(0), is_started_(false), 
-native_frame_rate_(false), on_error_fun_(NULL), user_data_(NULL)
+native_frame_rate_(false),local_gap_max_time_(0), 
+on_error_fun_(NULL), user_data_(NULL), default_stream_index_(0)
 {
     
 }
@@ -69,10 +72,7 @@ int FFmpegDemuxerSource::Init(std::string input,
     std::string err_info;
     int ret = 0;
     
-    input_name_ = input;
-    io_timeout_ = io_timeout;
-    ffmpeg_options_str_ = ffmpeg_options_str;
-    native_frame_rate_ = native_frame_rate;
+
      
     // create demuxer object for this input type
     demuxer_ = new FFmpegDemuxer();
@@ -88,6 +88,12 @@ int FFmpegDemuxerSource::Init(std::string input,
                    "Init Source Failed: %s\n", err_info.c_str());   
         goto error_out1:
     }
+
+    input_name_ = input;
+    io_timeout_ = io_timeout;
+    ffmpeg_options_str_ = ffmpeg_options_str;
+    native_frame_rate_ = native_frame_rate;
+    local_gap_max_time_ = local_gap_max_time;
     
     return 0;
      
@@ -247,21 +253,93 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
     std::string err_info;
     
     while(is_started_){
-        ret = demuxer_->ReadPacket(&demuxer_packet);
+        
+        //read demuxer packet
+        do{
+            ret = demuxer_->ReadPacket(&demuxer_packet);        
+        }while(ret == ERROR_CODE_AGAIN);
         if(ret){
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "Demuxer Read packet error (%d)\n", ret);    
+            if(on_error_fun_){
+                on_error_fun_(ret, user_data_);
+            }
+            break;
+        }
+        
+        // check local time gap
+        struct timeval now
+        gettimeofday(&now, NULL);    
+        if(demuxer_packet.frame_info.timestamp.tv_sec <= (now.tv_sec - local_gap_max_time_) ||
+           demuxer_packet.frame_info.timestamp.tv_sec >= (now.tv_sec + local_gap_max_time_)){
+            //lost time sync between frame's time and local time 
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                    "Gap too much between local time(%lld.%06d) "
+                    "and frame's time(%lld.%06d)\n",
+                     (long long)now.tv_sec, (int)now.tv_usec,
+                     (long long)demuxer_packet.frame_info.timestamp.tv_sec, 
+                     (int)demuxer_packet.frame_info.timestamp.tv_usec);          
+           
+            break;
+        }  
+        
+        // check native_frame_rate
+        if(native_frame_rate_ && 
+           demuxer_packet.frame_info.sub_stream_index == default_stream_index){
+
+            while(now.tv_sec < demuxer_packet.frame_info.timestamp.tv_sec ||
+                  (now.tv_sec == demuxer_packet.frame_info.timestamp.tv_sec &&
+                   now.tv_usec < demuxer_packet.frame_info.timestamp.tv_usec)){
+                
+                if(!is_started_){
+                    break;
+                }
+                
+#define MAX_WAIT_US 10000 // 10 ms
+                long long waittime = (next_send_tv.tv_sec - tv.tv_sec) * 1000000 
+                           + (next_send_tv.tv_usec - tv.tv_usec);
+                if(waittime < 0) {
+                    waittime = 0;
+                }else if (waittime > MAX_WAIT_US){
+                    waittime = MAX_WAIT_US; //at most 10 ms
+                }
+                {
+                    struct timespec req;
+                    req.tv_sec = 0;
+                    req.tv_nsec = waittime * 1000;            
+                    nanosleep(&req, NULL);
+                }                 
+                
+                gettimeofday(&now, NULL);             
+            }
+            
+            if(!is_started_){
+                break;
+            }
             
         }
+        
+        
         //send the media packet to source
         ret = source_->SendLiveMediaFrame(demuxer_packet.frame_info,
                                           demuxer_packet.data,
                                           demuxer_packet.size, 
                                           &err_info);
         if(ret){
-            
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                "Send live media frame Failed (%d):%s\n",
+                 ret,  err_info.c_str());  
+            if(on_error_fun_){
+                on_error_fun_(ret, user_data_);
+            }
+            break;            
         }
         
         demuxer_->FreePacket(&demuxer_packet);        
     }
+    
+    //free the demuxer packet for error 
+    demuxer_->FreePacket(&demuxer_packet);    
     
 }
 
