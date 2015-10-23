@@ -35,9 +35,17 @@
 
 #include <stdint.h>
 #include <time.h>
+#include <signal.h>
+
 
 #include "stsw_ffmpeg_source_global.h"
 #include "stsw_log.h"
+
+
+static void sigusr1_handler (int signal_value)
+{
+    //nothig to do
+}
 
 
 FFmpegDemuxerSource::FFmpegDemuxerSource()
@@ -45,7 +53,10 @@ demuxer_(NULL), live_thread_id_(0), io_timeout_(0), is_started_(false),
 native_frame_rate_(false),local_gap_max_time_(0), 
 on_error_fun_(NULL), user_data_(NULL), default_stream_index_(0)
 {
-    
+    //init the sigusr1_oldact_ field
+    sigusr1_oldact_.sa_handler = SIG_DFL;
+    sigusr1_oldact_.sa_flags = 0;
+    sigemptyset (&sigusr1_oldact_.sa_mask);    
 }
 
 
@@ -71,8 +82,20 @@ int FFmpegDemuxerSource::Init(std::string input,
 {
     std::string err_info;
     int ret = 0;
+    struct sigaction action;
     
-
+    //install the SIGUSR1 handler
+    action.sa_handler = sigusr1_handler;
+    action.sa_flags = 0;
+    sigemptyset (&action.sa_mask);
+    ret = sigaction (SIGUSR1, &action, &sigusr1_oldact_);
+    if(ret){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "sigaction failed: %s\n", 
+                   strerror(errno));    
+        ret = -1;
+        goto error_out1:      
+    }
      
     // create demuxer object for this input type
     demuxer_ = new FFmpegDemuxer();
@@ -85,8 +108,9 @@ int FFmpegDemuxerSource::Init(std::string input,
                        &err_info);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                   "Init Source Failed: %s\n", err_info.c_str());   
-        goto error_out1:
+                   "Init Source Failed: %s\n", err_info.c_str());  
+        ret = -1;
+        goto error_out2:
     }
 
     input_name_ = input;
@@ -96,6 +120,14 @@ int FFmpegDemuxerSource::Init(std::string input,
     local_gap_max_time_ = local_gap_max_time;
     
     return 0;
+
+error_out2:
+    if(demuxer_ != NULL){
+        delete demuxer_;
+        demuxer_ = NULL;
+    }     
+
+    sigaction (SIGUSR1, &sigusr1_oldact_, NULL);
      
 error_out1:     
      return ret;
@@ -103,11 +135,26 @@ error_out1:
 
 void FFmpegDemuxerSource::Uninit()
 {
+    struct sigaction action;    
+    
+    input_name_.clear();
+    ffmpeg_options_str_.clear();
+    native_frame_rate_ = false;
+    io_timeout_ = 0;
+    local_gap_max_time_ = 0;
+    
+    
+    //Uninit source
+    source_->Uninit();
+    
+
     if(demuxer_ != NULL){
         delete demuxer_;
         demuxer_ = NULL;
-    }   
+    }  
 
+    //Uninstall the sig handler
+    sigaction (SIGUSR1, &sigusr1_oldact_, NULL);    
     
 }
 int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
@@ -119,16 +166,23 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         return; //already start
     }
     
+    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_CONNECTING);
+    
     //open the demuxer
+    demuxer_->set_io_enabled(true);    
     ret = demuxer_->Open(input_name_, 
                          ffmpeg_options_str_, 
                          io_timeout_);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Demuxer open failed (ret: %d) for input: %s\n", 
-                   ret, input_name_.c_str());   
+                   ret, input_name_.c_str());  
+ 
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_CONNECT_FAIL);
         goto err_out1;
-    }    
+    }
+
+    
         
     //read metadata from the demuxer
     ret = demuxer_->ReadMeta(&meta_);
@@ -136,6 +190,7 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Demuxer ReadMeta failed (ret: %d) for intput:%s\n", 
                    ret, input_name_.c_str());   
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         goto err_out2;
     }     
     
@@ -148,13 +203,18 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Source ReadMeta failed (ret: %d) for demuxer(%s)\n", 
                    ret, input_name_.c_str());   
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
+        ret = -1;
         goto err_out2;
     }      
     
-    //create a thread to read packet
+    source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_OK);
+    
     on_error_fun_ = on_error_fun;
     user_data_ = user_data;
-    is_started_ = true;
+    is_started_ = true;    
+    
+    //create a thread to read packet
     ret = pthread_create(&live_thread_id_, NULL, 
                          FFmpegDemuxerSource::StaticLiveThreadRoutine, 
                          this);
@@ -168,13 +228,14 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         live_thread_id_  = 0;
         on_error_fun_ = NULL;
         user_data_ = NULL;
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
+        ret = -1;
         goto error_out3;
-
     }    
     
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
                "FFmpegDemuxerSource has started successful for input URL: %s\n", 
-                input_name_.c_str());          
+               input_name_.c_str());          
     return 0;    
 
 
@@ -197,16 +258,19 @@ void FFmpegDemuxerSource::Stop()
     }
     is_started_ = false;
     
+    demuxer_->set_io_enabled(false);
+    
     // wait for the live working thread terminate
-    //wait for the thread terminated
     if(live_thread_id_ != 0){
         void * res;
         int ret;
         pthread_t live_thread_id = live_thread_id_;
+        //interrupt the live thread by SIGUSR1
+        pthread_kill(live_thread_id, SIGUSR1);
         ret = pthread_join(live_thread_id, &res);
         if (ret != 0){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                   "Stop live Reading thread failed: %s\n", strerror(errno));            
+                   "join live Reading thread failed: %s\n", strerror(errno));            
         }
         live_thread_id_ = 0;      
     }
@@ -249,26 +313,29 @@ void * FFmpegDemuxerSource::StaticLiveThreadRoutine(void *arg)
 void FFmpegDemuxerSource::InternalLiveRoutine()
 {
     DemuxerPacket demuxer_packet; //holding media data;
-    int ret;
+    int ret = 0;
     std::string err_info;
-    
+    struct timeval now;  
+  
     while(is_started_){
         
         //read demuxer packet
-        do{
-            ret = demuxer_->ReadPacket(&demuxer_packet);        
-        }while(ret == ERROR_CODE_AGAIN);
+        ret = demuxer_->ReadPacket(&demuxer_packet); 
         if(ret){
+            if(ret == FFMPEG_SOURCE_ERR_INTR && !is_started_){
+                //IO is interrupted by user because source has been stop, not a real error
+                break;
+            }else if(ret == ERROR_CODE_AGAIN){
+                // dexumer need read again
+                continue;
+            }
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Demuxer Read packet error (%d)\n", ret);    
-            if(on_error_fun_){
-                on_error_fun_(ret, user_data_);
-            }
+            source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_MEIDA_STOP);
             break;
         }
         
         // check local time gap
-        struct timeval now
         gettimeofday(&now, NULL);    
         if(demuxer_packet.frame_info.timestamp.tv_sec <= (now.tv_sec - local_gap_max_time_) ||
            demuxer_packet.frame_info.timestamp.tv_sec >= (now.tv_sec + local_gap_max_time_)){
@@ -279,7 +346,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                      (long long)now.tv_sec, (int)now.tv_usec,
                      (long long)demuxer_packet.frame_info.timestamp.tv_sec, 
                      (int)demuxer_packet.frame_info.timestamp.tv_usec);          
-           
+            source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_TIME);
             break;
         }  
         
@@ -317,8 +384,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                 break;
             }
             
-        }
-        
+        }        
         
         //send the media packet to source
         ret = source_->SendLiveMediaFrame(demuxer_packet.frame_info,
@@ -329,9 +395,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                 "Send live media frame Failed (%d):%s\n",
                  ret,  err_info.c_str());  
-            if(on_error_fun_){
-                on_error_fun_(ret, user_data_);
-            }
+            source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
             break;            
         }
         
@@ -340,6 +404,14 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
     
     //free the demuxer packet for error 
     demuxer_->FreePacket(&demuxer_packet);    
+    
+    // callback for error condiction
+    // note: if the source has alread stopped, don't invoke the user callback
+    if(is_started_ && ret != 0){
+        if(on_error_fun_){
+            on_error_fun_(ret, user_data_);
+        }        
+    }
     
 }
 

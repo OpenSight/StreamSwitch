@@ -41,6 +41,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include <stream_switch.h>
 
@@ -98,7 +99,8 @@ protected:
     OnErrorFun on_error_fun_; 
     void *user_data_;
     int default_stream_index_;
-    
+    struct sigaction sigusr1_oldact_;
+   
 };
     
 

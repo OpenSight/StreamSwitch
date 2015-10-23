@@ -33,12 +33,13 @@
 #define STSW_FFMPEG_SOURCE_GLOBAL_H
 
 
-enum ExtensionErrorCode{
+enum FFmpegSourceErrCode{    
+    FFMPEG_SOURCE_ERR_OK = 0, 
+    FFMPEG_SOURCE_ERR_GENERAL = -1, 
     
-    ERROR_CODE_EOF = -64, 
-    ERROR_CODE_AGAIN = -65,     
-    
-    
+    FFMPEG_SOURCE_ERR_EOF = -64, 
+    FFMPEG_SOURCE_ERR_AGAIN = -65,     
+    FFMPEG_SOURCE_ERR_INTR = -66, 
 };
 
 
