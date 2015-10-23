@@ -90,8 +90,8 @@ struct ArgParserOptionsEntry{
 #define OPTION_FLAG_REQUIRED      4    /* this option is required */ 
 #define OPTION_FLAG_LONG          8    /* this option value is long type */
 #define OPTION_FLAG_PREFER        0x10    /* this option value is prefer. 
- *                                         if some options is prefer, 
- *                                         don't check REQUIRED option */
+                                           * if some options is prefer, 
+                                           * don't check REQUIRED option */
     uint32_t flags;
     std::string value_name;
     std::string help_info; 
