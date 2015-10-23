@@ -61,7 +61,7 @@ struct ReceiversInfoType{
     
 StreamSource::StreamSource()
 :tcp_port_(0), 
-api_socket_(NULL), publish_socket_(NULL), api_thread_id_(0), 
+api_socket_(NULL), publish_socket_(NULL), notify_socket_(NULL), api_thread_id_(0), 
 flags_(0), cur_bytes_(0), cur_bps_(0), 
 last_frame_sec_(0), last_frame_usec_(0), stream_state_(SOURCE_STREAM_STATE_CONNECTING), 
 last_heartbeat_time_(0), listener_(NULL), pub_queue_size_(STSW_PUBLISH_SOCKET_HWM)
@@ -73,7 +73,7 @@ last_heartbeat_time_(0), listener_(NULL), pub_queue_size_(STSW_PUBLISH_SOCKET_HW
 
 StreamSource::~StreamSource()
 {
-    Uninit();
+    //Uninit();
     SAFE_DELETE(receivers_info_);
 }
 
@@ -236,6 +236,19 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
                 "maybe address (%s) error\n", tmp_addr);
         goto error_2;          
     }
+ 
+    //init notify_socket
+    memset(tmp_addr, 0, MAX_SOCKET_BIND_ADDR_LEN + 1);
+    snprintf(tmp_addr, MAX_SOCKET_BIND_ADDR_LEN, 
+             "@inproc://source/%p", this);   
+    notify_socket_ = zsock_new_pair(tmp_addr);
+    if(notify_socket_ == NULL){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_new_pair create notify socket failed");          
+        fprintf(stderr, "zsock_new_pair create notify socket failed\n");
+        goto error_2;            
+    }   
+    zsock_set_linger(notify_socket_, 0); //no linger 
     
     
     //init handlers
@@ -267,7 +280,15 @@ int StreamSource::Init(const std::string &stream_name, int tcp_port,
    
     return 0;
     
+
+    
 error_2:
+
+    if(notify_socket_ != NULL){
+        zsock_destroy((zsock_t **)&notify_socket_);
+        notify_socket_ = NULL;
+        
+    }
 
     if(api_socket_ != NULL){
         zsock_destroy((zsock_t **)&api_socket_);
@@ -300,6 +321,12 @@ void StreamSource::Uninit()
     flags_ &= ~(STREAM_SOURCE_FLAG_INIT); 
 
     UnregisterAllApiHandler();
+
+    if(notify_socket_ != NULL){
+        zsock_destroy((zsock_t **)&notify_socket_);
+        notify_socket_ = NULL;
+        
+    }
 
     if(api_socket_ != NULL){
         zsock_destroy((zsock_t **)&api_socket_);
@@ -431,12 +458,28 @@ void StreamSource::Stop()
     if(api_thread_id_ != 0){
         void * res;
         int ret;
+        char tmp_addr[64];
+        SocketHandle wakeup_client_socket = NULL;
+        
         pthread_t api_thread_id = api_thread_id_;
         pthread_mutex_unlock(&lock_);  
+        //wakeup the api thread
+        
+        memset(tmp_addr, 0, 64);
+        snprintf(tmp_addr, 63, ">inproc://source/%p", this);   
+        wakeup_client_socket = zsock_new_pair(tmp_addr);
+        if(wakeup_client_socket != NULL){
+            zstr_send(wakeup_client_socket, "wakeup");
+        }      
         ret = pthread_join(api_thread_id, &res);
         if (ret != 0){
             perror("Stop Source internal thread failed");
         }
+        if(wakeup_client_socket != NULL){
+            zsock_destroy((zsock_t **)&wakeup_client_socket);
+            wakeup_client_socket = NULL;
+        }
+        
         pthread_mutex_lock(&lock_); 
         api_thread_id_ = 0;      
     }
@@ -1092,6 +1135,18 @@ void StreamSource::OnApiSocketRead()
     return;   
 } 
 
+void StreamSource::OnNotifySocketRead()
+{
+    char * msg = NULL;
+    msg = zstr_recv(notify_socket_);
+    //printf("OnNotifySocketRead() read str:%s\n", msg);
+    if(msg != NULL){
+        zstr_free(&msg);
+    }
+}
+
+
+
 // OnRpcRequest ensure that a reply for the given request 
 // must be send back by SendRpcReply()
 void StreamSource::OnRpcRequest(const ProtoCommonPacket &request,
@@ -1182,11 +1237,11 @@ void * StreamSource::StaticThreadRoutine(void *arg)
     
 void StreamSource::InternalRoutine()
 {
-    zpoller_t  * poller =zpoller_new (api_socket_, NULL);
+    zpoller_t  * poller =zpoller_new (api_socket_, notify_socket_, NULL);
     int64_t next_heartbeat_time = zclock_mono() + 
         STSW_STREAM_SOURCE_HEARTBEAT_INT;
     
-#define MAX_POLLER_WAIT_TIME    10
+#define MAX_POLLER_WAIT_TIME    50
     
     while(IsStarted()){
         int64_t now = zclock_mono();
@@ -1202,8 +1257,10 @@ void StreamSource::InternalRoutine()
         
         // check for api socket read event
         void * socket =  zpoller_wait(poller, timeout);  //wait for timeout
-        if(socket != NULL){
+        if(socket == api_socket_){
             OnApiSocketRead();
+        }else if(socket == notify_socket_){
+            OnNotifySocketRead();
         }
                      
         // check for heartbeat

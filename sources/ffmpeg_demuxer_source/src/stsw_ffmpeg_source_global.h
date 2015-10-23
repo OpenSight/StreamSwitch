@@ -35,11 +35,13 @@
 
 enum FFmpegSourceErrCode{    
     FFMPEG_SOURCE_ERR_OK = 0, 
-    FFMPEG_SOURCE_ERR_GENERAL = -1, 
+    FFMPEG_SOURCE_ERR_GENERAL = -1, // general error
+
+    FFMPEG_SOURCE_ERR_EOF = -64,    // Resource EOF
+    FFMPEG_SOURCE_ERR_AGAIN = -65,  // Need request again   
+    FFMPEG_SOURCE_ERR_INTR = -66,   // operation interrupted by a signal or some other
     
-    FFMPEG_SOURCE_ERR_EOF = -64, 
-    FFMPEG_SOURCE_ERR_AGAIN = -65,     
-    FFMPEG_SOURCE_ERR_INTR = -66, 
+    FFMPEG_SOURCE_ERR_NOT_FOUND = -67,  // Resource not found     
 };
 
 

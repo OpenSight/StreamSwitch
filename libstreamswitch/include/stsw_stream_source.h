@@ -191,6 +191,8 @@ protected:
     static void * StaticThreadRoutine(void *arg);
     virtual void InternalRoutine();    
     
+    virtual void OnNotifySocketRead();
+    
     virtual void SendStreamInfo(void);    
     
     // send the msg from the publish socket on the given channel
@@ -208,6 +210,7 @@ private:
     int tcp_port_;
     SocketHandle api_socket_;
     SocketHandle publish_socket_;
+    SocketHandle notify_socket_; // used to wake up the api thread to exit
     pthread_mutex_t lock_;
     pthread_t api_thread_id_;
     SourceApiHanderMap api_handler_map_;
