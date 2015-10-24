@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <stream_switch.h>
 
@@ -226,7 +227,13 @@ int main(int argc, char *argv[])
                       "Proxy hearbeat error, exit\n");              
             break;
         }        
-        usleep(100000);  //100 ms                 
+        {
+            struct timespec req;
+            req.tv_sec = 0;
+            req.tv_nsec = 100000000; //10ms             
+            nanosleep(&req, NULL);
+        }          
+             
     }
     
     
