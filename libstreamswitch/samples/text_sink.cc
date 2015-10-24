@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <unistd.h>
+#include <time.h>
 
 #include <stream_switch.h>
 
@@ -511,10 +512,11 @@ int main(int argc, char *argv[])
 #if 1   
     
     while(1){
-        time_t now = time(NULL);
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
 #define NO_DATA_INTERVAL     10    
     
-        if(now - text_sink.last_frame_rec_sec() >= NO_DATA_INTERVAL){
+        if(tv.tv_sec - text_sink.last_frame_rec_sec() >= NO_DATA_INTERVAL){
             fprintf(stderr, "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);
             ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
                       "No frame receive for %d sec, exit\n", NO_DATA_INTERVAL);  
@@ -533,10 +535,22 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Receive Terminate Signal, exit\n");
             ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
                       "Receive Terminate Signal, exit\n");  
+            /*
+            printf("signal catchtime is %lld.%06d\n", 
+                   (long long)tv.tv_sec, (int)tv.tv_usec);
+            */              
+                      
             ret = 0;    
             break;
         }
-        usleep(100000);  //100 ms     
+        {
+            struct timespec req;
+            req.tv_sec = 0;
+            req.tv_nsec = 100 * 1000 * 1000;      //100ms      
+            nanosleep(&req, NULL);
+
+        }          
+ 
         
     }    
     
@@ -560,6 +574,14 @@ exit_3:
 exit_2:
     GlobalUninit();
 
+/*
+    {
+                struct timeval tv;
+        gettimeofday(&tv, NULL);
+            printf("End time is %lld.%06d\n", 
+                   (long long)tv.tv_sec, (int)tv.tv_usec);    
+    }
+*/ 
     
     return ret;
 }
