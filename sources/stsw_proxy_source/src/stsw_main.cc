@@ -244,11 +244,12 @@ int main(int argc, char *argv[])
 exit_3:
     //uninit proxy
     proxy->Uninit();
-    
+
+
+exit_2:     
     //uninstance
-    StreamProxySource::Uninstance();  
-    
-exit_2:    
+    StreamProxySource::Uninstance();      
+   
     //uninit logger
     UninitGlobalLogger();
 exit_1:    
