@@ -76,13 +76,13 @@ void ArgParser::RegisterSourceOptions()
                    "PORT", 
                    "the stream API tcp port", NULL, NULL);
     RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
-                   "log file path for debug", NULL, NULL);   
+                   "log file path for debug, default is no log", NULL, NULL);   
     RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  
                    "SIZE",
                    "log file max size in bytes", NULL, NULL);   
     RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "NUM",
-                   "log rotate number, 0 means no rotating", NULL, NULL);  
+                   "log rotate number, 0 means no rotating, default is 0", NULL, NULL);  
     RegisterOption("log-level", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "NUM",
                    "log level, compatible with syslog's log level number. "
