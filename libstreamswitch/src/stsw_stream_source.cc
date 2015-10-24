@@ -463,18 +463,29 @@ void StreamSource::Stop()
         
         pthread_t api_thread_id = api_thread_id_;
         pthread_mutex_unlock(&lock_);  
-        //wakeup the api thread
         
+        //wakeup the api thread        
         memset(tmp_addr, 0, 64);
         snprintf(tmp_addr, 63, ">inproc://source/%p", this);   
         wakeup_client_socket = zsock_new_pair(tmp_addr);
         if(wakeup_client_socket != NULL){
             zstr_send(wakeup_client_socket, "wakeup");
-        }      
+        }  
+        /*    
+            struct timeval now;
+            gettimeofday(&now, NULL);
+    printf("Before join:%lld.%06d\n", 
+           (long long)now.tv_sec, (int)now.tv_usec);
+         */ 
         ret = pthread_join(api_thread_id, &res);
         if (ret != 0){
             perror("Stop Source internal thread failed");
         }
+        /*
+            gettimeofday(&now, NULL);
+    printf("After join:%lld.%06d\n", 
+           (long long)now.tv_sec, (int)now.tv_usec);  
+        */
         if(wakeup_client_socket != NULL){
             zsock_destroy((zsock_t **)&wakeup_client_socket);
             wakeup_client_socket = NULL;
@@ -1139,7 +1150,13 @@ void StreamSource::OnNotifySocketRead()
 {
     char * msg = NULL;
     msg = zstr_recv(notify_socket_);
-    //printf("OnNotifySocketRead() read str:%s\n", msg);
+    /*
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    
+    printf("OnNotifySocketRead() read str:%s, now:%lld.%06d\n", 
+           msg, (long long)now.tv_sec, (int)now.tv_usec);
+    */
     if(msg != NULL){
         zstr_free(&msg);
     }

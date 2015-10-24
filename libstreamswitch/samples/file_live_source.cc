@@ -401,10 +401,10 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Receive Terminate Signal, exit\n");
             ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
                       "Receive Terminate Signal, exit\n");  
-            /*          
+/*                      
             printf("signal catchtime is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);
-            */
+*/            
             ret = 0;    
             break;
         }        
