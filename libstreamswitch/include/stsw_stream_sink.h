@@ -159,6 +159,7 @@ protected:
 
     virtual int Heartbeat(int64_t now);
     
+    virtual void OnNotifySocketRead();
     virtual void OnSubRead();
     virtual void OnSubMsg(std::string channel_name, const ProtoCommonPacket &msg, 
                           const char * extra_blob, size_t blob_size);
@@ -185,6 +186,7 @@ private:
     SocketHandle last_api_socket_;      //cache the last used api request sokcet
     SocketHandle client_hearbeat_socket_;
     SocketHandle subscriber_socket_;
+    SocketHandle notify_socket_;   // used to wake up the heartbeat/subscriber thread to exit
     pthread_mutex_t lock_;
     pthread_t worker_thread_id_;
     uint32_t next_seq_;
