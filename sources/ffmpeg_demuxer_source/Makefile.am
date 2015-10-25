@@ -5,14 +5,19 @@ AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS)
 AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
 
 
-bin_PROGRAMS = stsw_proxy_source
+bin_PROGRAMS = ffmpeg_demuxer_source
 
-stsw_proxy_source_SOURCES = src/stsw_main.cc \
-    src/stsw_stream_proxy.cc \
-    src/stsw_stream_proxy.h \
-    src/url.h \
+ffmpeg_demuxer_source_SOURCES = src/stsw_main.cc \
+    src/stsw_ffmpeg_arg_parser.cc \
+    src/stsw_ffmpeg_arg_parser.h \
+    src/stsw_ffmpeg_demuxer_source.cc \
+    src/stsw_ffmpeg_demuxer_source.h \
+    src/stsw_ffmpeg_demuxer.cc \
+    src/stsw_ffmpeg_demuxer.h \
+    src/stsw_ffmpeg_source_global.h \
     src/stsw_log.cc \
     src/stsw_log.h
+    
 
-stsw_proxy_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la
+ffmpeg_demuxer_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la
 

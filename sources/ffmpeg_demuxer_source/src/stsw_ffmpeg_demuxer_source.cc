@@ -49,14 +49,20 @@ static void sigusr1_handler (int signal_value)
 
 
 FFmpegDemuxerSource::FFmpegDemuxerSource()
-demuxer_(NULL), live_thread_id_(0), io_timeout_(0), is_started_(false), 
+live_thread_id_(0), io_timeout_(0), is_started_(false), 
 native_frame_rate_(false),local_gap_max_time_(0), 
 on_error_fun_(NULL), user_data_(NULL), default_stream_index_(0)
 {
     //init the sigusr1_oldact_ field
     sigusr1_oldact_.sa_handler = SIG_DFL;
     sigusr1_oldact_.sa_flags = 0;
-    sigemptyset (&sigusr1_oldact_.sa_mask);    
+    sigemptyset (&sigusr1_oldact_.sa_mask);   
+
+ 
+    // create demuxer object for this input type
+    demuxer_ = new FFmpegDemuxer();
+    
+    source_ = new stream_switch::StreamSource();
 }
 
 
@@ -66,6 +72,11 @@ FFmpegDemuxerSource::~FFmpegDemuxerSource()
     if(demuxer_ != NULL){
         delete demuxer_;
         demuxer_ = NULL;
+    }
+    
+    if(source_ != NULL){
+        delete source_;
+        source_ = NULL;
     }
 }
 
@@ -93,23 +104,21 @@ int FFmpegDemuxerSource::Init(std::string input,
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "sigaction failed: %s\n", 
                    strerror(errno));    
-        ret = -1;
+        ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto error_out1:      
     }
      
-    // create demuxer object for this input type
-    demuxer_ = new FFmpegDemuxer();
-     
-    ret = source_.Init(stream_name, 
-                       source_tcp_port, 
-                       queue_size, 
-                       this, 
-                       debug_flags, 
-                       &err_info);
+    
+    ret = source_->Init(stream_name, 
+                        source_tcp_port, 
+                        queue_size, 
+                        this, 
+                        debug_flags, 
+                        &err_info);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                   "Init Source Failed: %s\n", err_info.c_str());  
-        ret = -1;
+                   "Init Source Failed (%d): %s\n", ret, err_info.c_str());  
+        ret = FFMPEG_SOURCE_ERR_GENERAL
         goto error_out2:
     }
 
@@ -122,10 +131,6 @@ int FFmpegDemuxerSource::Init(std::string input,
     return 0;
 
 error_out2:
-    if(demuxer_ != NULL){
-        delete demuxer_;
-        demuxer_ = NULL;
-    }     
 
     sigaction (SIGUSR1, &sigusr1_oldact_, NULL);
      
@@ -146,12 +151,6 @@ void FFmpegDemuxerSource::Uninit()
     
     //Uninit source
     source_->Uninit();
-    
-
-    if(demuxer_ != NULL){
-        delete demuxer_;
-        demuxer_ = NULL;
-    }  
 
     //Uninstall the sig handler
     sigaction (SIGUSR1, &sigusr1_oldact_, NULL);    
@@ -195,16 +194,16 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
     }     
     
     //configure the metadata of soruce
-    source_.set_stream_meta(meta_);
+    source_->set_stream_meta(meta_);
     
     //start the source
-    ret = source_.Start(&err_info);
+    ret = source_->Start(&err_info);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                   "Source ReadMeta failed (ret: %d) for demuxer(%s)\n", 
-                   ret, input_name_.c_str());   
+                   "Source Start failed (ret: %d):%s\n", 
+                   ret, err_info.c_str());   
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
-        ret = -1;
+        ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto err_out2;
     }      
     
@@ -240,7 +239,7 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
 
 
 err_out3:
-    source_.Stop();
+    source_->Stop();
 
 err_out2:
     demuxer_->Close();
@@ -258,16 +257,15 @@ void FFmpegDemuxerSource::Stop()
     }
     is_started_ = false;
     
-    demuxer_->set_io_enabled(false);
+    demuxer_->set_io_enabled(false); //this can interrupt the current IO and prevent future IO
     
     // wait for the live working thread terminate
     if(live_thread_id_ != 0){
         void * res;
         int ret;
-        pthread_t live_thread_id = live_thread_id_;
         //interrupt the live thread by SIGUSR1
-        pthread_kill(live_thread_id, SIGUSR1);
-        ret = pthread_join(live_thread_id, &res);
+        pthread_kill(live_thread_id_, SIGUSR1);
+        ret = pthread_join(live_thread_id_, &res);
         if (ret != 0){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "join live Reading thread failed: %s\n", strerror(errno));            
@@ -280,7 +278,7 @@ void FFmpegDemuxerSource::Stop()
     
         
     // stop the source
-    source_.Stop();
+    source_->Stop();
     
     // close demuxer
     demuxer_->Close();    
@@ -301,6 +299,20 @@ void FFmpegDemuxerSource::OnMediaStatistic(stream_switch::MediaStatisticInfo *st
 {
     // nothing to do 
 }
+
+int FFmpegDemuxerSource::FindDefaultStreamIndex(const stream_switch::StreamMetadata &meta)
+{
+    int default_index = 0;
+    for(int i=0; i< meta.sub_streams.size(); i++){
+        if(meta.sub_streams[i].media_type == 
+               stream_switch::SUB_STREAM_MEIDA_TYPE_VIDEO){
+            default_index = i; //first video stream if exist
+            break;
+        }
+    }
+    return default_index;
+}
+
 
 void * FFmpegDemuxerSource::StaticLiveThreadRoutine(void *arg)
 {
@@ -352,7 +364,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
         
         // check native_frame_rate
         if(native_frame_rate_ && 
-           demuxer_packet.frame_info.sub_stream_index == default_stream_index){
+           demuxer_packet.frame_info.sub_stream_index == default_stream_index_){
 
             while(now.tv_sec < demuxer_packet.frame_info.timestamp.tv_sec ||
                   (now.tv_sec == demuxer_packet.frame_info.timestamp.tv_sec &&
@@ -363,8 +375,9 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                 }
                 
 #define MAX_WAIT_US 10000 // 10 ms
-                long long waittime = (next_send_tv.tv_sec - tv.tv_sec) * 1000000 
-                           + (next_send_tv.tv_usec - tv.tv_usec);
+                long long waittime = 
+                    (demuxer_packet.frame_info.timestamp.tv_sec - now.tv_sec) * 1000000 
+                    + (demuxer_packet.frame_info.timestamp.tv_usec - now.tv_usec);
                 if(waittime < 0) {
                     waittime = 0;
                 }else if (waittime > MAX_WAIT_US){
@@ -396,6 +409,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                 "Send live media frame Failed (%d):%s\n",
                  ret,  err_info.c_str());  
             source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
+            ret = FFMPEG_SOURCE_ERR_GENERAL;
             break;            
         }
         

@@ -20,3 +20,7 @@ endif
 if INCLUDE_RTSP_PORT
 SUBDIRS += ports/stsw_rtsp_port
 endif 
+
+if INCLUDE_FFMPEG_DEMUX_SOURCE
+SUBDIRS += sources/ffmpeg_demuxer_source
+endif

@@ -50,7 +50,12 @@ public:
     FFmpegArgParser();
     virtual ~FFmpegArgParser();
 
-    virtual void RegisterSourceOptions();                                   
+    virtual void RegisterSourceOptions();    
+    const std::string & ffmpeg_options()
+    {
+        return ffmpeg_options_;
+    }
+                                
 
 protected:               
  

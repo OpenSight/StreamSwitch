@@ -60,6 +60,26 @@ class FFmpegDemuxer;
 class FFmpegDemuxerSource:public stream_switch::SourceListener{
   
 public:
+
+	static FFmpegDemuxerSource* Instance()
+	{ 
+		if ( NULL == s_instance )
+		{
+			s_instance = new FFmpegDemuxerSource();
+		}
+
+		return s_instance;
+	}
+
+	static void Uninstance()
+	{
+		if ( NULL != s_instance )
+		{
+			delete s_instance;
+			s_instance = NULL;
+		}
+	}
+
     FFmpegDemuxerSource();
     virtual ~FFmpegDemuxerSource();
     int Init(std::string input, 
@@ -76,18 +96,27 @@ public:
     int Start(OnErrorFun on_error_fun, void *user_data);
     void Stop();
     
+    
+
+
+protected:
+
+    virtual int FindDefaultStreamIndex(const stream_switch::StreamMetadata &meta);
+    
     static void * StaticLiveThreadRoutine(void *arg);
     virtual void InternalLiveRoutine();  
 
-protected:
     virtual void OnKeyFrame(void);
     virtual void OnMediaStatistic(stream_switch::MediaStatisticInfo *statistic);    
        
 protected: 
+    FFmpegDemuxerSource();
+    static FFmpegDemuxerSource * s_instance;
 
-    stream_switch::StreamSource source_;  
+    stream_switch::StreamSource *source_; 
+    FFmpegDemuxer * demuxer_; 
     stream_switch::StreamMetadata meta_;
-    FFmpegDemuxer * demuxer_;
+ 
     pthread_t live_thread_id_;
     std::string input_name_;    
     int io_timeout_;

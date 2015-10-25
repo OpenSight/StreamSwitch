@@ -42,7 +42,6 @@ int UninitGlobalLogger();
 extern stream_switch::RotateLogger * global_logger;
 extern int stderr_level;
 void SetLogLevel(int log_level);
-int LogLevel2AvlogLevel(int log_level);
 
 
 #define STDERR_LOG(level, fmt, ...)  \

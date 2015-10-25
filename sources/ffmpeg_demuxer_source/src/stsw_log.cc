@@ -36,7 +36,7 @@
 
 extern "C"{
 
-#include <avutil.h>    
+#include <libavutil/avutil.h>    
     
 }
 

@@ -65,7 +65,8 @@ void FFmpegArgParser::RegisterSourceOptions()
     RegisterOption("local-gap-max-time", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
                    "the max time gap (in sec) between the local and the received frame. "
-                   "If the gap is over this limitation, this source would exit with error", NULL, NULL);
+                   "If the gap is over this limitation, this source would exit with error. "
+                   "Defualt is 20 sec", NULL, NULL);
                    
     RegisterOption("native-frame-rate", 0, 0, NULL,
                    "ffmpeg_demuxer_source would read input at the native frame rate of the default stream. "
