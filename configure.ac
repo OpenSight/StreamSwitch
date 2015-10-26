@@ -116,7 +116,7 @@ AC_SUBST(glib_CFLAGS)
 # Checks for stsw_rtmp_source
 if test "x$ffmpeg_demuxer_source" = xyes; then
   PKG_CHECK_MODULES(libavformat, [libavformat >= 56.40.0])
-  PKG_CHECK_MODULES(libavutil, [libavutil >= 56.31.0])  
+  PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.0])  
 fi
 AC_SUBST(libavformat_LIBS)
 AC_SUBST(libavformat_CFLAGS)

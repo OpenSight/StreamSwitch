@@ -17582,12 +17582,12 @@ if test -n "$libavutil_CFLAGS"; then
     pkg_cv_libavutil_CFLAGS="$libavutil_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libavutil >= 56.31.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libavutil >= 56.31.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libavutil >= 54.31.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libavutil >= 54.31.0") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_libavutil_CFLAGS=`$PKG_CONFIG --cflags "libavutil >= 56.31.0" 2>/dev/null`
+  pkg_cv_libavutil_CFLAGS=`$PKG_CONFIG --cflags "libavutil >= 54.31.0" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -17598,12 +17598,12 @@ if test -n "$libavutil_LIBS"; then
     pkg_cv_libavutil_LIBS="$libavutil_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libavutil >= 56.31.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libavutil >= 56.31.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libavutil >= 54.31.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libavutil >= 54.31.0") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_libavutil_LIBS=`$PKG_CONFIG --libs "libavutil >= 56.31.0" 2>/dev/null`
+  pkg_cv_libavutil_LIBS=`$PKG_CONFIG --libs "libavutil >= 54.31.0" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -17621,14 +17621,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libavutil_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libavutil >= 56.31.0" 2>&1`
+	        libavutil_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libavutil >= 54.31.0" 2>&1`
         else
-	        libavutil_PKG_ERRORS=`$PKG_CONFIG --print-errors "libavutil >= 56.31.0" 2>&1`
+	        libavutil_PKG_ERRORS=`$PKG_CONFIG --print-errors "libavutil >= 54.31.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libavutil_PKG_ERRORS" >&5
 
-	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libavutil >= 56.31.0) were not met:
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libavutil >= 54.31.0) were not met:
 
 $libavutil_PKG_ERRORS
 
@@ -17639,7 +17639,7 @@ Alternatively, you may set the environment variables libavutil_CFLAGS
 and libavutil_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 " >&5
-$as_echo "$as_me: error: Package requirements (libavutil >= 56.31.0) were not met:
+$as_echo "$as_me: error: Package requirements (libavutil >= 54.31.0) were not met:
 
 $libavutil_PKG_ERRORS
 
