@@ -69,5 +69,6 @@ public:
 protected:
     bool io_enabled_;
 };
-    
+
+#endif
 

@@ -80,7 +80,6 @@ public:
 		}
 	}
 
-    FFmpegDemuxerSource();
     virtual ~FFmpegDemuxerSource();
     int Init(std::string input, 
              std::string stream_name, 
@@ -133,3 +132,4 @@ protected:
 };
     
 
+#endif

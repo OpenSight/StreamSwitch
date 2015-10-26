@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
         parser.ffmpeg_options(), 
         (int)strtol(parser.OptionValue("local-gap-max-time", "20").c_str(), NULL, 0), 
         (int)strtol(parser.OptionValue("io_timeout", "10").c_str(), NULL, 0), 
-        parser.CheckOption("native-frame-rate");
+        parser.CheckOption("native-frame-rate"),
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
         pub_queue_size, 
         (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));

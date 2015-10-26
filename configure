@@ -18853,7 +18853,7 @@ done
 
 
 # generate Makefiles
-ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile sources/stsw_proxy_source/Makefile ports/stsw_rtsp_port/Makefile"
+ac_config_files="$ac_config_files Makefile libstreamswitch/Makefile libstreamswitch/samples/Makefile libstreamswitch/libstreamswitch.pc sources/stsw_rtsp_source/Makefile sources/stsw_rtmp_source/Makefile sources/stsw_proxy_source/Makefile sources/ffmpeg_demuxer_source/Makefile ports/stsw_rtsp_port/Makefile"
 
 
 # Generate other makefiles
@@ -19930,6 +19930,7 @@ do
     "sources/stsw_rtsp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtsp_source/Makefile" ;;
     "sources/stsw_rtmp_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_rtmp_source/Makefile" ;;
     "sources/stsw_proxy_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/stsw_proxy_source/Makefile" ;;
+    "sources/ffmpeg_demuxer_source/Makefile") CONFIG_FILES="$CONFIG_FILES sources/ffmpeg_demuxer_source/Makefile" ;;
     "ports/stsw_rtsp_port/Makefile") CONFIG_FILES="$CONFIG_FILES ports/stsw_rtsp_port/Makefile" ;;
 
   *) { { $as_echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5

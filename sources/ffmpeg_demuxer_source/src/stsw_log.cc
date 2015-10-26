@@ -95,7 +95,8 @@ static void AvlogCallback(void *avcl, int level, const char *fmt,
     av_log_format_line(avcl, level, fmt, vl, 
                        tmp_av_log_buf, MAX_AV_LOG_SIZE, &print_prefix);
     if(global_logger){
-        log_level = avlog_level_to_log_level(level);
+        int log_level;
+        log_level = AvlogLevel2LogLevel(level);
         global_logger->Log(log_level, __FILE__, __LINE__, "%s", tmp_av_log_buf);
     }
         
@@ -124,7 +125,7 @@ int InitGlobalLogger(std::string base_name,
     }
     
     av_log_set_callback(AvlogCallback);
-    SetLogLevel(log_level)
+    SetLogLevel(log_level);
    
     return ret;
 }

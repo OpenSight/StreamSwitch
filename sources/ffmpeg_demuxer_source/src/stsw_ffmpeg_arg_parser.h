@@ -58,10 +58,9 @@ public:
                                 
 
 protected:               
- 
-    
-    virtual inline void AppendNonOption(std::string value);     
-   
+
+    bool ParseUnknown(const char * unknown_arg);
+       
     std::string ffmpeg_options_;  
 
 

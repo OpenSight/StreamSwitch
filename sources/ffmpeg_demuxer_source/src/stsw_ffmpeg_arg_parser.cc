@@ -74,7 +74,7 @@ void FFmpegArgParser::RegisterSourceOptions()
                    "Should not be used with the actual live input streams (where it can cause packet loss). ",
                     NULL, NULL);
                    
-    RegisterOption("ffmpeg-[NAME]",0
+    RegisterOption("ffmpeg-[NAME]", 0, 
                    OPTION_FLAG_WITH_ARG, "VALUE",
                    "user can used --ffmpeg-[optioan]=[value] form to pass the options to the ffmpeg library. "
                    "ffmpeg_source parse the options which start with \"ffmpeg-\", and pass them to ffmpeg librarythe. "

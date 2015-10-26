@@ -36,11 +36,13 @@
 #include <stdint.h>
 #include <time.h>
 #include <signal.h>
+#include <errno.h>
+#include <string.h>
 
 
 #include "stsw_ffmpeg_source_global.h"
 #include "stsw_log.h"
-
+#include "stsw_ffmpeg_demuxer.h"
 
 static void sigusr1_handler (int signal_value)
 {
@@ -48,8 +50,11 @@ static void sigusr1_handler (int signal_value)
 }
 
 
+FFmpegDemuxerSource * FFmpegDemuxerSource::s_instance = NULL;
+
+
 FFmpegDemuxerSource::FFmpegDemuxerSource()
-live_thread_id_(0), io_timeout_(0), is_started_(false), 
+:live_thread_id_(0), io_timeout_(0), is_started_(false), 
 native_frame_rate_(false),local_gap_max_time_(0), 
 on_error_fun_(NULL), user_data_(NULL), default_stream_index_(0)
 {
@@ -105,7 +110,7 @@ int FFmpegDemuxerSource::Init(std::string input,
                    "sigaction failed: %s\n", 
                    strerror(errno));    
         ret = FFMPEG_SOURCE_ERR_GENERAL;
-        goto error_out1:      
+        goto error_out1;    
     }
      
     
@@ -118,8 +123,8 @@ int FFmpegDemuxerSource::Init(std::string input,
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Init Source Failed (%d): %s\n", ret, err_info.c_str());  
-        ret = FFMPEG_SOURCE_ERR_GENERAL
-        goto error_out2:
+        ret = FFMPEG_SOURCE_ERR_GENERAL;
+        goto error_out2;
     }
 
     input_name_ = input;
@@ -162,7 +167,7 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
     std::string err_info;
     
     if(is_started_){
-        return; //already start
+        return 0; //already start
     }
     
     source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_CONNECTING);
@@ -229,7 +234,7 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         user_data_ = NULL;
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         ret = -1;
-        goto error_out3;
+        goto err_out3;
     }    
     
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
@@ -316,7 +321,7 @@ int FFmpegDemuxerSource::FindDefaultStreamIndex(const stream_switch::StreamMetad
 
 void * FFmpegDemuxerSource::StaticLiveThreadRoutine(void *arg)
 {
-    FFmpegDemuxerSource * source = (StreamSource * )arg;
+    FFmpegDemuxerSource * source = (FFmpegDemuxerSource * )arg;
     source->InternalLiveRoutine();
     return NULL;    
 }
@@ -337,7 +342,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
             if(ret == FFMPEG_SOURCE_ERR_INTR && !is_started_){
                 //IO is interrupted by user because source has been stop, not a real error
                 break;
-            }else if(ret == ERROR_CODE_AGAIN){
+            }else if(ret == FFMPEG_SOURCE_ERR_AGAIN){
                 // dexumer need read again
                 continue;
             }
@@ -401,8 +406,8 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
         
         //send the media packet to source
         ret = source_->SendLiveMediaFrame(demuxer_packet.frame_info,
-                                          demuxer_packet.data,
-                                          demuxer_packet.size, 
+                                          (const char * )demuxer_packet.data,
+                                          (size_t)demuxer_packet.size, 
                                           &err_info);
         if(ret){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 

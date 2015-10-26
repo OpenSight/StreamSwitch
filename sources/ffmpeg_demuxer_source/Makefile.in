@@ -34,8 +34,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = stsw_proxy_source$(EXEEXT)
-subdir = sources/stsw_proxy_source
+bin_PROGRAMS = ffmpeg_demuxer_source$(EXEEXT)
+subdir = sources/ffmpeg_demuxer_source
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -50,10 +50,12 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
-am_stsw_proxy_source_OBJECTS = src/stsw_main.$(OBJEXT) \
-	src/stsw_stream_proxy.$(OBJEXT) src/stsw_log.$(OBJEXT)
-stsw_proxy_source_OBJECTS = $(am_stsw_proxy_source_OBJECTS)
-stsw_proxy_source_DEPENDENCIES =  \
+am_ffmpeg_demuxer_source_OBJECTS = src/stsw_main.$(OBJEXT) \
+	src/stsw_ffmpeg_arg_parser.$(OBJEXT) \
+	src/stsw_ffmpeg_demuxer_source.$(OBJEXT) \
+	src/stsw_ffmpeg_demuxer.$(OBJEXT) src/stsw_log.$(OBJEXT)
+ffmpeg_demuxer_source_OBJECTS = $(am_ffmpeg_demuxer_source_OBJECTS)
+ffmpeg_demuxer_source_DEPENDENCIES =  \
 	$(builddir)/../../libstreamswitch/libstreamswitch.la
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -100,8 +102,8 @@ am__v_CCLD_0 = @echo "  CCLD  " $@;
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
-SOURCES = $(stsw_proxy_source_SOURCES)
-DIST_SOURCES = $(stsw_proxy_source_SOURCES)
+SOURCES = $(ffmpeg_demuxer_source_SOURCES)
+DIST_SOURCES = $(ffmpeg_demuxer_source_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -205,6 +207,10 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
+libavformat_CFLAGS = @libavformat_CFLAGS@
+libavformat_LIBS = @libavformat_LIBS@
+libavutil_CFLAGS = @libavutil_CFLAGS@
+libavutil_LIBS = @libavutil_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
 libnetembryo_CFLAGS = @libnetembryo_CFLAGS@
@@ -234,17 +240,21 @@ top_srcdir = @top_srcdir@
 zeromq_CFLAGS = @zeromq_CFLAGS@
 zeromq_LIBS = @zeromq_LIBS@
 AUTOMAKE_OPTIONS = foreign subdir-objects
-AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include  
-AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS)
-AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
-stsw_proxy_source_SOURCES = src/stsw_main.cc \
-    src/stsw_stream_proxy.cc \
-    src/stsw_stream_proxy.h \
-    src/url.h \
+AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include -D__STDC_CONSTANT_MACROS 
+AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS) $(libavformat_CFLAGS) $(libavutil_CFLAGS) 
+AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) $(libavformat_LIBS) $(libavutil_LIBS) 
+ffmpeg_demuxer_source_SOURCES = src/stsw_main.cc \
+    src/stsw_ffmpeg_arg_parser.cc \
+    src/stsw_ffmpeg_arg_parser.h \
+    src/stsw_ffmpeg_demuxer_source.cc \
+    src/stsw_ffmpeg_demuxer_source.h \
+    src/stsw_ffmpeg_demuxer.cc \
+    src/stsw_ffmpeg_demuxer.h \
+    src/stsw_ffmpeg_source_global.h \
     src/stsw_log.cc \
     src/stsw_log.h
 
-stsw_proxy_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la
+ffmpeg_demuxer_source_LDADD = $(builddir)/../../libstreamswitch/libstreamswitch.la
 all: all-am
 
 .SUFFIXES:
@@ -258,9 +268,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign sources/stsw_proxy_source/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign sources/ffmpeg_demuxer_source/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign sources/stsw_proxy_source/Makefile
+	  $(AUTOMAKE) --foreign sources/ffmpeg_demuxer_source/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -330,26 +340,34 @@ src/$(DEPDIR)/$(am__dirstamp):
 	@: > src/$(DEPDIR)/$(am__dirstamp)
 src/stsw_main.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-src/stsw_stream_proxy.$(OBJEXT): src/$(am__dirstamp) \
+src/stsw_ffmpeg_arg_parser.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/stsw_ffmpeg_demuxer_source.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/stsw_ffmpeg_demuxer.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/stsw_log.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-stsw_proxy_source$(EXEEXT): $(stsw_proxy_source_OBJECTS) $(stsw_proxy_source_DEPENDENCIES) 
-	@rm -f stsw_proxy_source$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(stsw_proxy_source_OBJECTS) $(stsw_proxy_source_LDADD) $(LIBS)
+ffmpeg_demuxer_source$(EXEEXT): $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxer_source_DEPENDENCIES) 
+	@rm -f ffmpeg_demuxer_source$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxer_source_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f src/stsw_ffmpeg_arg_parser.$(OBJEXT)
+	-rm -f src/stsw_ffmpeg_demuxer.$(OBJEXT)
+	-rm -f src/stsw_ffmpeg_demuxer_source.$(OBJEXT)
 	-rm -f src/stsw_log.$(OBJEXT)
 	-rm -f src/stsw_main.$(OBJEXT)
-	-rm -f src/stsw_stream_proxy.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_arg_parser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_demuxer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_demuxer_source.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_stream_proxy.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\

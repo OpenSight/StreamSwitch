@@ -29,6 +29,9 @@
  * date: 2015-6-24
 **/ 
 
+#ifndef STSW_LOG_H
+#define STSW_LOG_H
+
 #include <stream_switch.h>
 #include <stdio.h>
 #include <string>
@@ -55,4 +58,4 @@ do {         \
     }                             \
 }while(0)
 
-    
+#endif    

@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS=foreign subdir-objects
 
-AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include  
+AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include -D__STDC_CONSTANT_MACROS 
 AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS) $(libavformat_CFLAGS) $(libavutil_CFLAGS) 
 AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) $(libavformat_LIBS) $(libavutil_LIBS) 
 

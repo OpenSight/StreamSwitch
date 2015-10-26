@@ -43,9 +43,11 @@ FFmpegDemuxer::~FFmpegDemuxer()
 int FFmpegDemuxer::Open(const std::string &input, 
              const std::string &ffmpeg_options_str,
              int io_timeout)
-             {
-                 return 0;
-             }
+{
+    return 0;
+}
+
+
 void FFmpegDemuxer::Close()
 {
     

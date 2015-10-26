@@ -149,6 +149,7 @@ AC_CONFIG_FILES([Makefile \
                  sources/stsw_rtsp_source/Makefile \
                  sources/stsw_rtmp_source/Makefile \
                  sources/stsw_proxy_source/Makefile \
+                 sources/ffmpeg_demuxer_source/Makefile \
                  ports/stsw_rtsp_port/Makefile])
 
 # Generate other makefiles
