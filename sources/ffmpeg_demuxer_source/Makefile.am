@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS=foreign subdir-objects
 
 AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include  
-AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS)
-AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) 
+AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS) $(libavformat_CFLAGS) $(libavutil_CFLAGS) 
+AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) $(libavformat_LIBS) $(libavutil_LIBS) 
 
 
 bin_PROGRAMS = ffmpeg_demuxer_source

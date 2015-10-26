@@ -46,6 +46,15 @@ AC_ARG_WITH([proxy-source],
 
 AM_CONDITIONAL([INCLUDE_PROXY_SOURCE], [test "x$proxy_source" = xyes])
 
+AC_ARG_WITH([ffmpeg-demuxer-source], 
+[AS_HELP_STRING([--with-ffmpeg-demuxer-source], 
+[would contains the ffmpeg-demuxer-source program @<:@default=yes@:>@])], 
+[ffmpeg_demuxer_source=${withval}], [ffmpeg_demuxer_source=yes]) 
+
+
+AM_CONDITIONAL([INCLUDE_FFMPEG_DEMUXER_SOURCE], [test "x$ffmpeg_demuxer_source" = xyes])
+
+
 AC_ARG_WITH([rtsp-port], 
 [AS_HELP_STRING([--with-rtsp-port], 
 [would contains the stsw_rtsp_port program @<:@default=yes@:>@])], 
@@ -104,6 +113,16 @@ AC_SUBST(glib_LIBS)
 AC_SUBST(glib_CFLAGS)
 
 
+# Checks for stsw_rtmp_source
+if test "x$ffmpeg_demuxer_source" = xyes; then
+  PKG_CHECK_MODULES(libavformat, [libavformat >= 56.40.0])
+  PKG_CHECK_MODULES(libavutil, [libavutil >= 56.31.0])  
+fi
+AC_SUBST(libavformat_LIBS)
+AC_SUBST(libavformat_CFLAGS)
+AC_SUBST(libavutil_LIBS)
+AC_SUBST(libavutil_CFLAGS)
+
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h])
@@ -156,6 +175,7 @@ StreamSwitch program path ............ : $bindir
 stsw_rtsp_source included............. : $rtsp_source
 stsw_rtmp_source included ............ : $rtmp_source
 stsw_proxy_source included ........... : $proxy_source
+ffmpeg_demuxer_source included ....... : $ffmpeg_demuxer_source
 stsw_rtsp_port included .............. : $rtsp_port
 
 
