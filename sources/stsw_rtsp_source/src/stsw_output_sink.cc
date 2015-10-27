@@ -149,7 +149,7 @@ void MediaOutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
     
     //analyze the frame's type
     stream_switch::MediaFrameType frame_type = 
-        stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME; //default is data frame
+        stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME; //default is key data frame
     
     //callback the parent rtsp client frame receive interface
     if(rtsp_client_ != NULL){
