@@ -285,7 +285,7 @@ struct MediaStatisticInfo{
        
     
 enum MediaFrameType{
-    MEDIA_FRAME_TYPE_KEY_FRAME = 0,      //key data frame of this stream
+    MEDIA_FRAME_TYPE_KEY_FRAME = 0,      //key data frame of this stream, no reference to other frames
     MEDIA_FRAME_TYPE_DATA_FRAME = 1,     //normal data frame of the stream
     MEDIA_FRAME_TYPE_PARAM_FRAME = 2,    //frame only include some codec parameter of the stream
     

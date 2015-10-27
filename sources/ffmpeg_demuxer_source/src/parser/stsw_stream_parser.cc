@@ -21,40 +21,58 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_stream_parser.h
- *      StreamParser class header file, define intefaces of the StreamParser 
+ * stsw_stream_parser.cc
+ *      StreamParser class implementation file, define methods of the StreamParser 
  * class. 
  *      StreamParser is the default parser for a ffmpeg AV stream, other 
  * parser can inherit this class to override its methods for a specified 
  * codec. All other streams would be associated this default parser
  * 
  * author: jamken
- * date: 2015-10-15
+ * date: 2015-10-27
 **/ 
 
-#ifndef STSW_STREAM_PARSER_H
-#define STSW_STREAM_PARSER_H
+#include "stsw_stream_parser.h"
 
 
 
-#include <stream_switch.h>
 
 
-typedef void (*OnErrorFun)(int error_code, void *user_data);
-
-///////////////////////////////////////////////////////////////
-//Type
-
-class StreamParser{
-  
-public:
-    StreamParser();
-    virtual ~StreamParser();
-    virtual int Init();
-    virtual void Uninit();
-    virtual int Parse();
-    virtual int reset();
-
-};
+StreamParser::StreamParser()
+{
     
+}
+StreamParser::~StreamParser()
+{
+    
+}
+int StreamParser::Init()
+{
+    return 0;
+}
+void StreamParser::Uninit()
+{
+    return 0;
+}
+int StreamParser::Parse()
+{
+    return 0;
+}
+int StreamParser::reset()
+{
+    return 0;
+}
+
+
+
+
+
+
+
+
+template<class T>
+StreamParser* StreamParserFatcory()
+{
+	return new T;
+}
 

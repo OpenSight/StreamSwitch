@@ -37,19 +37,17 @@
 #include <stdint.h>
 #include <string>
 #include <stream_switch.h>
+#include <time.h>
 
 
-struct DemuxerPacket{
-    stream_switch::MediaFrameInfo frame_info;
-    uint8_t * 	data; 
-    int 	size;
-    void * priv;
-    DemuxerPacket(){
-        data = NULL;
-        size = 0;
-        priv = NULL;
-    }
-};
+extern "C"{
+
+#include <libavutil/avutil.h>    
+#include <libavformat/avformat.h>      
+}
+
+class StreamParser;
+typedef std::vector<StreamParser *> StreamParserVector;
 
 class FFmpegDemuxer{
 public:
@@ -59,15 +57,31 @@ public:
              const std::string &ffmpeg_options_str,
              int io_timeout);
     void Close();
-    int ReadPacket(DemuxerPacket * packet);
-    void FreePacket(DemuxerPacket * packet);
+    int ReadPacket(stream_switch::MediaFrameInfo *frame_info, 
+                   AVPacket *pkt);
+    //int ReadPacket(DemuxerPacket * packet);
+    //void FreePacket(DemuxerPacket * packet);
     int ReadMeta(stream_switch::StreamMetadata * meta);
     
     virtual void set_io_enabled(bool io_enabled);
     virtual bool io_enabled();
     
+
+    
 protected:
+
+    static int StaticIOInterruptCB(void* user_data);
+    int IOInterruptCB();    
+    virtual void StartIO();
+    virtual void StopIO();
+    
+    
     bool io_enabled_;
+    AVFormatContext *fmt_ctx_;    
+    struct timespec io_start_ts_;
+    int io_timeout_;
+    stream_switch::StreamMetadata meta_;
+    StreamParserVector stream_parsers;
 };
 
 #endif

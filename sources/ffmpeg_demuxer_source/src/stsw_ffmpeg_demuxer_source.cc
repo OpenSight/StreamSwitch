@@ -286,6 +286,7 @@ void FFmpegDemuxerSource::Stop()
     source_->Stop();
     
     // close demuxer
+    demuxer_->set_io_enabled(true);
     demuxer_->Close();    
     
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
@@ -329,17 +330,24 @@ void * FFmpegDemuxerSource::StaticLiveThreadRoutine(void *arg)
 
 void FFmpegDemuxerSource::InternalLiveRoutine()
 {
-    DemuxerPacket demuxer_packet; //holding media data;
+    //DemuxerPacket demuxer_packet; //holding media data;
+    stream_switch::MediaFrameInfo frame_info;
+    AVPacket pkt;
     int ret = 0;
     std::string err_info;
     struct timeval now;  
   
+    av_init_packet(&pkt);
+    pkt.data = NULL;
+    pkt.size = 0;      
+  
+  
     while(is_started_){
-        
+     
         //read demuxer packet
-        ret = demuxer_->ReadPacket(&demuxer_packet); 
+        ret = demuxer_->ReadPacket(&frame_info, &pkt); 
         if(ret){
-            if(ret == FFMPEG_SOURCE_ERR_INTR && !is_started_){
+            if(ret == FFMPEG_SOURCE_ERR_IO && !is_started_){
                 //IO is interrupted by user because source has been stop, not a real error
                 break;
             }else if(ret == FFMPEG_SOURCE_ERR_AGAIN){
@@ -353,27 +361,29 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
         }
         
         // check local time gap
-        gettimeofday(&now, NULL);    
-        if(demuxer_packet.frame_info.timestamp.tv_sec <= (now.tv_sec - local_gap_max_time_) ||
-           demuxer_packet.frame_info.timestamp.tv_sec >= (now.tv_sec + local_gap_max_time_)){
-            //lost time sync between frame's time and local time 
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                    "Gap too much between local time(%lld.%06d) "
-                    "and frame's time(%lld.%06d)\n",
-                     (long long)now.tv_sec, (int)now.tv_usec,
-                     (long long)demuxer_packet.frame_info.timestamp.tv_sec, 
-                     (int)demuxer_packet.frame_info.timestamp.tv_usec);          
-            source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_TIME);
-            break;
-        }  
+        if(local_gap_max_time_ > 0){
+            gettimeofday(&now, NULL);    
+            if(frame_info.timestamp.tv_sec <= (now.tv_sec - local_gap_max_time_) ||
+               frame_info.timestamp.tv_sec >= (now.tv_sec + local_gap_max_time_)){
+                //lost time sync between frame's time and local time 
+                STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                        "Gap too much between local time(%lld.%06d) "
+                        "and frame's time(%lld.%06d)\n",
+                         (long long)now.tv_sec, (int)now.tv_usec,
+                         (long long)frame_info.timestamp.tv_sec, 
+                         (int)frame_info.timestamp.tv_usec);          
+                source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_TIME);
+                break;
+            } 
+        }
         
         // check native_frame_rate
         if(native_frame_rate_ && 
-           demuxer_packet.frame_info.sub_stream_index == default_stream_index_){
+           frame_info.sub_stream_index == default_stream_index_){
 
-            while(now.tv_sec < demuxer_packet.frame_info.timestamp.tv_sec ||
-                  (now.tv_sec == demuxer_packet.frame_info.timestamp.tv_sec &&
-                   now.tv_usec < demuxer_packet.frame_info.timestamp.tv_usec)){
+            while(now.tv_sec < frame_info.timestamp.tv_sec ||
+                  (now.tv_sec == frame_info.timestamp.tv_sec &&
+                   now.tv_usec < frame_info.timestamp.tv_usec)){
                 
                 if(!is_started_){
                     break;
@@ -381,8 +391,8 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                 
 #define MAX_WAIT_US 10000 // 10 ms
                 long long waittime = 
-                    (demuxer_packet.frame_info.timestamp.tv_sec - now.tv_sec) * 1000000 
-                    + (demuxer_packet.frame_info.timestamp.tv_usec - now.tv_usec);
+                    (frame_info.timestamp.tv_sec - now.tv_sec) * 1000000 
+                    + (frame_info.timestamp.tv_usec - now.tv_usec);
                 if(waittime < 0) {
                     waittime = 0;
                 }else if (waittime > MAX_WAIT_US){
@@ -405,9 +415,9 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
         }        
         
         //send the media packet to source
-        ret = source_->SendLiveMediaFrame(demuxer_packet.frame_info,
-                                          (const char * )demuxer_packet.data,
-                                          (size_t)demuxer_packet.size, 
+        ret = source_->SendLiveMediaFrame(frame_info,
+                                          (const char * )pkt.data,
+                                          (size_t)pkt.size, 
                                           &err_info);
         if(ret){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
@@ -417,12 +427,13 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
             ret = FFMPEG_SOURCE_ERR_GENERAL;
             break;            
         }
-        
-        demuxer_->FreePacket(&demuxer_packet);        
+        av_free_packet(&pkt);
+
     }
     
     //free the demuxer packet for error 
-    demuxer_->FreePacket(&demuxer_packet);    
+    av_free_packet(&pkt);
+ 
     
     // callback for error condiction
     // note: if the source has alread stopped, don't invoke the user callback
