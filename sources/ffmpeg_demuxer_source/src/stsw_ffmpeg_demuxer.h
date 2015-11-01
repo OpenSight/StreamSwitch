@@ -45,9 +45,20 @@ extern "C"{
 #include <libavutil/avutil.h>    
 #include <libavformat/avformat.h>      
 }
-
+struct PktNode{
+    stream_switch::MediaFrameInfo frame_info;
+    AVPacket pkt; 
+};
 class StreamParser;
 typedef std::vector<StreamParser *> StreamParserVector;
+typedef std::list<PktNode> PacketCachedList;
+
+enum DemuxerPlayMode{
+    PLAY_MODE_AUTO = 0, 
+    PLAY_MODE_LIVE = 1,   
+    PLAY_MODE_REPLAY = 2,   
+};
+
 
 class FFmpegDemuxer{
 public:
@@ -55,21 +66,24 @@ public:
     virtual ~FFmpegDemuxer();
     int Open(const std::string &input, 
              const std::string &ffmpeg_options_str,
-             int io_timeout);
+             int io_timeout, 
+             int play_mode);
     void Close();
     int ReadPacket(stream_switch::MediaFrameInfo *frame_info, 
-                   AVPacket *pkt);
-    //int ReadPacket(DemuxerPacket * packet);
-    //void FreePacket(DemuxerPacket * packet);
-    int ReadMeta(stream_switch::StreamMetadata * meta);
+                   AVPacket *pkt, 
+                   bool* is_meta_changed);
+    int ReadMeta(stream_switch::StreamMetadata * meta, int timeout);
     
     virtual void set_io_enabled(bool io_enabled);
     virtual bool io_enabled();
     
-
+    
     
 protected:
-
+    friend class StreamParser;
+    
+    virtual bool IsMetaReady();
+    
     static int StaticIOInterruptCB(void* user_data);
     int IOInterruptCB();    
     virtual void StartIO();
@@ -81,7 +95,9 @@ protected:
     struct timespec io_start_ts_;
     int io_timeout_;
     stream_switch::StreamMetadata meta_;
-    StreamParserVector stream_parsers;
+    StreamParserVector stream_parsers_;
+    PacketCachedList cached_pkts;
+    uint32_t ssrc_;
 };
 
 #endif

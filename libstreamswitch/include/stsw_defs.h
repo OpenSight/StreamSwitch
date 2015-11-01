@@ -227,6 +227,7 @@ struct StreamMetadata{
                                 // has the same ssrc with this stream, otherwise
                                 // the media frame cannot be described by this 
                                 //meta data
+    double stream_len;  //the stream length in seconds, only valid for replay stream 
     uint32_t bps; //announced bps for the total throughput of this stream, 0 
                   // means the source has no announce for throughput  
 
@@ -236,6 +237,7 @@ struct StreamMetadata{
         play_type = STREAM_PLAY_TYPE_LIVE;
         ssrc = 0;
         bps = 0;
+        stream_len =0.0;
     }
                                              
 };  

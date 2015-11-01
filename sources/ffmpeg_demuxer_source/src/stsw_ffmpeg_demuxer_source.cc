@@ -140,7 +140,7 @@ error_out2:
     sigaction (SIGUSR1, &sigusr1_oldact_, NULL);
      
 error_out1:     
-     return ret;
+    return ret;
 }
 
 void FFmpegDemuxerSource::Uninit()
@@ -165,18 +165,22 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
 {
     int ret;
     std::string err_info;
+    int play_mode = PLAY_MODE_AUTO;
     
     if(is_started_){
         return 0; //already start
     }
-    
+    if(native_frame_rate_){
+        play_mode = PLAY_MODE_LIVE; // for native_frame_rate enabled, force live mode
+    }
     source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_CONNECTING);
     
     //open the demuxer
     demuxer_->set_io_enabled(true);    
     ret = demuxer_->Open(input_name_, 
                          ffmpeg_options_str_, 
-                         io_timeout_);
+                         io_timeout_, 
+                         play_mode);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Demuxer open failed (ret: %d) for input: %s\n", 
@@ -186,17 +190,23 @@ int FFmpegDemuxerSource::Start(OnErrorFun on_error_fun, void *user_data)
         goto err_out1;
     }
 
-    
+#define META_READ_TIMEOUT 10
         
     //read metadata from the demuxer
-    ret = demuxer_->ReadMeta(&meta_);
+    ret = demuxer_->ReadMeta(&meta_, META_READ_TIMEOUT); 
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Demuxer ReadMeta failed (ret: %d) for intput:%s\n", 
                    ret, input_name_.c_str());   
         source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
         goto err_out2;
-    }     
+    }    
+    if(meta_.play_type == stream_switch::STREAM_PLAY_TYPE_REPLAY){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "Cannot support non-live input without native_frame_rate enabled now\n");   
+        source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
+        goto err_out2;        
+    }
     
     //configure the metadata of soruce
     source_->set_stream_meta(meta_);
@@ -336,6 +346,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
     int ret = 0;
     std::string err_info;
     struct timeval now;  
+    bool is_meta_changed = false;
   
     av_init_packet(&pkt);
     pkt.data = NULL;
@@ -343,14 +354,15 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
   
   
     while(is_started_){
-     
+        
+        is_meta_changed = false;
         //read demuxer packet
-        ret = demuxer_->ReadPacket(&frame_info, &pkt); 
+        ret = demuxer_->ReadPacket(&frame_info, &pkt, &is_meta_changed); 
         if(ret){
             if(ret == FFMPEG_SOURCE_ERR_IO && !is_started_){
                 //IO is interrupted by user because source has been stop, not a real error
                 break;
-            }else if(ret == FFMPEG_SOURCE_ERR_AGAIN){
+            }else if(ret == FFMPEG_SOURCE_ERR_DROP){
                 // dexumer need read again
                 continue;
             }
@@ -358,6 +370,19 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                    "Demuxer Read packet error (%d)\n", ret);    
             source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_MEIDA_STOP);
             break;
+        }
+        if(is_meta_changed){
+            //read metadata from the demuxer
+            ret = demuxer_->ReadMeta(&meta_, META_READ_TIMEOUT);
+            if(ret){
+                STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                           "Demuxer ReadMeta failed (ret: %d) for intput:%s\n", 
+                           ret, input_name_.c_str());   
+                source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR);
+                break;
+            }                 
+            //update the metadata of soruce
+            source_->set_stream_meta(meta_);            
         }
         
         // check local time gap

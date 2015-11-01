@@ -36,25 +36,48 @@
 #define STSW_STREAM_PARSER_H
 
 
-
+#include <time.h>
 #include <stream_switch.h>
 
-
+typedef struct AVPacket AVPacket;
 typedef void (*OnErrorFun)(int error_code, void *user_data);
 
 ///////////////////////////////////////////////////////////////
 //Type
+class FFmpegDemuxer;
+
+typedef struct AVStream AVStream;
 
 class StreamParser{
   
 public:
     StreamParser();
     virtual ~StreamParser();
-    virtual int Init();
+    virtual int Init(FFmpegDemuxer *demuxer, int stream_index);
     virtual void Uninit();
-    virtual int Parse();
-    virtual int reset();
+    virtual int Parse(stream_switch::MediaFrameInfo *frame_info, 
+                      AVPacket *pkt, 
+                      bool* is_meta_changed);
+    virtual void reset();
+    virtual bool IsMetaReady();
+
+protected:
+    virtual int DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed);
+    
+    bool is_init_;
+    int stream_index_;
+    FFmpegDemuxer *demuxer_;
+    AVStream *stream_;
+    bool is_live_;
+    bool gop_started_;
+    int64_t last_pts_;
+    int64_t last_dur_;
+    struct timeval last_live_ts_;
 
 };
     
 
+const char * CodecNameFromId(int codec_id);
+StreamParser * NewStreamParser(int codec_id);
+
+#endif

@@ -14,6 +14,8 @@ ffmpeg_demuxer_source_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_demuxer_source.h \
     src/stsw_ffmpeg_demuxer.cc \
     src/stsw_ffmpeg_demuxer.h \
+    src/parser/stsw_stream_parser.cc \
+    src/parser/stsw_stream_parser.h \
     src/stsw_ffmpeg_source_global.h \
     src/stsw_log.cc \
     src/stsw_log.h

@@ -53,7 +53,8 @@ am__dirstamp = $(am__leading_dot)dirstamp
 am_ffmpeg_demuxer_source_OBJECTS = src/stsw_main.$(OBJEXT) \
 	src/stsw_ffmpeg_arg_parser.$(OBJEXT) \
 	src/stsw_ffmpeg_demuxer_source.$(OBJEXT) \
-	src/stsw_ffmpeg_demuxer.$(OBJEXT) src/stsw_log.$(OBJEXT)
+	src/stsw_ffmpeg_demuxer.$(OBJEXT) \
+	src/parser/stsw_stream_parser.$(OBJEXT) src/stsw_log.$(OBJEXT)
 ffmpeg_demuxer_source_OBJECTS = $(am_ffmpeg_demuxer_source_OBJECTS)
 ffmpeg_demuxer_source_DEPENDENCIES =  \
 	$(builddir)/../../libstreamswitch/libstreamswitch.la
@@ -250,6 +251,8 @@ ffmpeg_demuxer_source_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_demuxer_source.h \
     src/stsw_ffmpeg_demuxer.cc \
     src/stsw_ffmpeg_demuxer.h \
+    src/parser/stsw_stream_parser.cc \
+    src/parser/stsw_stream_parser.h \
     src/stsw_ffmpeg_source_global.h \
     src/stsw_log.cc \
     src/stsw_log.h
@@ -346,6 +349,14 @@ src/stsw_ffmpeg_demuxer_source.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/stsw_ffmpeg_demuxer.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/parser/$(am__dirstamp):
+	@$(MKDIR_P) src/parser
+	@: > src/parser/$(am__dirstamp)
+src/parser/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/parser/$(DEPDIR)
+	@: > src/parser/$(DEPDIR)/$(am__dirstamp)
+src/parser/stsw_stream_parser.$(OBJEXT): src/parser/$(am__dirstamp) \
+	src/parser/$(DEPDIR)/$(am__dirstamp)
 src/stsw_log.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 ffmpeg_demuxer_source$(EXEEXT): $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxer_source_DEPENDENCIES) 
@@ -354,6 +365,7 @@ ffmpeg_demuxer_source$(EXEEXT): $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxe
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f src/parser/stsw_stream_parser.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_arg_parser.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_demuxer.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_demuxer_source.$(OBJEXT)
@@ -368,6 +380,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_demuxer_source.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/parser/$(DEPDIR)/stsw_stream_parser.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -514,6 +527,8 @@ distclean-generic:
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
 	-rm -f src/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/$(am__dirstamp)
+	-rm -f src/parser/$(DEPDIR)/$(am__dirstamp)
+	-rm -f src/parser/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -523,7 +538,7 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf src/$(DEPDIR)
+	-rm -rf src/$(DEPDIR) src/parser/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -569,7 +584,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf src/$(DEPDIR)
+	-rm -rf src/$(DEPDIR) src/parser/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
