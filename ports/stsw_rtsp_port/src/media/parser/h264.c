@@ -236,27 +236,31 @@ static int h264_init(Track *track)
     char *sprop = NULL;
     int err = ERR_ALLOC;
 
+/*
     if (track->properties.extradata_len == 0) {
         fnc_log(FNC_LOG_WARN, "[h264] No Extradata, unsupported\n");
         return ERR_UNSUPPORTED_PT;
     }
-
+*/
     priv = g_slice_new0(h264_priv);
+    
+    if(track->properties.extradata_len != 0){
 
-    if(track->properties.extradata[0] == 1) {
-        if (track->properties.extradata_len < 7) goto err_alloc;
-        priv->nal_length_size = (track->properties.extradata[4]&0x03)+1;
-        priv->is_avc = 1;
-        sprop = encode_avc1_header(track->properties.extradata,
-                                   track->properties.extradata_len, FU_A);
-        if (sprop == NULL) goto err_alloc;
-    } else {
-        sprop = encode_header(track->properties.extradata,
-                              track->properties.extradata_len, FU_A);
-        if (sprop == NULL) goto err_alloc;
+        if(track->properties.extradata[0] == 1) {
+            if (track->properties.extradata_len < 7) goto err_alloc;
+            priv->nal_length_size = (track->properties.extradata[4]&0x03)+1;
+            priv->is_avc = 1;
+            sprop = encode_avc1_header(track->properties.extradata,
+                                       track->properties.extradata_len, FU_A);
+            if (sprop == NULL) goto err_alloc;
+        } else {
+            sprop = encode_header(track->properties.extradata,
+                                  track->properties.extradata_len, FU_A);
+            if (sprop == NULL) goto err_alloc;
+        }
+
+        track_add_sdp_field(track, fmtp, sprop);        
     }
-
-    track_add_sdp_field(track, fmtp, sprop);
 
     track_add_sdp_field(track, rtpmap,
                         g_strdup_printf ("H264/%d",track->properties.clock_rate));

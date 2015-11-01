@@ -87,25 +87,29 @@ int isMp4vKeyFrame(uint8_t * frameSource, size_t frameSize)
 
 static int mp4ves_init(Track *track)
 {
-    char *config;
+    char *config = NULL;
     int levelId;
 
-    if ( (config = extradata2config(&track->properties)) == NULL )
-        return ERR_PARSE;
+    if(track->properties.extradata_len != 0){
+        if ( (config = extradata2config(&track->properties)) == NULL )
+            return ERR_PARSE;
 
-    if((levelId = getProfileLevelIdFromextradata(&track->properties)) == -1) {
-        return ERR_PARSE;
+        if((levelId = getProfileLevelIdFromextradata(&track->properties)) == -1) {
+            return ERR_PARSE;
+        }
+
+        track_add_sdp_field(track, fmtp,
+                            g_strdup_printf("profile-level-id=%d;config=%s;",
+                                            levelId, config));
     }
-
-    track_add_sdp_field(track, fmtp,
-                        g_strdup_printf("profile-level-id=%d;config=%s;",
-                                        levelId, config));
 
     track_add_sdp_field(track, rtpmap,
                         g_strdup_printf ("MP4V-ES/%d",
                                          track->properties.clock_rate));
-
-    g_free(config);
+    if(config != NULL){
+        g_free(config);
+        config = NULL;
+    }
     
     track->private_data = g_slice_new0(mp4v_priv);
 

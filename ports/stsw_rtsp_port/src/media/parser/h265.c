@@ -233,20 +233,23 @@ static int h265_init(Track *track)
     char *sprop = NULL;
     int err = ERR_ALLOC;
 
+/*
     if (track->properties.extradata_len == 0) {
         fnc_log(FNC_LOG_WARN, "[h265] No Extradata, unsupported\n");
         return ERR_UNSUPPORTED_PT;
     }
-
+*/
     priv = g_slice_new0(h265_priv);
 
+    if(track->properties.extradata_len != 0){
+        sprop = encode_header(track->properties.extradata,
+                                track->properties.extradata_len, FU_A);
+        if (sprop == NULL) goto err_alloc;
 
-    sprop = encode_header(track->properties.extradata,
-                            track->properties.extradata_len, FU_A);
-    if (sprop == NULL) goto err_alloc;
 
-
-    track_add_sdp_field(track, fmtp, sprop);
+        track_add_sdp_field(track, fmtp, sprop);
+        
+    }
 
     track_add_sdp_field(track, rtpmap,
                         g_strdup_printf ("H265/%d",track->properties.clock_rate));
