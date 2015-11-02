@@ -245,12 +245,7 @@ struct ParserInfo {
 
 //FIXME this should be simplified!
 static const ParserInfo parser_infos[] = {
-   { AV_CODEC_ID_H264, NULL, "H264" },
-   { AV_CODEC_ID_H265, NULL, "H265" }, 
-   { AV_CODEC_ID_MPEG4, NULL, "MP4V-ES" },
-   { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
-   { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
-   { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},
+
    { CODEC_ID_NONE, NULL, "NONE"}//XXX ...
 };
 

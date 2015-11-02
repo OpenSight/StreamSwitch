@@ -184,7 +184,7 @@ struct SubStreamMetadata{
 
     int32_t sub_stream_index;
     SubStreamMediaType media_type;
-    std::string codec_name;
+    std::string codec_name;  //encoding name for video/audio, compatible with MINE subtype
     SubStreamDirectionType direction;
     
     //The below fields are optional. 
