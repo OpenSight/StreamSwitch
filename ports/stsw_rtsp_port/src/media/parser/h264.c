@@ -154,14 +154,84 @@ static char *encode_avc1_header(uint8_t *p, unsigned int len, int packet_mode)
     return NULL;
 }
 
-static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
+static char *encode_header(uint8_t *data, unsigned int len, int packet_mode)
 {
-    uint8_t *q = NULL, *end = p + len;
-    char *sprop = NULL, *out, *buf = NULL;
+    uint8_t *q = NULL, *p = NULL;
+    char *sprop = NULL;
+    int nal_size = 0;
+    uint8_t *sps = NULL;
+    int sps_size = 0;    
+    uint8_t *pps = NULL;
+    int pps_size = 0;   
+    char* sprop_sps = NULL;
+    char* sprop_pps = NULL;   
+    uint8_t nal_unit_type;
+    
 /*    
         fnc_log(FNC_LOG_DEBUG, "[h264] header len %d",
                         len);
 */
+
+
+    p = data;
+
+    if(len <= 4){
+        return NULL;
+    }
+
+    if (p[0] != 0 || p[1] != 0 || p[2] != 0 || p[3] != 1) {
+        return NULL;
+    }
+    
+    //find sps, pps
+    while (p < (data + len - 4)) {
+        for (q = (p+4); q<(data+len-4);q++) {
+            if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
+                break;
+            }
+        }
+
+        if (q >= (data + len - 4)) {
+            /* no next start_code, this is the last nal */
+            nal_size = data + len - p - 4;
+        }else{
+            nal_size = q - p - 4;
+        }
+                
+        nal_unit_type = p[4]&0x1F;
+        
+        switch(nal_unit_type){
+        case 7:
+            sps = p + 4;
+            sps_size = nal_size;
+            break;
+        case 8:
+            pps = p + 4;
+            pps_size = nal_size;
+            break;            
+        }        
+        p = q;
+    }//while
+    
+    if(sps == NULL ||pps == NULL){
+        return NULL;
+    }
+    
+    sprop_sps = g_base64_encode(sps, sps_size);
+    sprop_pps = g_base64_encode(pps, pps_size);
+
+    sprop = g_strdup_printf("profile-level-id=%02x%02x%02x"
+                            ";packetization-mode=%d"
+                            ";sprop-parameter-sets=%s,%s",
+                            p[1], p[2], p[3], 
+                            packet_mode, 
+                            sprop_sps, sprop_pps);
+    g_free(sprop_sps);
+    g_free(sprop_pps);   
+    
+    return sprop;
+    
+#if 0
     for (q = p; q < end - 4; q++) {
         if (q[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {
             break;
@@ -226,6 +296,7 @@ static char *encode_header(uint8_t *p, unsigned int len, int packet_mode)
     }
 
     return sprop;
+#endif    
 }
 
 #define FU_A 1
@@ -247,12 +318,17 @@ static int h264_init(Track *track)
     if(track->properties.extradata_len != 0){
 
         if(track->properties.extradata[0] == 1) {
+            fnc_log(FNC_LOG_WARN, "[h264] unsupported avc format\n");
+            err = ERR_UNSUPPORTED_PT;      
+            goto err_alloc;
+#if 0
             if (track->properties.extradata_len < 7) goto err_alloc;
             priv->nal_length_size = (track->properties.extradata[4]&0x03)+1;
             priv->is_avc = 1;
             sprop = encode_avc1_header(track->properties.extradata,
                                        track->properties.extradata_len, FU_A);
             if (sprop == NULL) goto err_alloc;
+#endif
         } else {
             sprop = encode_header(track->properties.extradata,
                                   track->properties.extradata_len, FU_A);

@@ -191,9 +191,9 @@ struct SubStreamMetadata{
     //If they are 0 or zero-length, means they are absent
     
     // Extra data for the codec:
-    // For H264, it's the element stream contains SPS and PPS, 
+    // For H264, it's the element stream contains SPS, PPS, and some other non-vcl nals, 
     //     e.g. 00 00 00 01 + SPS + 00 00 00 01 + PPS
-    // For H265, it's the element stream contains VPS, SPS and PPS, 
+    // For H265, it's the element stream contains VPS, SPS, PPS, and some other non-vcl nals, 
     //     e.g. 00 00 00 01 + VPS + 00 00 00 01 + SPS + 00 00 00 01 + PPS
     // For MP4V-ES, it's an binary octets expresses the MPEG-4 Visual 
     //    configuration information, as defined in Subclause 6.2.1 ("Start codes") of
