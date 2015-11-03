@@ -240,6 +240,9 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
 
 int StreamParser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
 {
+    
+    
+    
     if(is_meta_changed != NULL){
         (*is_meta_changed) = false;
     }
