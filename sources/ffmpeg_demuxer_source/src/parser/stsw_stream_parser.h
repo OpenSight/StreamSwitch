@@ -62,6 +62,8 @@ public:
     virtual bool IsMetaReady();
 
 protected:
+    virtual int DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info, 
+                                  AVPacket *pkt);
     virtual int DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed);
     
     bool is_init_;

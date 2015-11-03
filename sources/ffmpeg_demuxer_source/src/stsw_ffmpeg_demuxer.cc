@@ -198,9 +198,11 @@ int FFmpegDemuxer::Open(const std::string &input,
             break;
         case AVMEDIA_TYPE_VIDEO:
             sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
+            /*frame_rate is volatile*/
+            /*
             if(st->r_frame_rate.num != 0 && st->r_frame_rate.den !=0 ){
                 sub_metadata.media_param.video.fps = (uint32_t)(av_q2d(st->r_frame_rate) + 0.5);                
-            }
+            }*/
             if(codec->width != 0 && codec->height != 0){
                 sub_metadata.media_param.video.height = codec->height;
                 sub_metadata.media_param.video.width = codec->width;
@@ -450,7 +452,7 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
         if(ret == FFMPEG_SOURCE_ERR_DROP){
             av_free_packet(&(pkt_node.pkt));
             ret = 0;
-            continue;
+            continue; //read next packet
         }else if(ret){
             av_free_packet(&(pkt_node.pkt));
             break;

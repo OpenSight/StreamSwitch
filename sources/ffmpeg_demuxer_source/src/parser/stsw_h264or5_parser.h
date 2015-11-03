@@ -21,63 +21,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_stream_parser.h
- *      StreamParser class header file, define intefaces of the StreamParser 
+ * stsw_h264or5_parser.h
+ *      H264or5Parser class header file, define intefaces of the H264or5Parser 
  * class. 
- *      StreamParser is the default parser for a ffmpeg AV stream, other 
- * parser can inherit this class to override its methods for a specified 
- * codec. All other streams would be associated this default parser
+ *      H264or5Parser is the child class of StreamParser, whichs overrides some 
+ * of the parent's methods for h264 or h265, like update metadata for h264/h265
  * 
  * author: jamken
  * date: 2015-10-15
 **/ 
 
-#ifndef STSW_STREAM_PARSER_H
-#define STSW_STREAM_PARSER_H
+#ifndef STSW_H264OR5_PARSER_H
+#define STSW_H264OR5_PARSER_H
 
 
-#include <time.h>
-#include <stream_switch.h>
+#include "stsw_stream_parser.h"
 
-typedef struct AVPacket AVPacket;
-typedef void (*OnErrorFun)(int error_code, void *user_data);
-
-///////////////////////////////////////////////////////////////
-//Type
-class FFmpegDemuxer;
-
-typedef struct AVStream AVStream;
-
-class StreamParser{
+class H264or5Parser: public StreamParser{
   
 public:
-    StreamParser();
-    virtual ~StreamParser();
+    H264or5Parser();
+    virtual ~H264or5Parser();
+    
     virtual int Init(FFmpegDemuxer *demuxer, int stream_index);
-    virtual void Uninit();
-    virtual int Parse(stream_switch::MediaFrameInfo *frame_info, 
-                      AVPacket *pkt, 
-                      bool* is_meta_changed);
-    virtual void reset();
+
     virtual bool IsMetaReady();
 
 protected:
     virtual int DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed);
+    virtual int GetExtraDataSize(AVPacket *pkt);
+
     
-    bool is_init_;
-    int stream_index_;
-    FFmpegDemuxer *demuxer_;
-    AVStream *stream_;
-    bool is_live_;
-    bool gop_started_;
-    int64_t last_pts_;
-    int64_t last_dur_;
-    struct timeval last_live_ts_;
+    virtual bool IsVPS(uint8_t nal_unit_type);
+    virtual bool IsSPS(uint8_t nal_unit_type);
+    virtual bool IsPPS(uint8_t nal_unit_type);
+    virtual bool IsVCL(uint8_t nal_unit_type);
+
+    int h_number_; 
 
 };
-    
-
-const char * CodecNameFromId(int codec_id);
-StreamParser * NewStreamParser(int codec_id);
 
 #endif

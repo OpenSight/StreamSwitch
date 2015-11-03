@@ -21,25 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_stream_parser.cc
- *      StreamParser class implementation file, define methods of the StreamParser 
+ * stsw_h264or5_parser.cc
+ *      H264or5Parser class implementation file, define methods of the H264or5Parser 
  * class. 
- *      StreamParser is the default parser for a ffmpeg AV stream, other 
- * parser can inherit this class to override its methods for a specified 
- * codec. All other streams would be associated this default parser
+ *      H264or5Parser is the child class of StreamParser, whichs overrides some 
+ * of the parent's methods for h264 or h265, like update metadata for h264/h265
  * 
  * author: jamken
- * date: 2015-10-27
+ * date: 2015-11-3
 **/ 
 
-#include "stsw_stream_parser.h"
-
-#include <stdint.h>
-
-
+#include "stsw_h264or5_parser.h"
 #include "../stsw_ffmpeg_demuxer.h"
 #include "../stsw_ffmpeg_source_global.h"
-
+#include "../stsw_log.h"
 
 extern "C"{
 
@@ -47,235 +42,148 @@ extern "C"{
 #include <libavcodec/avcodec.h>      
 }
 
-StreamParser::StreamParser()
-:is_init_(false), stream_index_(0),  demuxer_(NULL), stream_(NULL), is_live_(true), 
-gop_started_(false),
-last_pts_(AV_NOPTS_VALUE), last_dur_(0)
+H264or5Parser::H264or5Parser()
+:h_number_(264)
 {
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;
+
 }
-StreamParser::~StreamParser()
+H264or5Parser::~H264or5Parser()
 {
     
 }
-int StreamParser::Init(FFmpegDemuxer *demuxer, int stream_index)
-{   
-    int ret = 0;
-    if(is_init_){
-        return 0;
+int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
+{
+    AVStream *st= demuxer->fmt_ctx_->streams[stream_index];
+    AVCodecContext *codec= st->codec;      
+    
+    if(codec->codec_id == AV_CODEC_ID_H264){
+        h_number_ = 264;
+    }else if(codec->codec_id == AV_CODEC_ID_H265){
+        h_number_ = 265;
+    }else{
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+            "H264or5Parser cannot support codec(%d)\n", 
+                (int)codec->codec_id);  
+        return -1;
     }
-    demuxer_ = demuxer;
-    stream_index_ = stream_index;
-    stream_ = demuxer->fmt_ctx_->streams[stream_index];
-    is_live_ = 
-        (demuxer->meta_.play_type == stream_switch::STREAM_PLAY_TYPE_LIVE);
-    gop_started_ = false;
-    last_pts_ = AV_NOPTS_VALUE;
-    last_dur_ = 0;
-    
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;  
-    
-    is_init_ = true;
-    return 0;
+    return StreamParser::Init(demuxer, stream_index);
 }
-void StreamParser::Uninit()
+
+
+
+bool H264or5Parser::IsMetaReady()
 {
     if(!is_init_){
-        return;
+        return false;
     }
-    is_init_ = false;
-    stream_index_ = 0;
-    demuxer_ = NULL;
-    stream_ = NULL;
-    is_live_ = true;
-    gop_started_ = false;
-    last_pts_ = AV_NOPTS_VALUE;
-    last_dur_ = 0;
-    
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;     
-    
-    return;
+    return demuxer_->meta_.sub_streams[stream_index_].extra_data.size() > 0;
 }
-int StreamParser::Parse(stream_switch::MediaFrameInfo *frame_info, 
-                        AVPacket *pkt, 
-                        bool* is_meta_changed)
-{
-    int ret = 0;
 
-    if(pkt->flags & AV_PKT_FLAG_CORRUPT){
-        //for corrupt packet, juet ignore and drop
-        return FFMPEG_SOURCE_ERR_DROP;
-    }
-    
-    frame_info->ssrc = 0;
-    frame_info->sub_stream_index = stream_index_;    
+int H264or5Parser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
+{
+    bool meta_changed = false;    
     if(pkt->flags & AV_PKT_FLAG_KEY){
-        frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME;
-        gop_started_ = true;
-    }else{
-        frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
-    }    
-    //calculate timestamp
-    if(is_live_){        
-        if(last_pts_ == AV_NOPTS_VALUE){
-            //this is the first (has pts) packet to parse, use it as base
-            last_pts_ = pkt->pts;
-            last_dur_ = pkt->duration;
-            gettimeofday(&last_live_ts_, NULL);
-            frame_info->timestamp = last_live_ts_;
-            
-        }else{
-            if(pkt->pts == AV_NOPTS_VALUE){
-                // no pts for this packet, may be because of B frame situation, 
-                // which is not support for live stream, use the last packt time
-                frame_info->timestamp = last_live_ts_;
-                last_dur_ += pkt->duration;
-          
-            }else {
-                int64_t pts_delta = 0;
-                if(pkt->pts < last_pts_ || 
-                   (pkt->pts - last_pts_) * stream_->time_base.num / stream_->time_base.den > 60) {
-                    //this pts lose sync with the last pts, try to guess their delta 
-                    if(last_dur_ > 0){
-                        //if duration is known, used last duration as delta
-                        pts_delta = last_dur_;
-                    }else if (stream_->codec->codec_type == AVMEDIA_TYPE_VIDEO && 
-                              stream_->avg_frame_rate.den && 
-                              stream_->avg_frame_rate.num){
-                        //make use of average fps to calculate delta
-                        pts_delta = (stream_->avg_frame_rate.den * stream_->time_base.den) /
-                                    (stream_->avg_frame_rate.num * stream_->time_base.num);
-                    }else{
-                        //no any way to know delta
-                        pts_delta = 0;
-                    }
-                }else{
-                    //normal case
-                    pts_delta = pkt->pts - last_pts_;
-                    
-                }
+        //check basic params
+        AVCodecContext *codec= stream_->codec;            
+        if(codec->width != 0 && codec->height != 0){
+            uint32_t height = codec->height;
+            uint32_t width = codec->width;
+            if(codec->height !=  
+               demuxer_->meta_.sub_streams[stream_index_].media_param.video.height || 
+               codec->width != 
+               demuxer_->meta_.sub_streams[stream_index_].media_param.video.width){
                 
-                frame_info->timestamp.tv_sec = 
-                    (pts_delta * stream_->time_base.num) / stream_->time_base.den + 
-                    last_live_ts_.tv_sec;
-                frame_info->timestamp.tv_usec = 
-                    ((pts_delta * stream_->time_base.num) % stream_->time_base.den) 
-                    * 1000000 / stream_->time_base.den + 
-                    last_live_ts_.tv_usec;  
-                while(frame_info->timestamp.tv_usec >= 1000000){
-                    frame_info->timestamp.tv_sec ++;
-                    frame_info->timestamp.tv_usec -= 1000000;
-                }
-
-                last_pts_ = pkt->pts;
-                last_dur_ = pkt->duration;
-                last_live_ts_ = frame_info->timestamp;
-                
-            }//if(pkt->pts == AV_NOPTS_VALUE){             
-            
-        }//if(pkt->pts == AV_NOPTS_VALUE){
-       
-    }else{ // replay
-        
-        int64_t pts;
-        //for non-live mode, use pts directly
-        if(pkt->pts == AV_NOPTS_VALUE){
-            if(last_pts_ != AV_NOPTS_VALUE){
-                pts = last_pts_;
-            }else{
-                pts = 0;
-            }            
-        }else{
-            pts = pkt->pts;
-            last_pts_ = pts;
-            last_dur_ = pkt->duration;
+                demuxer_->meta_.sub_streams[stream_index_].media_param.video.height = 
+                    codec->height; 
+                demuxer_->meta_.sub_streams[stream_index_].media_param.video.width =
+                    codec->width;
+                meta_changed = true;
+            }
+        } 
+        //check extra data
+        int extra_size = GetExtraDataSize(pkt);
+        if(extra_size != 0){
+            std::string new_extra((const char*)pkt->data, (size_t)extra_size);
+            if(new_extra != 
+               demuxer_->meta_.sub_streams[stream_index_].extra_data){
+                demuxer_->meta_.sub_streams[stream_index_].extra_data = new_extra;
+                meta_changed = true;
+            }
         }
-        
-        frame_info->timestamp.tv_sec = 
-            (pts * stream_->time_base.num) / stream_->time_base.den;
-        frame_info->timestamp.tv_usec = 
-            ((pts * stream_->time_base.num) % stream_->time_base.den) 
-            * 1000000 / stream_->time_base.den;        
+    
     }
     
-    ret = DoUpdateMeta(pkt, is_meta_changed);
-    if(ret){
-        return ret;
-    }
-
-    if(!gop_started_){
-        return FFMPEG_SOURCE_ERR_DROP;
-    }
-    
-    return 0;
-}
-void StreamParser::reset()
-{
-    gop_started_ = false;
-    return;
-}
-
-bool StreamParser::IsMetaReady()
-{
-    return true;
-}
-int StreamParser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
-{
     if(is_meta_changed != NULL){
-        (*is_meta_changed) = false;
-    }
+        (*is_meta_changed) = meta_changed;
+    }        
+
     return 0;
 }
 
-
-template<class T>
-StreamParser* StreamParserFatcory()
+int H264or5Parser::GetExtraDataSize(AVPacket *pkt)
 {
-	return new T;
+    bool vps = false, sps = false, pps = false;
+    uint8_t *p, *end , *start;   
+    int extra_size = 0;
+    start = pkt->data;
+    end = pkt->data + pkt->size;
+
+    for (p = start; p < end - 4; p++) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
+            uint8_t nal_unit_type;
+            if (h_number_ == 264 && end - p >= 5) {
+                nal_unit_type = p[4]&0x1F;
+            } else if (h_number_ == 265 && (end - p) >= 6) {
+                nal_unit_type = (p[4]&0x7E)>>1;
+            } else {
+                nal_unit_type = 0xff;
+            }
+            
+            if(IsVPS(nal_unit_type)){
+                vps = true;
+            }else if(IsSPS(nal_unit_type)){
+                sps = true;
+            }else if(IsPPS(nal_unit_type)){
+                pps = true;
+            }else if (IsVCL(nal_unit_type)){
+                
+                extra_size = p - start;
+                break;
+            } 
+           
+        } // if (p[0] == 0 && q[1] == 0 && q[2] == 0 && q[3] == 1) {           
+    } // for (p = start; p < end - 4; p++) {   
+    if(p == end - 4){
+        extra_size = pkt->size; //all is extra data, 
+                                //should not arrive here
+    }
+        
+    if(extra_size != 0){
+        if (h_number_ == 264 && sps && pps){
+            return extra_size;
+        }else if (h_number_ == 265 && vps && sps && pps){
+            return extra_size;
+        }
+    }
+
+    return 0;
 }
 
-struct ParserInfo {
-    const int codec_id;
-    StreamParser* (*factory)();
-    const char name[11];
-};
-
-//FIXME this should be simplified!
-static const ParserInfo parser_infos[] = {
-
-   { CODEC_ID_NONE, NULL, "NONE"}//XXX ...
-};
-
-const char * CodecNameFromId(int codec_id)
-{
-    const ParserInfo *parser_info = parser_infos;
-    while (parser_info->codec_id != CODEC_ID_NONE) {
-        if (parser_info->codec_id == codec_id){
-            if(parser_info->name != NULL){
-                return parser_info->name;
-            }else{
-                return avcodec_get_name((enum AVCodecID)codec_id);
-            }
-        }            
-        parser_info++;
-    }
-    return avcodec_get_name((enum AVCodecID)codec_id);
+bool H264or5Parser::IsVPS(uint8_t nal_unit_type) {
+  // VPS NAL units occur in H.265 only:
+  return h_number_ == 265 && nal_unit_type == 32;
 }
-StreamParser * NewStreamParser(int codec_id)
-{
-    const ParserInfo *parser_info = parser_infos;
-    while (parser_info->codec_id != CODEC_ID_NONE) {
-        if (parser_info->codec_id == codec_id){
-            if(parser_info->factory != NULL){
-                return parser_info->factory();
-            }else{
-                return new StreamParser();
-            }
-        }            
-        parser_info++;
-    }
-    return new StreamParser();
+
+bool H264or5Parser::IsSPS(uint8_t nal_unit_type) {
+  return h_number_ == 264 ? nal_unit_type == 7 : nal_unit_type == 33;
+}
+
+bool H264or5Parser::IsPPS(uint8_t nal_unit_type) {
+  return h_number_ == 264 ? nal_unit_type == 8 : nal_unit_type == 34;
+}
+
+bool H264or5Parser::IsVCL(uint8_t nal_unit_type) {
+  return h_number_ == 264
+    ? (nal_unit_type <= 5 && nal_unit_type > 0)
+    : (nal_unit_type <= 31);
 }

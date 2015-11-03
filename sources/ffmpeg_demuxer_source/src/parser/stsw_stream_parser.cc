@@ -110,11 +110,45 @@ int StreamParser::Parse(stream_switch::MediaFrameInfo *frame_info,
         return FFMPEG_SOURCE_ERR_DROP;
     }
     
+    ret = DoUpdateFrameInfo(frame_info, pkt);
+    if(ret){
+        return ret;
+    }    
+    
+    ret = DoUpdateMeta(pkt, is_meta_changed);
+    if(ret){
+        return ret;
+    }
+    
+    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
+        gop_started_ = true;
+    }
+    
+    if(!gop_started_){
+        return FFMPEG_SOURCE_ERR_DROP;
+    }
+    
+    return 0;
+}
+void StreamParser::reset()
+{
+    gop_started_ = false;
+    return;
+}
+
+bool StreamParser::IsMetaReady()
+{
+    return true;
+}
+
+
+int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info, 
+                                    AVPacket *pkt)
+{
     frame_info->ssrc = 0;
     frame_info->sub_stream_index = stream_index_;    
     if(pkt->flags & AV_PKT_FLAG_KEY){
         frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME;
-        gop_started_ = true;
     }else{
         frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
     }    
@@ -199,29 +233,11 @@ int StreamParser::Parse(stream_switch::MediaFrameInfo *frame_info,
         frame_info->timestamp.tv_usec = 
             ((pts * stream_->time_base.num) % stream_->time_base.den) 
             * 1000000 / stream_->time_base.den;        
-    }
-    
-    ret = DoUpdateMeta(pkt, is_meta_changed);
-    if(ret){
-        return ret;
-    }
-
-    if(!gop_started_){
-        return FFMPEG_SOURCE_ERR_DROP;
-    }
-    
+    }   
     return 0;
 }
-void StreamParser::reset()
-{
-    gop_started_ = false;
-    return;
-}
 
-bool StreamParser::IsMetaReady()
-{
-    return true;
-}
+
 int StreamParser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
 {
     if(is_meta_changed != NULL){
@@ -229,6 +245,10 @@ int StreamParser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
     }
     return 0;
 }
+
+
+
+
 
 
 template<class T>
@@ -251,13 +271,13 @@ static const ParserInfo parser_infos[] = {
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},
-   { CODEC_ID_NONE, NULL, "NONE"}//XXX ...
+   { AV_CODEC_ID_NONE, NULL, "NONE"}//XXX ...
 };
 
 const char * CodecNameFromId(int codec_id)
 {
     const ParserInfo *parser_info = parser_infos;
-    while (parser_info->codec_id != CODEC_ID_NONE) {
+    while (parser_info->codec_id != AV_CODEC_ID_NONE) {
         if (parser_info->codec_id == codec_id){
             if(parser_info->name != NULL){
                 return parser_info->name;
@@ -272,7 +292,7 @@ const char * CodecNameFromId(int codec_id)
 StreamParser * NewStreamParser(int codec_id)
 {
     const ParserInfo *parser_info = parser_infos;
-    while (parser_info->codec_id != CODEC_ID_NONE) {
+    while (parser_info->codec_id != AV_CODEC_ID_NONE) {
         if (parser_info->codec_id == codec_id){
             if(parser_info->factory != NULL){
                 return parser_info->factory();
