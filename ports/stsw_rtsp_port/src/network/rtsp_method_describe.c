@@ -193,15 +193,16 @@ static void sdp_track_descr(gpointer element, gpointer user_data)
 /**
  * @brief Create description for an SDP session
  *
- * @param srv Pointer to the server-specific data instance.
+ * @param rtsp Pointer to the rtsp client.
  * @param url Url of the resource to describe
  *
  * @return A new GString containing the complete description of the
  *         session or NULL if the resource was not found or no demuxer
  *         was found to handle it.
  */
-static GString *sdp_session_descr(struct feng *srv, const Url *url)
+static GString *sdp_session_descr(RTSP_Client * rtsp, const Url *url)
 {
+    struct feng *srv = rtsp->srv;
     GString *descr = NULL;
     double duration;
 
@@ -299,8 +300,17 @@ static GString *sdp_session_descr(struct feng *srv, const Url *url)
                    sdp_track_descr,
                    descr);
 
-    r_close(resource);
 
+    //r_close(resource);
+    //jamken: don't close resource, just buffer it in the rtsp client
+    if(rtsp->cached_resource != NULL){
+        r_close(rtsp->cached_resource); //close the previous cached resource if existed
+        rtsp->cached_resource = NULL;
+    }
+    rtsp->cached_resource = resource;
+    resource = NULL;
+    
+    
     fnc_log(FNC_LOG_INFO, "[SDP] description:\n%s", descr->str);
 
     return descr;
@@ -365,7 +375,7 @@ void RTSP_describe(RTSP_Client * rtsp, RTSP_Request *req)
 
 
     // Get Session Description
-    descr = sdp_session_descr(rtsp->srv, &url);
+    descr = sdp_session_descr(rtsp, &url);
 
     Url_destroy(&url);
 

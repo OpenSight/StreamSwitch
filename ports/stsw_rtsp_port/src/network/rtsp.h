@@ -183,6 +183,8 @@ typedef struct RTSP_Client {
     // Run-Time
     RTSP_session *session;
     struct feng *srv;
+    struct Resource *cached_resource; //cached the opened resource in DESCRIB request handling
+    
 
     /**
      * @brief Interleaved setup data

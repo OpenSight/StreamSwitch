@@ -395,17 +395,23 @@ static Track *select_requested_track(RTSP_Request *req, RTSP_session *rtsp_s)
         Url_init(&url, rtsp_s->resource_uri);
         path = g_uri_unescape_string(url.path, "/");
         Url_destroy(&url);
+        if(req->client->cached_resource != NULL){
+            rtsp_s->resource = req->client->cached_resource;
+            req->client->cached_resource = NULL;
+        }else{
+            if (!(rtsp_s->resource = r_open(srv, path))) {
+                fnc_log(FNC_LOG_DEBUG, "Resource for %s not found\n", path);
 
-        if (!(rtsp_s->resource = r_open(srv, path))) {
-            fnc_log(FNC_LOG_DEBUG, "Resource for %s not found\n", path);
+                g_free(path);
+                g_free(rtsp_s->resource_uri);
+                rtsp_s->resource_uri = NULL;
 
-            g_free(path);
-            g_free(rtsp_s->resource_uri);
-            rtsp_s->resource_uri = NULL;
-
-            rtsp_quick_response(req, RTSP_NotFound);
-            return NULL;
+                rtsp_quick_response(req, RTSP_NotFound);
+                return NULL;
+            } 
         }
+
+
 
         /*set rtsp session into the resource*/
         rtsp_s->resource->rtsp_sess = rtsp_s;

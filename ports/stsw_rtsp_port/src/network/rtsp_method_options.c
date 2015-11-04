@@ -43,7 +43,7 @@ void RTSP_options(RTSP_Client * rtsp, RTSP_Request *req)
 
     g_hash_table_insert(response->headers, 
                         g_strdup(eris_hdr_public),
-                        g_strdup("OPTIONS,DESCRIBE,SETUP,PLAY,PAUSE,TEARDOWN"));
+                        g_strdup("OPTIONS,DESCRIBE,SETUP,PLAY,PAUSE,TEARDOWN,GET_PARAMETER"));
 
     rtsp_response_send(response);
 }
