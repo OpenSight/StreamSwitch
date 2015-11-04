@@ -111,7 +111,7 @@ public:
                                     SinkSubHandler handler, void * user_data);
     virtual void UnregisterSubHandler(int op_code);
     virtual void UnregisterAllSubHandler();      
-
+    virtual void DestroySubscriberSocket();
     
     // accessors 
     virtual StreamClientInfo client_info();
@@ -136,7 +136,8 @@ public:
                            uint32_t *  total_num, StreamClientList * client_list, 
                            std::string *err_info);
     
-    virtual void ReceiverStatistic(MediaStatisticInfo * statistic);        
+    virtual void ReceiverStatistic(MediaStatisticInfo * statistic);    
+
     
 protected:
 
@@ -178,7 +179,7 @@ protected:
     
     virtual uint32_t GetNextSeq();
     
-   
+    virtual int CreateSubscriberSocket(std::string *err_info);
     
 private:
     std::string api_addr_;

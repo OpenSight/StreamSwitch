@@ -389,7 +389,11 @@ int StreamSink::InitBase(const StreamClientInfo &client_info,
                        STSW_PUBLISH_MEDIA_CHANNEL, 
                        (SinkSubHandler)StaticMediaFrameHandler, this);
  
-
+    //create subscriber socket before start, so that avoiding frame loss
+    ret = CreateSubscriberSocket(err_info);
+    if(ret){
+        goto error_3;
+    }
 
     //init client info
     client_info_ = client_info;
@@ -404,8 +408,16 @@ int StreamSink::InitBase(const StreamClientInfo &client_info,
    
     return 0;
     
-error_2:
-
+error_3:
+    
+    if(subscriber_socket_ != NULL){
+        zsock_destroy((zsock_t **)&subscriber_socket_);
+        subscriber_socket_ = NULL;        
+    }
+    
+    UnregisterAllSubHandler();
+    
+error_2:    
     if(notify_socket_ != NULL){
         zsock_destroy((zsock_t **)&notify_socket_);
         notify_socket_ = NULL;
@@ -440,6 +452,11 @@ void StreamSink::Uninit()
     Stop(); // stop source first if it has not stop
 
     flags_ &= ~(STREAM_RECEIVER_FLAG_INIT); 
+
+    if(subscriber_socket_ != NULL){
+        zsock_destroy((zsock_t **)&subscriber_socket_);
+        subscriber_socket_ = NULL;        
+    }
 
     UnregisterAllSubHandler();
 
@@ -501,9 +518,6 @@ void StreamSink::set_client_info(const StreamClientInfo &client_info)
 int StreamSink::Start(std::string *err_info)
 {
     int ret;
-    std::set<std::string> subsribe_keys;
-    ReceiverSubHanderMap::iterator it;
-    std::set<std::string>::iterator set_it;
     
     if(!IsInit()){
         SET_ERR_INFO(err_info, "Receiver not init");          
@@ -517,6 +531,7 @@ int StreamSink::Start(std::string *err_info)
         //already start
         return 0;        
     }
+    
     if(worker_thread_id_ != 0){
         //STREAM_RECEIVER_FLAG_STARTED is clear but worker_thread_id_
         // is set, means other thread is stopping the receiver, just
@@ -527,47 +542,13 @@ int StreamSink::Start(std::string *err_info)
 
     
     //
-    // create a new subscriber socket
-    // moving subscribe socket from init() to start() is for cleanning 
-    // the socket context to avoid receiving a overdue broadcast 
-    // frame. If create subscrber socket in init() ,and keep the same 
-    // subscribe socket for the whole life time of receiver, the receiver
-    // may get a overdue frame ater next time start()
-    subscriber_socket_ = zsock_new(ZMQ_SUB);
-    if(subscriber_socket_ == NULL){
-        ret = ERROR_CODE_SYSTEM;
-        SET_ERR_INFO(err_info, "zsock_new create subsriber socket failed");          
-        fprintf(stderr, "zsock_new create subsriber socket failed\n");
-        goto error_1;            
-    }    
-    zsock_set_sndhwm(subscriber_socket_, sub_queue_size_);  
-    zsock_set_rcvhwm(subscriber_socket_, sub_queue_size_);      
-    zsock_set_linger(subscriber_socket_, 0); //no linger      
-    if(zsock_attach((zsock_t *)subscriber_socket_, subscriber_addr_.c_str(), false)){
-        ret = ERROR_CODE_SYSTEM;
-        SET_ERR_INFO(err_info, "zsock_attach() for the subsriber socket failed: maybe address error");          
-        fprintf(stderr, "zsock_attach() for the subsriber socket failed: "
-                "maybe address (%s) error\n", subscriber_addr_.c_str());
-        goto error_2;          
-    }
-    
-    // 
-    // subscribe the channel key
+    // create a subscriber socket if not exist
     //
-        
-    // find all keys    
-    for(it = subsriber_handler_map_.begin();
-        it != subsriber_handler_map_.end();
-        it ++){
-        subsribe_keys.insert(it->second.channel_name);
+    ret = CreateSubscriberSocket(err_info);
+    if(ret){
+        goto error_1;
     }
-    
-    // register keys    
-    for(set_it = subsribe_keys.begin();
-        set_it != subsribe_keys.end();
-        set_it ++){
-        zsock_set_subscribe(subscriber_socket_, set_it->c_str());
-    }    
+
 
     last_send_client_heartbeat_msec_ = 0;
     next_send_client_heartbeat_msec_ = 0;
@@ -709,6 +690,29 @@ void StreamSink::UnregisterAllSubHandler()
     
     subsriber_handler_map_.clear();    
 }      
+
+void StreamSink::DestroySubscriberSocket()
+{
+    if(!IsInit()){        
+        return;
+    }
+
+    
+    LockGuard guard(&lock_);    
+
+    if(IsStarted()){
+        return; //cannot destroy subsriber socket after sink has started
+    }     
+ 
+    if(subscriber_socket_ != NULL){
+        zsock_destroy((zsock_t **)&subscriber_socket_);
+        subscriber_socket_ = NULL;
+        
+    }      
+    
+}
+
+
 
 int StreamSink::StaticMediaFrameHandler(void * user_data, const ProtoCommonPacket &msg, 
                                         const char * extra_blob, size_t blob_size)
@@ -1725,6 +1729,70 @@ error_1:
   
         
 }  
+
+
+
+int StreamSink::CreateSubscriberSocket(std::string *err_info)
+{
+    int ret = 0;
+    SocketHandle subscriber_socket = NULL;
+    std::set<std::string> subsribe_keys;
+    ReceiverSubHanderMap::iterator it;
+    std::set<std::string>::iterator set_it;
+    
+    if(subscriber_socket_ != NULL){
+        return 0; // already created
+    }
+
+    subscriber_socket = zsock_new(ZMQ_SUB);
+    if(subscriber_socket == NULL){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_new create subsriber socket failed");          
+        //fprintf(stderr, "zsock_new create subsriber socket failed\n");
+        goto error_1;            
+    }    
+    zsock_set_sndhwm(subscriber_socket, sub_queue_size_);  
+    zsock_set_rcvhwm(subscriber_socket, sub_queue_size_);      
+    zsock_set_linger(subscriber_socket, 0); //no linger      
+    if(zsock_attach((zsock_t *)subscriber_socket, subscriber_addr_.c_str(), false)){
+        ret = ERROR_CODE_SYSTEM;
+        SET_ERR_INFO(err_info, "zsock_attach() for the subsriber socket failed: maybe address error");          
+        //fprintf(stderr, "zsock_attach() for the subsriber socket failed: "
+        //        "maybe address (%s) error\n", subscriber_addr_.c_str());
+        goto error_2;          
+    }
+    
+    // 
+    // subscribe the channel key
+    //
+        
+    // find all keys    
+    for(it = subsriber_handler_map_.begin();
+        it != subsriber_handler_map_.end();
+        it ++){
+        subsribe_keys.insert(it->second.channel_name);
+    }
+    
+    // register keys    
+    for(set_it = subsribe_keys.begin();
+        set_it != subsribe_keys.end();
+        set_it ++){
+        zsock_set_subscribe(subscriber_socket, set_it->c_str());
+    }        
+    
+    subscriber_socket_ = subscriber_socket;
+        
+    return 0;
+    
+error_2:
+    if(subscriber_socket != NULL){
+        zsock_destroy((zsock_t **)&subscriber_socket);
+    }
+    
+error_1:
+    return ret;
+}
+
 
 }
 
