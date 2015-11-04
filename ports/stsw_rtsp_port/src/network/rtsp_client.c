@@ -82,6 +82,8 @@ static void client_ev_disconnect_handler(struct ev_loop *loop,
     srv->connection_count--;
 
     rtsp_session_free(rtsp->session);
+    
+    r_close(rtsp->cached_resource);
 
     interleaved_free_list(rtsp);
 
@@ -310,6 +312,7 @@ void rtsp_client_incoming_cb(struct ev_loop *loop, ev_io *w,
         rtsp->input = g_byte_array_new();
         rtsp->out_queue = g_queue_new();
         rtsp->srv = srv;
+        rtsp->cached_resource = NULL;
 
         srv->connection_count++;
         client_sock->data = srv;
