@@ -939,14 +939,14 @@ int H264StreamParser::Parse(Track *tr, uint8_t *data, size_t len)
 
 int H264StreamParser::AppendCache(Track *tr, uint8_t *data, size_t len)
 {
-    char start_code[] = {0, 0, 0, 1};
+    //char start_code[] = {0, 0, 0, 1};
     bool is_cache_empty = frame_cache_.empty();
     
     if(frame_cache_.size() >= MAX_CACHE_SIZE){
         return -1;
     }
     
-    frame_cache_.append(start_code, 4);
+    //frame_cache_.append(start_code, 4);
     frame_cache_.append((const char *)data, len);
     if(is_cache_empty){
         cache_pts_ = tr->properties.pts;
