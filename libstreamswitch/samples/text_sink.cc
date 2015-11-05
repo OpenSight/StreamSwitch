@@ -33,7 +33,8 @@
 #include <sstream>
 #include <unistd.h>
 #include <time.h>
-
+#include <string.h>
+#include <stdint.h>
 #include <stream_switch.h>
 
     
@@ -44,6 +45,7 @@
 
 
 
+class StreamMetadata;
 stream_switch::RotateLogger * global_logger;
 
 
@@ -61,11 +63,12 @@ class TextStreamSink:public stream_switch::SinkListener{
 public:
     TextStreamSink();
     virtual ~TextStreamSink();
-    int InitRemote(std::string text_file,                 
+    int InitRemote(std::string info_file,       
                    std::string source_ip, int source_tcp_port, 
                    int queue_size, 
                    int debug_flags);    
-    int InitLocal(std::string text_file, std::string stream_name, 
+    int InitLocal(std::string info_file, 
+                  std::string stream_name, 
                   int queue_size,
                   int debug_flags);
     void Uninit();
@@ -88,8 +91,11 @@ public:
        
 private: 
     stream_switch::StreamSink sink_;
-    std::string text_file_name_;    
-    FILE * text_file_;
+    std::string info_file_name_;    
+    FILE * info_file_;
+#define MAX_SUB_STREAM_NUMF 64
+    FILE * data_files_[MAX_SUB_STREAM_NUMF];
+    
     int64_t last_frame_rec_sec_;   
     stream_switch::StreamClientInfo client_info;
     bool is_err_;
@@ -100,6 +106,16 @@ private:
 
 ///////////////////////////////////////////////////////////////
 //functions
+    
+    
+static void Digit2Char(char *dst, uint8_t src)
+{
+    if (src < 10) {
+        *dst = '0' + src;
+    } else {
+        *dst = 'A' + src - 10;
+    }
+}    
     
 static std::string int2str(int int_value)
 {
@@ -115,13 +131,16 @@ static int str2int(std::string str_value)
 
 
 TextStreamSink::TextStreamSink()
-:text_file_(NULL), last_frame_rec_sec_(0), is_err_(false)
+:info_file_(NULL), last_frame_rec_sec_(0), is_err_(false)
 {
     client_info.client_protocol = "text_dump";
     client_info.client_text = "text_sink which dumps media frames to a text file";
     //use ramdon number as token
     srand(time(NULL));
-    client_info.client_token = int2str(rand() % 0xffffff);    
+    client_info.client_token = int2str(rand() % 0xffffff);   
+    for(int i=0;i<MAX_SUB_STREAM_NUMF;i++){
+        data_files_[i] = NULL;
+    }
 }
 
 TextStreamSink::~TextStreamSink()
@@ -129,7 +148,7 @@ TextStreamSink::~TextStreamSink()
     
 }
 
-int TextStreamSink::InitRemote(std::string text_file,                 
+int TextStreamSink::InitRemote(std::string info_file,             
                    std::string source_ip, int source_tcp_port, 
                    int queue_size,
                    int debug_flags)
@@ -138,15 +157,15 @@ int TextStreamSink::InitRemote(std::string text_file,
     std::string err_info;
     
     //open file
-    if(text_file.size() != 0){
-        text_file_ = fopen(text_file.c_str(), "w");
-        if(text_file_ == NULL){
+    if(info_file.size() != 0){
+        info_file_ = fopen(info_file.c_str(), "w");
+        if(info_file_ == NULL){
             perror("Open Text File Failed");
             return -1;
         }
-        text_file_name_ = text_file;        
+        info_file_name_ = info_file;        
     }
-    
+  
     
     //init sink
     ret = sink_.InitRemote(source_ip, source_tcp_port, client_info, 
@@ -155,8 +174,8 @@ int TextStreamSink::InitRemote(std::string text_file,
                            debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
-        fclose(text_file_);
-        text_file_ = NULL;
+        fclose(info_file_);
+        info_file_ = NULL;
         ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
                   "TextStreamSink Init failed: %s", err_info.c_str());           
         return -1;
@@ -165,13 +184,14 @@ int TextStreamSink::InitRemote(std::string text_file,
     is_err_ = false;
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
-              "TextStreamSink Init successful (file:%s, source: %s:%d)", 
-              text_file.c_str(), source_ip.c_str(), source_tcp_port);
+              "TextStreamSink Init successful (info-file:%s, source: %s:%d)", 
+              info_file.c_str(), source_ip.c_str(), source_tcp_port);
 
     return 0;    
     
 } 
-int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name, 
+int TextStreamSink::InitLocal(std::string info_file, 
+                              std::string stream_name, 
                               int queue_size,
                               int debug_flags)
 {
@@ -179,13 +199,14 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
     std::string err_info;
     
     //open file
-    if(text_file.size() != 0){
-        text_file_ = fopen(text_file.c_str(), "w");
-        if(text_file_ == NULL){
+    //open file
+    if(info_file.size() != 0){
+        info_file_ = fopen(info_file.c_str(), "w");
+        if(info_file_ == NULL){
             perror("Open Text File Failed");
             return -1;
         }
-        text_file_name_ = text_file;
+        info_file_name_ = info_file;        
     }
     
     
@@ -196,11 +217,11 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
                           debug_flags, &err_info);
     if(ret){
         fprintf(stderr, "Init stream sink error: %s\n", err_info.c_str());
-        fclose(text_file_);
-        text_file_ = NULL;
+        fclose(info_file_);
+        info_file_ = NULL;
         ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_ERR, 
                   "TextStreamSink Init failed: %s\n", err_info.c_str());           
-        text_file_name_.clear();
+        info_file_name_.clear();
         return -1;
     }
     
@@ -208,8 +229,8 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
     is_err_ = false;
     
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
-              "TextStreamSink Init successful (file:%s, source:%s)", 
-              text_file.c_str(), stream_name.c_str());    
+              "TextStreamSink Init successful (info-file:%s, source:%s)", 
+              info_file.c_str(),  stream_name.c_str());    
 
     return 0;        
 }
@@ -217,12 +238,13 @@ int TextStreamSink::InitLocal(std::string text_file,  std::string stream_name,
 void TextStreamSink::Uninit()
 {
     sink_.Uninit();
-    if(text_file_ != NULL){
-        fclose(text_file_);
-        text_file_ = NULL;
+    if(info_file_ != NULL){
+        fclose(info_file_);
+        info_file_ = NULL;
     
     }
-    text_file_name_.clear();
+    info_file_name_.clear();
+
 }
 
 
@@ -231,6 +253,7 @@ int TextStreamSink::Start(int timeout)
     int ret;
     std::string err_info;
     stream_switch::StreamMetadata metadata;
+    stream_switch::SubStreamMetadataVector::iterator meta_it;
     
     
     //Get the metadata of the stream from the source
@@ -245,6 +268,76 @@ int TextStreamSink::Start(int timeout)
     //
     //do something with the new metadata
     //
+    //dump metadat to info file
+    if(info_file_){
+        char *tmp_buf = new char[2048];
+        
+        fprintf(info_file_, 
+                "Metadata - play_type:%d, source_proto:%s, ssrc:0x%x, stream_len: %f"
+                ", bps:%u, sub stream number:%d\n", 
+                (int)metadata.play_type, 
+                metadata.source_proto.c_str(), 
+                metadata.ssrc, 
+                metadata.stream_len, 
+                metadata.bps, 
+                (int)metadata.sub_streams.size());
+
+        for(meta_it=metadata.sub_streams.begin();
+            meta_it!=metadata.sub_streams.end();
+            meta_it++){
+                
+                
+            std::string data_file_name;
+           
+            //open the data file from stream
+            data_file_name += info_file_name_;
+            data_file_name += ".";
+            data_file_name += ('0' + meta_it->sub_stream_index);
+            data_files_[meta_it->sub_stream_index] = 
+                fopen(data_file_name.c_str(), "wb");
+            if(data_files_[meta_it->sub_stream_index] == NULL){
+                perror("Open data File Failed");
+                for(int i=0;i<MAX_SUB_STREAM_NUMF;i++){
+                    if(data_files_[i] != NULL){
+                        fclose(data_files_[i]);
+                        data_files_[i] = NULL;
+                    }
+                    
+                }
+                delete[] tmp_buf;
+                return -1;
+            }            
+        
+            
+            int i = 0;
+            if(meta_it->extra_data.size() == 0){
+                strcpy(tmp_buf, "Empty");
+            }else if(meta_it->extra_data.size() > 1024){
+                strcpy(tmp_buf, "> 1024 bytes");
+            }else{
+                memset(tmp_buf, 0, 2048);
+                for(i=0;i < (int)meta_it->extra_data.size(); i++){
+                    Digit2Char(tmp_buf + 2 * i, 
+                               (((unsigned char*)meta_it->extra_data.data())[i] >> 4) & 0xF);
+                    Digit2Char(tmp_buf + 2 * i + 1, 
+                               ((unsigned char*)meta_it->extra_data.data())[i] & 0xF);                    
+                }
+            }
+
+            
+            fprintf(info_file_,  
+                    "Stream %d - data_file:%s, media_type:%d, codec_name:%s, direction:%d"
+                    ", extra_data:%s\n", 
+                    (int)meta_it->sub_stream_index,
+                    data_file_name.c_str(), 
+                    (int)meta_it->media_type, 
+                    meta_it->codec_name.c_str(), 
+                    (int)meta_it->direction, 
+                    tmp_buf);
+                  
+        }
+        delete[] tmp_buf;
+    }//if(info_file_){
     
     last_frame_rec_sec_ = time(NULL); 
     is_err_ = false;
@@ -281,7 +374,14 @@ void TextStreamSink::Stop()
 {
     sink_.Stop();
     ROTATE_LOG(global_logger, stream_switch::LOG_LEVEL_INFO, 
-              "TextStreamSink Stopped");     
+              "TextStreamSink Stopped");    
+    for(int i=0;i<MAX_SUB_STREAM_NUMF;i++){
+        if(data_files_[i] != NULL){
+            fclose(data_files_[i]);
+            data_files_[i] = NULL;
+        }
+    }               
+
 }
 
 
@@ -290,28 +390,41 @@ void TextStreamSink::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame
                                       size_t frame_size)
 {
     
-    if(text_file_){
+    if(info_file_){
         char tmp_buf[10];
-        fprintf(text_file_, 
-                "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x, size: %d\n", 
+        long pos = 0;
+        
+        if(data_files_[frame_info.sub_stream_index]){
+            pos = ftell(data_files_[frame_info.sub_stream_index]);
+        }
+        
+        fprintf(info_file_, 
+                "index:%d, type:%d, time:%lld.%03d, ssrc:0x%x, size: %d, data_file pos:%ld\n", 
                 (int)frame_info.sub_stream_index, 
                 frame_info.frame_type, 
                 (long long)frame_info.timestamp.tv_sec, 
                 (int)(frame_info.timestamp.tv_usec/1000), 
                 (unsigned)frame_info.ssrc, 
-                (int)(frame_size));
+                (int)(frame_size),
+                pos);
+#if 0                
         int i = 0;
         for(i=0;i < (int)frame_size; i++){
             if(i % 32 == 0){
-                fprintf(text_file_, "\n");                
+                fprintf(info_file_, "\n");                
             }
             
             //snprintf(tmp_buf, 10, "%d ", (int)0);
-            fprintf(text_file_, "%02hhx ", frame_data[i]);
+            fprintf(info_file_, "%02hhx ", frame_data[i]);
             //fprintf(text_file_, "%02hhx ", (char)0);
         }
-        fprintf(text_file_, "\n\n"); 
+        fprintf(info_file_, "\n\n"); 
+#endif    
+        if(data_files_[frame_info.sub_stream_index]){
+            fwrite(frame_data, 1, frame_size, data_files_[frame_info.sub_stream_index]);
+        }
     }
+
     
     last_frame_rec_sec_ = time(NULL);    
  
@@ -363,8 +476,8 @@ void ParseArgv(int argc, char *argv[],
                    "log rotate number, 0 means no rotating", NULL, NULL);       
     parser->RegisterOption("sink-file", 'f', 
                     OPTION_FLAG_WITH_ARG,  "FILE", 
-                   "the text file path to which this sink dumps the frames. "
-                   "This option must be set for text sink", 
+                   "the text file path to which this sink dumps the frames info. "
+                   "If not given, no file is generated", 
                    NULL, NULL); 
     parser->RegisterOption("queue-size", 'q', 
                     OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
@@ -487,7 +600,7 @@ int main(int argc, char *argv[])
         
     }else if(parser.CheckOption("host")){
         ret = text_sink.InitRemote(
-            parser.OptionValue("sink-file", ""),
+            parser.OptionValue("sink-file", ""),        
             parser.OptionValue("host", ""),
             str2int(parser.OptionValue("port", "0")), 
             queue_size, 
