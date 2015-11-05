@@ -89,6 +89,8 @@ protected:
 protected:
 
     int h_number_;
+    u_int32_t recv_buf_size_;
+
 
     
 };

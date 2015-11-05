@@ -36,6 +36,8 @@
 
 char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
 
+#define MAX_PARAMETER_NAL_SIZE  1024    
+
 
 H264or5OutputSink* H264or5OutputSink::createNew(UsageEnvironment& env,
                                             LiveRtspClient *rtsp_client,
@@ -47,7 +49,7 @@ H264or5OutputSink* H264or5OutputSink::createNew(UsageEnvironment& env,
     //sanity check
     if(subsession == NULL ||
        sub_stream_index < 0 ||
-       sink_buf_size < 100 ||
+       sink_buf_size < MAX_PARAMETER_NAL_SIZE ||
        (h_number != 264 && h_number != 265)){
         return NULL;
     }
@@ -63,7 +65,7 @@ H264or5OutputSink::H264or5OutputSink(UsageEnvironment& env,
                     int32_t sub_stream_index, size_t sink_buf_size, 
                     int h_number)
 : MediaOutputSink(env, rtsp_client, subsession, sub_stream_index, sink_buf_size), 
-h_number_(h_number)
+h_number_(h_number), recv_buf_size_(0)
 {
     
     
@@ -93,31 +95,31 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
         last_pts_.tv_sec = presentationTime.tv_sec;
         last_pts_.tv_usec = presentationTime.tv_usec;
     }
+
+    if(numTruncatedBytes > 0){
+        envir() << "A media frame is truncated with bytes:" 
+                << numTruncatedBytes << " from " 
+                << "Stream index:\"" << sub_stream_index_ << "\" ("
+                << subsession_->mediumName() << "/" << subsession_->codecName() 
+                <<"), Dropped\n";   
+        recv_buf_size_ = 0; //clear the recv_buf_;
+        return;
+    }
+
     
     H264or5VideoStreamFramer * source = 
         dynamic_cast<H264or5VideoStreamFramer *> (subsession_->readSource());
         
     if(source == NULL){
         //not H264or5VideoStreamFramer, just use default method
-        memmove(recv_buf_, recv_buf_ + 4, frameSize); //recover recv_buf_ by removing the prepend start code 
+        memmove(recv_buf_, recv_buf_ + recv_buf_size_, frameSize); //recover recv_buf_ by removing the prepend start code 
+        recv_buf_size_ = 0;
         MediaOutputSink::DoAfterGettingFrame(frameSize, numTruncatedBytes, 
             presentationTime, durationInMicroseconds);
         return;
     }
     
-    //clean the buf queue if overtime
-    if(frame_queue_.size() != 0){
-        double cur_frame_pts = (double)presentationTime.tv_sec + 
-            ((double)presentationTime.tv_usec) / 1000000.0;
-        struct timeval first_pts;
-        GetQueueFirstPts(&first_pts);
-        double first_frame_pts = (double)first_pts.tv_sec + 
-            ((double)first_pts.tv_usec) / 1000000.0;        
-        if(cur_frame_pts - first_frame_pts > 0.01){  //cache 10ms 
-            ClearQueue();
-        }
-    }
-    
+ 
 
     //update metadata if needed
     if(rtsp_client_ != NULL && 
@@ -180,9 +182,9 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
     //analyze the frame's type
     u_int8_t nal_unit_type;
     if (h_number_ == 264 && frameSize >= 1) {
-        nal_unit_type = recv_buf_[4]&0x1F;
+        nal_unit_type = recv_buf_[recv_buf_size_]&0x1F;
     } else if (h_number_ == 265 && frameSize >= 2) {
-        nal_unit_type = (recv_buf_[4]&0x7E)>>1;
+        nal_unit_type = (recv_buf_[recv_buf_size_]&0x7E)>>1;
     } else {
         // This is too short to be a valid NAL unit, so just assume a bogus nal_unit_type
         nal_unit_type = 0xFF;
@@ -203,31 +205,53 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
     CheckLostByTime(frame_type, presentationTime); 
     
     
+    recv_buf_size_ += frameSize; // update current recv_buf size
+    
     if(rtsp_client_ != NULL){
+        
         if(rtsp_client_->IsMetaReady()){
-            //flush frame cache first
-            if(frame_queue_.size() != 0){
-                FlushQueue();
-            }
             
-            //callback the parent rtsp client frame receive interface
-            if(rtsp_client_ != NULL){                
-                //frameSize + 4 to include the prepend start code
+     
+            
+            if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
+                // just buffer this parameter nal   
+                
+                if(recv_buf_size_ > MAX_PARAMETER_NAL_SIZE){
+                    //Anormal case, may be results from packet lost
+                    rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
+                                                    presentationTime, 
+                                                    recv_buf_size_, 
+                                                    (const char *)recv_buf_);    
+                    recv_buf_size_ = 0; // clear the buffer
+                }
+            }else{
+                //send the whole recv_buf_
                 rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
-                                                presentationTime, frameSize + 4, (const char *)recv_buf_);
-
-            }
+                                                presentationTime, 
+                                                recv_buf_size_, 
+                                                (const char *)recv_buf_);   
+                recv_buf_size_ = 0; // clear the buffer
+            }            
+            
         }else{
             
             if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
-                //only buffer the param frame
-                PushOneFrame(frame_type, 
-                             presentationTime, 
-                             frameSize + 4, (const char *)recv_buf_);
+                // just buffer this parameter nal   
+                
+                if(recv_buf_size_ > MAX_PARAMETER_NAL_SIZE){
+                    //Anormal case, may be results from packet lost
+
+                    recv_buf_size_ = 0; // clear the buffer
+                }
+            }else{
+                //drop the frame, clear the buffer
+                recv_buf_size_ = 0; // clear the buffer
             }
-            //drop the frame; 
         }
         
+    }else{
+        //drop the whole frame
+        recv_buf_size_ = 0; // clear the buffer
     }
     
         
@@ -237,11 +261,12 @@ Boolean H264or5OutputSink::continuePlaying() {
     if (fSource == NULL) return False; // sanity check (should not happen)
     
     //h264/h265 need prepend the start code
-    memcpy(recv_buf_, start_code, 4);
+    memcpy(recv_buf_ + recv_buf_size_, start_code, 4);
+    recv_buf_size_ += 4;
     
     // Request the next frame of data from our input source.  
     //"afterGettingFrame()" will get called later, when it arrives:
-    fSource->getNextFrame(recv_buf_ + 4, sink_buf_size_ - 4,
+    fSource->getNextFrame(recv_buf_ + recv_buf_size_, sink_buf_size_ - recv_buf_size_,
                         afterGettingFrame, this,
                         onSourceClosure, this);
     return True; 
