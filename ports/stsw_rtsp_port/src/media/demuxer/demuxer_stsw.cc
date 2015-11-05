@@ -718,7 +718,7 @@ static int stsw_start(Resource * r)
             return RESOURCE_DAMAGED;
         }
             
-
+#define MAX_SUBSCRIBER_BUFFER_TIME 2.0
             
         if(priv->sink != NULL && (!priv->sink->IsStarted())){            
 
@@ -731,7 +731,7 @@ static int stsw_start(Resource * r)
                 // first play                    
                 double play_time = ev_now(r->srv->loop);
                 if(play_time - priv->init_time < 0 ||
-                    play_time - priv->init_time > 2){  
+                    play_time - priv->init_time > MAX_SUBSCRIBER_BUFFER_TIME){  
                     // if interval between init() and start() exceed 2 seconds
                     // which is anormal, clean the subscriber socket to 
                     // drops the frames out of date
