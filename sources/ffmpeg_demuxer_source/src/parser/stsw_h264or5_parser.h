@@ -45,6 +45,11 @@ public:
     
     virtual int Init(FFmpegDemuxer *demuxer, int stream_index);
 
+    virtual int Parse(stream_switch::MediaFrameInfo *frame_info, 
+                      AVPacket *pkt, 
+                      bool* is_meta_changed);
+
+
     virtual bool IsMetaReady();
 
 protected:

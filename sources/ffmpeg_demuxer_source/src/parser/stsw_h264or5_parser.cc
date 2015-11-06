@@ -36,6 +36,8 @@
 #include "../stsw_ffmpeg_source_global.h"
 #include "../stsw_log.h"
 
+#include <arpa/inet.h>
+
 extern "C"{
 
  
@@ -55,6 +57,9 @@ int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
 {
     AVStream *st= demuxer->fmt_ctx_->streams[stream_index];
     AVCodecContext *codec= st->codec;      
+
+    printf("file:%s, line:%d\n", __FILE__, __LINE__); 
+
     
     if(codec->codec_id == AV_CODEC_ID_H264){
         h_number_ = 264;
@@ -69,7 +74,33 @@ int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
     return StreamParser::Init(demuxer, stream_index);
 }
 
+int H264or5Parser::Parse(stream_switch::MediaFrameInfo *frame_info, 
+                         AVPacket *pkt, 
+                         bool* is_meta_changed)
+{   
+    //support avc1 packet format
+    static const char start_code[4] = { 0, 0, 0, 1 };
+    if(memcmp(start_code, pkt->data, 4) != 0)
+    {//is avc1 code, have no start code of H264
+        int len = 0;
+        uint8_t *p = pkt->data;
 
+        do{//add start_code for each NAL, one frame may have multi NALs.
+            len = ntohl(*((long*)p));
+            memcpy(p, start_code, 4);
+
+            p += 4;
+            p += len;
+            if(p >= pkt->data + pkt->size)
+            {
+                break;
+            }
+        } while (1);
+    }    
+    
+    return StreamParser::Parse(frame_info, pkt, is_meta_changed);
+                             
+}
 
 bool H264or5Parser::IsMetaReady()
 {
