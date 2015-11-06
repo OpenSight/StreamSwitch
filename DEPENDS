@@ -25,3 +25,7 @@ packages of the following projects:
     * libev >= 4.0
     * libnetembryo >= 0.1.0
     * glib-2.0 >= 2.16
+    
+4. ffmpeg_demuxer_source depends
+
+    * ffmpeg >= 2.8
