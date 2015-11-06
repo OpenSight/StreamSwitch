@@ -56,7 +56,7 @@ am_ffmpeg_demuxer_source_OBJECTS = src/stsw_main.$(OBJEXT) \
 	src/stsw_ffmpeg_demuxer.$(OBJEXT) \
 	src/parser/stsw_stream_parser.$(OBJEXT) \
 	src/parser/stsw_h264or5_parser.$(OBJEXT) \
-	src/stsw_log.$(OBJEXT)
+	src/parser/stsw_mpeg4_parser.$(OBJEXT) src/stsw_log.$(OBJEXT)
 ffmpeg_demuxer_source_OBJECTS = $(am_ffmpeg_demuxer_source_OBJECTS)
 ffmpeg_demuxer_source_DEPENDENCIES =  \
 	$(builddir)/../../libstreamswitch/libstreamswitch.la
@@ -257,6 +257,8 @@ ffmpeg_demuxer_source_SOURCES = src/stsw_main.cc \
     src/parser/stsw_stream_parser.h \
     src/parser/stsw_h264or5_parser.cc \
     src/parser/stsw_h264or5_parser.h \
+    src/parser/stsw_mpeg4_parser.cc \
+    src/parser/stsw_mpeg4_parser.h \
     src/stsw_ffmpeg_source_global.h \
     src/stsw_log.cc \
     src/stsw_log.h
@@ -363,6 +365,8 @@ src/parser/stsw_stream_parser.$(OBJEXT): src/parser/$(am__dirstamp) \
 	src/parser/$(DEPDIR)/$(am__dirstamp)
 src/parser/stsw_h264or5_parser.$(OBJEXT): src/parser/$(am__dirstamp) \
 	src/parser/$(DEPDIR)/$(am__dirstamp)
+src/parser/stsw_mpeg4_parser.$(OBJEXT): src/parser/$(am__dirstamp) \
+	src/parser/$(DEPDIR)/$(am__dirstamp)
 src/stsw_log.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 ffmpeg_demuxer_source$(EXEEXT): $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxer_source_DEPENDENCIES) 
@@ -372,6 +376,7 @@ ffmpeg_demuxer_source$(EXEEXT): $(ffmpeg_demuxer_source_OBJECTS) $(ffmpeg_demuxe
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f src/parser/stsw_h264or5_parser.$(OBJEXT)
+	-rm -f src/parser/stsw_mpeg4_parser.$(OBJEXT)
 	-rm -f src/parser/stsw_stream_parser.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_arg_parser.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_demuxer.$(OBJEXT)
@@ -388,6 +393,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/parser/$(DEPDIR)/stsw_h264or5_parser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/parser/$(DEPDIR)/stsw_mpeg4_parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/parser/$(DEPDIR)/stsw_stream_parser.Po@am__quote@
 
 .cc.o:

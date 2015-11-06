@@ -133,9 +133,11 @@ int FFmpegDemuxer::Open(const std::string &input,
         ret = FFMPEG_SOURCE_ERR_IO;
         goto err_out2;  
     }  
-
+#define DUMP_AVFORMAT
 #ifdef DUMP_AVFORMAT
-    av_dump_format(fmt_ctx_, 0, src_filename, 0);
+        STDERR_LOG(stream_switch::LOG_LEVEL_INFO,  
+            "FFmpegDemuxer::Open(): avformat context is dumped below\n");    
+    av_dump_format(fmt_ctx_, 0, input.c_str(), 0);
 #endif  
    
     //calculate ssrc
@@ -316,6 +318,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
                 "FFmpegDemuxer not open\n");         
         return -1;
     } 
+    
     if(!io_enabled()){
         return FFMPEG_SOURCE_ERR_IO;
     }
@@ -323,7 +326,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         //pkt has not yet free
         av_free_packet(pkt);
     }
-    
+ 
     //check cache first
     if(cached_pkts.size() != 0){
         (*frame_info) = cached_pkts.front().frame_info;
@@ -334,18 +337,21 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         cached_pkts.pop_front();
         return 0;
     }
-    
+  
     StartIO();
     ret = av_read_frame(fmt_ctx_, pkt);
     StopIO();
-    if(ret == AVERROR_EOF){
+    if(ret == AVERROR_EOF){       
         ret = FFMPEG_SOURCE_ERR_EOF;
         goto error_out1;
-    }else{
+    }else if(ret){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+                "av_read_frame failed with ret(%d)\n", ret);         
         ret = FFMPEG_SOURCE_ERR_IO;
         goto error_out1;        
     }
 
+#define DUMP_PACKET    
 #ifdef DUMP_PACKET
     {
         STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
@@ -355,7 +361,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
                          
     }
 #endif      
-    
+ 
     stream_index = pkt->stream_index;
     if(stream_index >= stream_parsers_.size()){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
@@ -363,6 +369,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto error_out2; 
     }
+    //printf("file:%s, line:%d\n", __FILE__, __LINE__);    
     ret = stream_parsers_[stream_index]->Parse(frame_info, 
                                                pkt, 
                                                is_meta_changed);
@@ -370,7 +377,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         goto error_out2;   
     }
     frame_info->ssrc = ssrc_;
-        
+    //printf("file:%s, line:%d\n", __FILE__, __LINE__);        
     return 0;
 
 error_out2:
@@ -425,15 +432,16 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
         if(ret == AVERROR_EOF){
             ret = FFMPEG_SOURCE_ERR_EOF;
             break;
-        }else{
+        }else if(ret){
             ret = FFMPEG_SOURCE_ERR_IO;
             break;       
         }
+    
 #ifdef DUMP_PACKET
         {
             STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
                        "Read the following packet from input file\n");         
-            av_pkt_dump_log2(NULL, AV_LOG_DEBUG, pkt, 0, 
+            av_pkt_dump_log2(NULL, AV_LOG_DEBUG, &(pkt_node.pkt), 0, 
                 fmt_ctx_->streams[pkt_node.pkt.stream_index]);
                          
         }
@@ -512,6 +520,7 @@ int FFmpegDemuxer::StaticIOInterruptCB(void* user_data)
 int FFmpegDemuxer::IOInterruptCB()
 {
     if(!io_enabled()){
+
         return 1;
     }
     if(io_start_ts_.tv_sec != 0){

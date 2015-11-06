@@ -39,7 +39,8 @@
 
 #include "../stsw_ffmpeg_demuxer.h"
 #include "../stsw_ffmpeg_source_global.h"
-
+#include "stsw_h264or5_parser.h"
+#include "stsw_mpeg4_parser.h"
 
 extern "C"{
 
@@ -268,9 +269,9 @@ struct ParserInfo {
 
 //FIXME this should be simplified!
 static const ParserInfo parser_infos[] = {
-   { AV_CODEC_ID_H264, NULL, "H264" },
-   { AV_CODEC_ID_H265, NULL, "H265" }, 
-   { AV_CODEC_ID_MPEG4, NULL, "MP4V-ES" },
+   { AV_CODEC_ID_H264, StreamParserFatcory<H264or5Parser>, "H264" },
+   { AV_CODEC_ID_H265, StreamParserFatcory<H264or5Parser>, "H265" }, 
+   { AV_CODEC_ID_MPEG4, StreamParserFatcory<Mpeg4Parser>, "MP4V-ES" },
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},

@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     //
     // init global logger
     log_level = 
-        strtol(parser.OptionValue("log-rotate", "6").c_str(), NULL, 0);       
+        strtol(parser.OptionValue("log-level", "6").c_str(), NULL, 0);       
     if(parser.CheckOption(std::string("log-file"))){        
         //init the global logger
         std::string log_file = 
