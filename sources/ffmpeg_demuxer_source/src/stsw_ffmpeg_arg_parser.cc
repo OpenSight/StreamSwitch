@@ -97,7 +97,10 @@ bool FFmpegArgParser::ParseUnknown(const char * unknown_arg)
         if(ffmpeg_option.find('=') == std::string::npos){
             ffmpeg_option.append("=1");
         }
-        ffmpeg_options_.append(",");
+        if(ffmpeg_options_.size() != 0){
+            ffmpeg_options_.append(",");
+        
+        }
         ffmpeg_options_.append(ffmpeg_option);  
         return true;
     }

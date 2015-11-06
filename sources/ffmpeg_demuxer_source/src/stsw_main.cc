@@ -219,8 +219,8 @@ int main(int argc, char *argv[])
             {
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                printf("signal catchtime is %lld.%06d\n", 
-                   (long long)tv.tv_sec, (int)tv.tv_usec);
+                //printf("signal catchtime is %lld.%06d\n", 
+                //   (long long)tv.tv_sec, (int)tv.tv_usec);
             }
                
             break;
@@ -260,14 +260,14 @@ exit_1:
     
     //streamswitch library uninit
     GlobalUninit();
-
+/*
     {
                 struct timeval tv;
         gettimeofday(&tv, NULL);
             printf("End time is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);    
     }
-   
+*/   
     return ret;
 }
 

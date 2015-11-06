@@ -58,7 +58,7 @@ int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
     AVStream *st= demuxer->fmt_ctx_->streams[stream_index];
     AVCodecContext *codec= st->codec;      
 
-    printf("file:%s, line:%d\n", __FILE__, __LINE__); 
+    //printf("file:%s, line:%d\n", __FILE__, __LINE__); 
 
     
     if(codec->codec_id == AV_CODEC_ID_H264){

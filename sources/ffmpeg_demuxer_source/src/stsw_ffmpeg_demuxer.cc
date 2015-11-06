@@ -76,8 +76,9 @@ int FFmpegDemuxer::Open(const std::string &input,
     if(!io_enabled()){
         return FFMPEG_SOURCE_ERR_IO;
     }
-    
+    //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
+   
     ret = av_dict_parse_string(&format_opts, 
                                ffmpeg_options_str.c_str(),
                                "=", ",", 0);
@@ -89,6 +90,10 @@ int FFmpegDemuxer::Open(const std::string &input,
         ret = FFMPEG_SOURCE_ERR_GENERAL;                   
         goto err_out1;
     }
+
+    //av_dict_set(&format_opts, "rtsp_transport", "tcp", 0);
+    //printf("option dict count:%d\n", av_dict_count(format_opts));
+    
     
     //allocate the format context
     fmt_ctx_ = avformat_alloc_context();
@@ -118,6 +123,13 @@ int FFmpegDemuxer::Open(const std::string &input,
     }
     
     if(format_opts != NULL){
+        int no_parsed_option_num = av_dict_count(format_opts);
+        if(no_parsed_option_num){
+            STDERR_LOG(stream_switch::LOG_LEVEL_WARNING,  
+            "%d options cannot be parsed by ffmpeg avformat context\n", 
+            no_parsed_option_num);            
+        }
+        //printf("after open, option dict count:%d\n", av_dict_count(format_opts));
         av_dict_free(&format_opts);
         format_opts = NULL;
     }        
