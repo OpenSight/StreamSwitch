@@ -62,7 +62,7 @@ class StreamConf(Base):
         self.extra_options = json.loads(self.extra_options_json)
         self.other_kwargs = json.loads(self.other_kwargs_json)
 
-        print("init_on_load")
+        # print("init_on_load")
 
     def __repr__(self):
         return "StreamConf Object(stream_name:%s, source_type:%s, " \
