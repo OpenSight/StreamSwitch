@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     //
     // init global logger
     log_level = 
-        strtol(parser.OptionValue("log-rotate", "6").c_str(), NULL, 0);       
+        strtol(parser.OptionValue("log-level", "6").c_str(), NULL, 0);       
     if(parser.CheckOption(std::string("log-file"))){        
         //init the global logger
         std::string log_file = 
@@ -219,8 +219,8 @@ int main(int argc, char *argv[])
             {
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                printf("signal catchtime is %lld.%06d\n", 
-                   (long long)tv.tv_sec, (int)tv.tv_usec);
+                //printf("signal catchtime is %lld.%06d\n", 
+                //   (long long)tv.tv_sec, (int)tv.tv_usec);
             }
                
             break;
@@ -260,14 +260,14 @@ exit_1:
     
     //streamswitch library uninit
     GlobalUninit();
-
+/*
     {
                 struct timeval tv;
         gettimeofday(&tv, NULL);
             printf("End time is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);    
     }
-   
+*/   
     return ret;
 }
 

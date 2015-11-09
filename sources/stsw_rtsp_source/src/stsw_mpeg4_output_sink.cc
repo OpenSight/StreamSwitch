@@ -87,7 +87,15 @@ void Mpeg4OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrunca
         last_pts_.tv_sec = presentationTime.tv_sec;
         last_pts_.tv_usec = presentationTime.tv_usec;
     }
-
+    
+    if(numTruncatedBytes > 0){
+        envir() << "A media frame is truncated with bytes:" 
+                << numTruncatedBytes << " from " 
+                << "Stream index:\"" << sub_stream_index_ << "\" ("
+                << subsession_->mediumName() << "/" << subsession_->codecName() 
+                <<"), Dropped\n";   
+        return;
+    }
 
     
     MPEG4VideoStreamDiscreteFramer * source = 

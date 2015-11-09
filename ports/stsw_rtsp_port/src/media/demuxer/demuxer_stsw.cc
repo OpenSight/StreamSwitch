@@ -94,6 +94,7 @@ typedef struct stsw_priv_type{
     int has_sync;
     double delta_time;
     
+    double init_time;
     
 } stsw_priv_type;
 
@@ -413,6 +414,7 @@ static int stsw_init(Resource * r)
     priv->sink = new StreamSink();
     priv->listener = new DemuxerSinkListener(stream_name, r);
     priv->stream_type = r->srv->srvconf.default_stream_type;
+    priv->init_time = -1;
     it = params.find(std::string("stream_type"));
     if(it != params.end()){
         if(it->second == "raw"){
@@ -627,6 +629,7 @@ static int stsw_init(Resource * r)
         fnc_log(FNC_LOG_DEBUG, "[stsw] init replay stream with duration %f", r->info->duration);
         
     }
+    priv->init_time =  ev_now(r->srv->loop);
     
     r->timescaler = stsw_timescaler;
     r->private_data = priv;
@@ -699,47 +702,66 @@ static int stsw_start(Resource * r)
     int ret;
     std::string err_info;
     /* start the sink */
-    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
-    if(priv != NULL){
+    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;   
+    if(priv == NULL){
+        return RESOURCE_DAMAGED;
+    }
+ 
+    if(r->info->media_source == MS_live){
+        //for live stream, start the sink
+    
+
         RTSP_session *session = (RTSP_session *)r->rtsp_sess;
         RTSP_Range *range = (RTSP_Range *)g_queue_peek_head(session->play_requests);
         if(range == NULL){
             //this situation should not happen
             return RESOURCE_DAMAGED;
         }
-        
-
-        
-        if(priv->sink != NULL && (!priv->sink->IsStarted())){            
             
+#define MAX_SUBSCRIBER_BUFFER_TIME 2.0
+            
+        if(priv->sink != NULL && (!priv->sink->IsStarted())){            
+
             //for live stream, resync the time
             priv->playback_time = range->playback_time;
             priv->delta_time = 0;
-            priv->has_sync = 0;  
-
-        
+            priv->has_sync = 0;              
+                    
+            if(priv->init_time > 0){
+                // first play                    
+                double play_time = ev_now(r->srv->loop);
+                if(play_time - priv->init_time < 0 ||
+                    play_time - priv->init_time > MAX_SUBSCRIBER_BUFFER_TIME){  
+                    // if interval between init() and start() exceed 2 seconds
+                    // which is anormal, clean the subscriber socket to 
+                    // drops the frames out of date
+                    priv->sink->DestroySubscriberSocket();
+                    fnc_log(FNC_LOG_WARN, "[stsw] Client setup time is too long, "
+                            "destroy the subscriber socket to drop all buffered frames\n");
+                } // if(play_time - priv->init_time < 0 ||
+                priv->init_time = -1;
+            }
+            
             ret = priv->sink->Start(&err_info);
             if(ret){
                 fnc_log(FNC_LOG_ERR, "[stsw] Fail to start the StreamSwitch Sink(%d): %s\n", 
-                    ret, err_info.c_str());
+                        ret, err_info.c_str());
                 return RESOURCE_DAMAGED;                
             }
-            
+                
             //request the key frame now
             ret = priv->sink->KeyFrame(DEMUXER_STSW_METADATA_TIMEOUT, 
-                                       &err_info);
+                                           &err_info);
             if(ret){
                 fnc_log(FNC_LOG_ERR, "[stsw] Fail to request the key frame(%d): %s\n", 
-                    ret, err_info.c_str());
+                        ret, err_info.c_str());
                 priv->sink->Stop();
                 return RESOURCE_DAMAGED;                
-            }
-                                       
-
-            
-        }
-        
+            } 
+                
+        }//if(priv->sink != NULL && (!priv->sink->IsStarted())){                        
         return RESOURCE_OK;
+        
     }
     
     return RESOURCE_OK;
@@ -747,18 +769,20 @@ static int stsw_start(Resource * r)
 
 static void stsw_pause(Resource * r)
 {
+    stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
+    if(priv == NULL){
+        return;
+    }
+
+    
     /* stop the sink */
     if(r->info->media_source == MS_live){
         //for live stream, stop the sink
-        stsw_priv_type * priv = (stsw_priv_type *)r->private_data;    
-        if(priv != NULL){
-            if(priv->sink != NULL ){
-                g_mutex_unlock(r->lock);
-                priv->sink->Stop();
-                g_mutex_lock(r->lock);
-            }      
-  
-        }//if(priv != NULL)        
+        g_mutex_unlock(r->lock);
+        priv->sink->Stop();
+        g_mutex_lock(r->lock);
+    
+     
     }else{
         // for replay stream, don't stop sink to keep the sink send out
         // heartbeat to the source

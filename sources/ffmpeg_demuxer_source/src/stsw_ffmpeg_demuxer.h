@@ -51,6 +51,7 @@ struct PktNode{
 };
 class StreamParser;
 class H264or5Parser;
+class Mpeg4Parser;
 typedef std::vector<StreamParser *> StreamParserVector;
 typedef std::list<PktNode> PacketCachedList;
 
@@ -82,6 +83,7 @@ public:
 protected:
     friend class StreamParser;
     friend class H264or5Parser;
+    friend class Mpeg4Parser;
     
     virtual bool IsMetaReady();
     

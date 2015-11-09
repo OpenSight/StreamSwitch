@@ -100,6 +100,8 @@ int FFmpegDemuxerSource::Init(std::string input,
     int ret = 0;
     struct sigaction action;
     
+    
+    //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //install the SIGUSR1 handler
     action.sa_handler = sigusr1_handler;
     action.sa_flags = 0;
