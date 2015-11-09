@@ -750,6 +750,7 @@ int StreamSource::MetadataHandler(const ProtoCommonPacket &request,
         metadata.set_source_proto(stream_meta_.source_proto);
         metadata.set_ssrc(stream_meta_.ssrc);
         metadata.set_bps(stream_meta_.bps);
+        metadata.set_stream_len(stream_meta_.stream_len);
 
         SubStreamMetadataVector::iterator it;
         int32_t index;

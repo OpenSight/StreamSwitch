@@ -1232,6 +1232,7 @@ int StreamSink::UpdateStreamMetaData(int timeout, StreamMetadata * metadata, std
         stream_meta_.source_proto = metadata_rep.source_proto();
         stream_meta_.ssrc = metadata_rep.ssrc();
         stream_meta_.bps = metadata_rep.bps();  
+        stream_meta_.stream_len = metadata_rep.stream_len();
         stream_meta_.sub_streams.reserve(sub_stream_num);
 
         ::google::protobuf::RepeatedPtrField< ::stream_switch::ProtoSubStreamInfo >::const_iterator it;    
