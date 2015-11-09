@@ -100,6 +100,13 @@ int H264or5Parser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
                 meta_changed = true;
             }
         } 
+        if(stream_->avg_frame_rate.num != 0 && stream_->avg_frame_rate.den != 0){
+            uint32_t fps = stream_->avg_frame_rate.num / stream_->avg_frame_rate.num;
+            if(fps != demuxer_->meta_.sub_streams[stream_index_].media_param.fps){
+                demuxer_->meta_.sub_streams[stream_index_].media_param.fps = fps;
+                meta_changed = true;
+            }
+        }
         //check extra data
         int extra_size = GetExtraDataSize(pkt);
         if(extra_size != 0){
