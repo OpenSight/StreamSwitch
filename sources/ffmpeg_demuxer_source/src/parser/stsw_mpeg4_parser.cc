@@ -42,7 +42,15 @@ extern "C"{
 #include <libavcodec/avcodec.h>      
 }
 
+int Mpeg4Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
+{
 
+    //never use the default extra data which is provided by ffmpeg for mpeg4 video,
+    //Instead, extract it from the key frame by myself
+    demuxer->meta_.sub_streams[stream_index_].extra_data.clear(); 
+    
+    return StreamParser::Init(demuxer, stream_index);
+}
 
 
 bool Mpeg4Parser::IsMetaReady()

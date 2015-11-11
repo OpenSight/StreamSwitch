@@ -71,6 +71,10 @@ int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
                 (int)codec->codec_id);  
         return -1;
     }
+    //Never use the default extra data which is provided by ffmpeg for h264/h265,
+    //Instead, extract it from the key frame by myself
+    demuxer->meta_.sub_streams[stream_index_].extra_data.clear(); 
+    
     return StreamParser::Init(demuxer, stream_index);
 }
 

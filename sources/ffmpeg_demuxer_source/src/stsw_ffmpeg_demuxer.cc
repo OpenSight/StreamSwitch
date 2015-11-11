@@ -201,6 +201,8 @@ int FFmpegDemuxer::Open(const std::string &input,
         sub_metadata.codec_name = CodecNameFromId(codec->codec_id);
         sub_metadata.sub_stream_index = i;
         sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
+        sub_metadata.extra_data.assign((const char *)codec->extradata, 
+                                       (size_t)codec->extradata_size);
         switch(codec->codec_type){
         case AVMEDIA_TYPE_AUDIO:
             sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_AUDIO;

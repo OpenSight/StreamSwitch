@@ -40,7 +40,7 @@
 class Mpeg4Parser: public StreamParser{
   
 public:
-
+    virtual int Init(FFmpegDemuxer *demuxer, int stream_index);
     virtual bool IsMetaReady();
 
 protected:
