@@ -86,6 +86,7 @@ class StreamService(object):
                     log_size=stream_conf.log_size,
                     log_rotate=stream_conf.log_rotate,
                     err_restart_interval=stream_conf.err_restart_interval,
+                    age_time=stream_conf.age_time,
                     extra_options=stream_conf.extra_options,
                     event_listener=self._stream_event_listener,
                     **stream_conf.other_kwargs)

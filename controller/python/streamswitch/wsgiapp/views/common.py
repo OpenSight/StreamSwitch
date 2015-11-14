@@ -115,7 +115,10 @@ def get_params_from_request(request, schema=None):
     """
     params = dict(request.params)
     if "json" in request.content_type:
-        params.update(request.json_body)
+        if isinstance(request.json_body, dict):
+            params.update(request.json_body)
+        else:
+            params = copy.copy(request.json_body)
     if schema is not None:
         params = schema.validate(params)
 

@@ -43,7 +43,7 @@ def _get_next_watcher_id():
 
 class ProcWatcher(object):
     def __init__(self, args, 
-                 error_restart_interval=30.0, success_restart_interval=1.0,
+                 error_restart_interval=30.0, age_time=0.0,
                  poll_interval = 0.1, process_status_cb=None):
         """ ProcWatcher constructor
 
@@ -61,9 +61,9 @@ class ProcWatcher(object):
         self.process_return_code = 0
         self.process_exit_time = 0
         self.auto_restart_count = 0
+        self.age_time = float(age_time)
         self._proc_start_time = 0
         self._error_restart_interval = float(error_restart_interval)
-        self._success_restart_interval = float(success_restart_interval)
         self._popen = None
         self._started = False
         if process_status_cb is not None:
@@ -72,6 +72,7 @@ class ProcWatcher(object):
             self._process_status_cb_weakref = None
         self._poll_greenlet = None
         self._poll_interval = poll_interval
+        self._has_aged = False
 
         # add to the manager
         global _watchers
@@ -80,13 +81,14 @@ class ProcWatcher(object):
         _watchers[self.wid] = self
 
     def __str__(self):
-        return ('ProcWatcher (wid:%s, args:%s, pid:%s, process_status:%d,'
-                'process_return_code:%d, process_exit_time:%f '
-                'process_running_time:%f, restart_count:%d, is_started:%s)') % \
+        return ('ProcWatcher (wid:%s, args:%s, pid:%s, process_status:%d, '
+                'process_return_code:%d, process_exit_time:%f, '
+                'process_running_time:%f, restart_count:%d, '
+                'age_time:%f, is_started:%s)') % \
                (self.wid, self.args, self.pid, self.process_status,
                 self.process_return_code, self.process_exit_time,
                 self.process_running_time, self.auto_restart_count,
-                self.is_started())
+                self.age_time, self.is_started())
 
     def __del__(self):
         self._started = False
@@ -103,6 +105,7 @@ class ProcWatcher(object):
                                        close_fds=True,
                                        shell=False)
         # print("lanch new process %s, pid:%d" % (self.args, self._popen.pid))
+        self._has_aged = False
         self._proc_start_time = time.time()
         self._on_process_status_change()
 
@@ -112,6 +115,7 @@ class ProcWatcher(object):
         self.process_return_code = ret
         self.process_exit_time = time.time()
         self._proc_start_time = 0
+        # self._has_aged = False
         self._on_process_status_change()
 
     def _on_process_status_change(self):
@@ -129,12 +133,11 @@ class ProcWatcher(object):
 
         while True:
             watcher = watcher_weakref()
-            if (watcher is None) \
-                or (watcher.is_started() == False) \
+            if (watcher is None) or (watcher.is_started() == False) \
                 or (watcher._poll_greenlet != current):
-                return # make greenlet end
+                return # make greenlet exit
+            sleep_time = watcher._poll_interval
             try:
-                sleep_time = watcher._poll_interval
                 if watcher._popen is None:
                     # restart
                     watcher.auto_restart_count += 1
@@ -145,14 +148,20 @@ class ProcWatcher(object):
                     if ret is not None:
                         # the process terminate
                         watcher._on_process_terminate(ret)
-
                         if ret != 0:
                             # exit with error
                             sleep_time = watcher._error_restart_interval
                         else:
                             # exit normally
-                            sleep_time = watcher._success_restart_interval
-
+                            sleep_time = 0 # restart at once
+                    else:
+                        if watcher.age_time > 0 and (not watcher._has_aged): # if age time present, check age
+                            now = time.time()
+                            if watcher._proc_start_time > now: # check time is changed
+                                watcher._proc_start_time = now
+                            if now - watcher._proc_start_time > watcher.age_time:
+                                watcher._has_aged = True
+                                watcher._popen.terminate()
             except Exception:
                 pass
             del watcher
@@ -218,7 +227,8 @@ class ProcWatcher(object):
             self._started = True
 
             # spawn a poll greenlet to watch it
-            self._poll_greenlet = gevent.spawn(self._polling_run, weakref.ref(self))
+            if self._error_restart_interval > 0:  # only monitor the process if the err_restart_interval > 0
+                self._poll_greenlet = gevent.spawn(self._polling_run, weakref.ref(self))
 
         except Exception:
             self._started = False
@@ -390,7 +400,7 @@ def test_main():
     del ls_watcher
 
     print("create \"sleep\" watcher")
-    sleep_watcher = spawn_watcher(["sleep", "5"], 1, 1)
+    sleep_watcher = spawn_watcher(["sleep", "5"], error_restart_interval=1)
     print(sleep_watcher)
     org_pid = sleep_watcher.pid
     assert(sleep_watcher.pid is not None)

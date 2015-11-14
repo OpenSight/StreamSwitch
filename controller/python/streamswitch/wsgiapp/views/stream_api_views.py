@@ -66,6 +66,7 @@ new_stream_schema = Schema({
     Optional("log_size"): IntVal(1024, 100*1024*1024),  # 1K ~ 100M
     Optional("log_rotate"): IntVal(0, 10),   # rotate from 0 to 10
     Optional("err_restart_interval"): Use(float),
+    Optional("age_time"): Use(float),
     Optional("extra_options"): Schema({DoNotCare(Use(STRING)): Use(STRING)}),
     DoNotCare(Use(STRING)): object  # for all other key we don't care
 })

@@ -186,7 +186,7 @@ class BaseStream(object):
     SUBSCRIBER_QUEUE_SIZE = 16
 
     def __init__(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, event_listener=None,
+                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, age_time=0.0, extra_options={}, event_listener=None,
                  **kwargs):
         self.__stream_name = STRING(stream_name)  # stream_name cannot be modified
         if event_listener is not None:
@@ -213,6 +213,7 @@ class BaseStream(object):
         self.err_restart_interval = float(err_restart_interval)
         self.extra_options = dict(extra_options)
         self.mode = STREAM_MODE_ACTIVE
+        self.age_time = float(age_time)
 
         # status
         self.state = STREAM_STATE_CONNECTING
@@ -237,12 +238,12 @@ class BaseStream(object):
 
     def __str__(self):
         return ('Stream %s (source_type:%s, url:%s, api_tcp_port:%d, log_file:%s,'
-                'log_size:%d, log_rotate:%d err_restart_interval:%d, mode:%s, '
+                'log_size:%d, log_rotate:%d err_restart_interval:%f, age_time:%f, mode:%s, '
                 'state:%d, play_type:%d, source_protocol:%s, ssrc:%d, cur_bps:%d, '
                 'last_frame_time:%f, update_time:%f, client_num:%d)') % \
                (self.stream_name, self.source_type, self.url, self.api_tcp_port,
                 self.log_file, self.log_size, self.log_rotate,
-                self.err_restart_interval, self.mode, self.state, self.play_type,
+                self.err_restart_interval, self.age_time, self.mode, self.state, self.play_type,
                 self.source_protocol, self.ssrc, self.cur_bps,
                 self.last_frame_time, self.update_time, self.client_num)
 
@@ -603,9 +604,6 @@ class BaseStream(object):
         blob = None
         if len(bytes_list) > 2:
             blob = bytes_list[2]
-
-
-
         return channel, packet, blob
 
     def _parse_rep_bytes(self, bytes_list):
@@ -735,6 +733,7 @@ class SourceProcessStream(BaseStream):
             self._proc_watcher.destroy()
         self._proc_watcher = spawn_watcher(self.cmd_args,
                                            error_restart_interval=self.err_restart_interval,
+                                           age_time=self.age_time,
                                            process_status_cb=self._process_status_cb)
 
     def _restart_internal(self):
@@ -788,7 +787,7 @@ def list_source_types():
 
 
 def create_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0,
+                     log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, age_time=0.0,
                      extra_options={}, event_listener=None, **kwargs):
     # check params
     if source_type is None or stream_name is None:
@@ -803,6 +802,7 @@ def create_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, 
                             log_file=log_file, log_size=log_size,
                             log_rotate=log_rotate,
                             err_restart_interval=err_restart_interval,
+                            age_time=age_time,
                             extra_options=extra_options,
                             event_listener=event_listener, **kwargs)
 

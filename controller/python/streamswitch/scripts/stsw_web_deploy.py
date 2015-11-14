@@ -10,6 +10,7 @@ from streamswitch.wsgiapp.models import Base
 import argparse
 from streamswitch.exceptions import StreamSwitchError
 import os
+import os.path
 import stat
 import shutil
 from pkg_resources import resource_filename
@@ -68,7 +69,7 @@ to print the options description for each command
                                          'application to your system')
         parser.set_defaults(func=self.install)
         parser.add_argument("-f", "--force", action='store_true',
-                            help="by default, stsw_web_deploy would not override the files if it exists "
+                            help="by default, stsw_web_deploy would not override the config files if it exists "
                                                                        "unless this options is specified")
         parser.add_argument("--no-upgrade", action='store_true',
                             help="by default, stsw_web_deploy would upgrade the "
@@ -129,6 +130,15 @@ to print the options description for each command
                      stat.S_IREAD| stat.S_IWRITE \
                      | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
             print("Done")
+        conf_file_default_dest = os.path.join(STREAMSWITCH_CONF_DIR, "streamswitch.ini.default")
+        print("Install file %s " % conf_file_default_dest, end="......")
+        sys.stdout.flush()
+        src_file = resource_filename("streamswitch.wsgiapp", "conf/streamswitch.ini")
+        shutil.copy(src_file, conf_file_default_dest)
+        os.chmod(conf_file_default_dest,
+                 stat.S_IREAD| stat.S_IWRITE \
+                 | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+        print("Done")
 
         # copy ports.yaml
         ports_file_dest = os.path.join(STREAMSWITCH_CONF_DIR, "ports.yaml")
@@ -142,19 +152,26 @@ to print the options description for each command
                      stat.S_IREAD| stat.S_IWRITE \
                      | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             print("Done")
+        ports_file_default_dest = os.path.join(STREAMSWITCH_CONF_DIR, "ports.yaml.default")
+        print("Install file %s " % ports_file_default_dest, end="......")
+        sys.stdout.flush()
+        src_file = resource_filename("streamswitch.wsgiapp", "conf/ports.yaml")
+        shutil.copy(src_file, ports_file_default_dest)
+        os.chmod(ports_file_default_dest,
+                 stat.S_IREAD| stat.S_IWRITE \
+                 | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        print("Done")
 
         # copy init script
         init_script_dest = os.path.join("/etc/init.d", "streamswitch")
-        if not os.path.exists(init_script_dest) \
-            or args.force:
-            print("Install file %s " % init_script_dest, end="......")
-            sys.stdout.flush()
-            src_file = resource_filename("streamswitch.wsgiapp", "conf/streamswitch.init_script")
-            shutil.copy(src_file, init_script_dest)
-            os.chmod(init_script_dest,
-                     stat.S_IRWXU| stat.S_IRWXG \
-                     | stat.S_IRWXO )
-            print("Done")
+        print("Install file %s " % init_script_dest, end="......")
+        sys.stdout.flush()
+        src_file = resource_filename("streamswitch.wsgiapp", "conf/streamswitch.init_script")
+        shutil.copy(src_file, init_script_dest)
+        os.chmod(init_script_dest,
+                 stat.S_IRWXU| stat.S_IRWXG \
+                 | stat.S_IRWXO )
+        print("Done")
 
         # upgrade db
         if not args.no_upgrade:
@@ -168,9 +185,17 @@ to print the options description for each command
 
         # remove etc conf dir
         if os.path.exists(STREAMSWITCH_CONF_DIR):
-            print("Remove %s " % STREAMSWITCH_CONF_DIR, end="......")
+            print("Remove directory %s " % STREAMSWITCH_CONF_DIR, end="......")
             sys.stdout.flush()
             shutil.rmtree(STREAMSWITCH_CONF_DIR)
+            print("Done")
+
+        # remove the init script
+        init_script_dest = os.path.join("/etc/init.d", "streamswitch")
+        if os.path.exists(init_script_dest):
+            print("Remove file %s " % init_script_dest, end="......")
+            sys.stdout.flush()
+            os.remove(init_script_dest)
             print("Done")
 
     def initdb(self, args):

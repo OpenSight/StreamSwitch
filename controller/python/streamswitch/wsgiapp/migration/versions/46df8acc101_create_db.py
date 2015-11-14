@@ -27,6 +27,7 @@ def upgrade():
     sa.Column('log_size', sa.Integer(), server_default='1048576', nullable=False),
     sa.Column('log_rotate', sa.Integer(), server_default='3', nullable=False),
     sa.Column('err_restart_interval', sa.Float(), server_default='30.0', nullable=False),
+    sa.Column('age_time', sa.Float(), server_default='0.0', nullable=False),
     sa.Column('extra_options_json', sa.Text(convert_unicode=True), nullable=False),
     sa.Column('other_kwargs_json', sa.Text(convert_unicode=True), nullable=False),
     sa.PrimaryKeyConstraint('stream_name')

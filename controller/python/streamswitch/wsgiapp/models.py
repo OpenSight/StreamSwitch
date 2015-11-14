@@ -34,11 +34,12 @@ class StreamConf(Base):
     log_size = Column(Integer, server_default="1048576", nullable=False)
     log_rotate = Column(Integer, server_default="3", nullable=False)
     err_restart_interval = Column(Float, server_default="30.0", nullable=False)
+    age_time = Column(Float, server_default="0.0", nullable=False)
     extra_options_json = Column(Text(convert_unicode=True), default="{}", nullable=False)
     other_kwargs_json = Column(Text(convert_unicode=True), default="{}", nullable=False)
 
     def __init__(self, source_type, stream_name, url, api_tcp_port=0, log_file=None, log_size=DEFAULT_LOG_SIZE,
-                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, extra_options={}, **kwargs):
+                 log_rotate=DEFAULT_LOG_ROTATE, err_restart_interval=30.0, age_time=0.0, extra_options={}, **kwargs):
 
         # config
         self.stream_name = STRING(stream_name)
@@ -52,6 +53,7 @@ class StreamConf(Base):
         self.log_size = int(log_size)
         self.log_rotate = int(log_rotate)
         self.err_restart_interval = float(err_restart_interval)
+        self.age_time = float(age_time)
         self.extra_options = dict(extra_options)
         self.extra_options_json = STRING(encode_json(self.extra_options))
         self.other_kwargs = dict(kwargs)
