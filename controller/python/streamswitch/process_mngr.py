@@ -44,7 +44,7 @@ def _get_next_watcher_id():
 class ProcWatcher(object):
     def __init__(self, args, 
                  error_restart_interval=30.0, age_time=0.0,
-                 poll_interval = 0.1, process_status_cb=None):
+                 poll_interval=0.1, process_status_cb=None):
         """ ProcWatcher constructor
 
         Args:
@@ -93,8 +93,13 @@ class ProcWatcher(object):
     def __del__(self):
         self._started = False
         if self._popen is not None:
-            self._popen.kill()
-            self._popen = None
+            try:
+                # print("kill------------------")
+                self._popen.kill()
+            except OSError:
+                pass
+            finally:
+                self._popen = None
 
     def _launch_process(self):
 
@@ -116,6 +121,7 @@ class ProcWatcher(object):
         self.process_exit_time = time.time()
         self._proc_start_time = 0
         # self._has_aged = False
+        # print(ret)
         self._on_process_status_change()
 
     def _on_process_status_change(self):
@@ -132,9 +138,11 @@ class ProcWatcher(object):
         current = gevent.getcurrent()
 
         while True:
+            # print("check")
             watcher = watcher_weakref()
             if (watcher is None) or (watcher.is_started() == False) \
                 or (watcher._poll_greenlet != current):
+
                 return # make greenlet exit
             sleep_time = watcher._poll_interval
             try:
@@ -143,6 +151,7 @@ class ProcWatcher(object):
                     watcher.auto_restart_count += 1
                     watcher._launch_process()
                 else:
+
                     # check the child process
                     ret = watcher._popen.poll()
                     if ret is not None:
@@ -181,9 +190,11 @@ class ProcWatcher(object):
         #check terminated successfully, if not, kill it
         if ret is None:
             # time out, force child process terminate
-            popen.kill()
+            try:
+                popen.kill()
+            except OSError:
+                pass
             popen.wait()
-
     
     @property
     def pid(self):
@@ -262,7 +273,11 @@ class ProcWatcher(object):
         if self._popen is not None:
             # terminate the process normally at first
             popen = self._popen
-            popen.terminate()
+
+            try:
+                popen.terminate()
+            except OSError:
+                pass
 
             ret = None
             try:
@@ -275,7 +290,10 @@ class ProcWatcher(object):
             #check terminated successfully, if not, kill it
             if ret is None:
                 # time out, force child process terminate
-                popen.kill()
+                try:
+                    popen.kill()
+                except OSError:
+                    pass
                 ret = popen.wait()
 
             if popen is self._popen: # the same process after wait
@@ -299,10 +317,16 @@ class ProcWatcher(object):
         self._started = False
         self._poll_greenlet = None # detach the polling greenlet
 
-        if self._popen is not None:     
-            self._popen.terminate()            
-            gevent.spawn(ProcWatcher._terminate_run, self._popen, wait_timeout)
-            self._on_process_terminate(0)
+        if self._popen is not None:
+            ret = 0
+            try:
+                self._popen.terminate()
+                gevent.spawn(ProcWatcher._terminate_run, self._popen, wait_timeout)
+            except OSError:
+                ret = self._popen.poll()
+
+
+            self._on_process_terminate(ret)
     
     def destroy(self):
         self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)

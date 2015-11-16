@@ -12,7 +12,7 @@ requires = [
     'pyramid_debugtoolbar>=2.2.2',
     'PyYaml>=3.11',
     'pyramid_chameleon>=0.3',
-    'gevent>=1.1b1',
+    'gevent>=1.1rc1',
     'pyzmq>=14.0',
     'protobuf>=3.0.0a3',
     'sqlalchemy>=1.0.8',
@@ -62,5 +62,6 @@ setup(name='streamswitch',
       gevent = streamswitch.wsgiapp.server_main:gevent_pywsgi_server_runner
       [console_scripts]
       stsw_web_deploy = streamswitch.scripts.stsw_web_deploy:main
+      stsw_watcher = streamswitch.scripts.stsw_watcher:main
       """,
       )
