@@ -210,7 +210,7 @@ int FFmpegDemuxer::Open(const std::string &input,
             sub_metadata.media_param.audio.samples_per_second = 
                 codec->sample_rate;
             sub_metadata.media_param.audio.bits_per_sample = 
-                codec->bits_per_coded_sample;
+                codec->bits_per_raw_sample;
             break;
         case AVMEDIA_TYPE_VIDEO:
             sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;

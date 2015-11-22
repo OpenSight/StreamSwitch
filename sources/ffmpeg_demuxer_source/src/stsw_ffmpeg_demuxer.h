@@ -30,8 +30,8 @@
  * date: 2015-10-15
 **/ 
 
-#ifndef STSW_FFMPEG_DEMUX_H
-#define STSW_FFMPEG_DEMUX_H
+#ifndef STSW_FFMPEG_DEMUXER_H
+#define STSW_FFMPEG_DEMUXER_H
 
 
 #include <stdint.h>
