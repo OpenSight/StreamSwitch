@@ -110,7 +110,13 @@ public:
     virtual void RegisterSubHandler(int op_code, const char * channel_name, 
                                     SinkSubHandler handler, void * user_data);
     virtual void UnregisterSubHandler(int op_code);
-    virtual void UnregisterAllSubHandler();      
+    virtual void UnregisterAllSubHandler();  
+
+    //destroy the subscriber socket so that the received frames buffered in 
+    // the subscriber socket would be cleanup.  
+    // Subscriber socket is created and start receiving buffer after Init()/Start(). 
+    // This method is usually used to flush out the out of date data in the current 
+    // socket
     virtual void DestroySubscriberSocket();
     
     // accessors 

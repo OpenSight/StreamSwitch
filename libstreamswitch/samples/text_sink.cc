@@ -462,7 +462,7 @@ void ParseArgv(int argc, char *argv[],
                    "set the remote host address of this stream", NULL, NULL);                   
     parser->RegisterOption("port", 'p', 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "PORT", 
-                   "remote tcp port, remote host IP address, if the user want "
+                   "remote tcp port, if the user want "
                    "to connect this sink to a remote stream, this option "
                    "should be used to set the remote tcp port of this stream", 
                    NULL, NULL);
