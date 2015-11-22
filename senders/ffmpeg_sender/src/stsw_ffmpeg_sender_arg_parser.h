@@ -1,6 +1,6 @@
 /**
  *
- * This file is part of libstreamswtich, which belongs to StreamSwitch
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
  * project. 
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)

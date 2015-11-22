@@ -1,5 +1,5 @@
 /**
- * This file is part of libstreamswtich, which belongs to StreamSwitch
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
  * project. 
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
@@ -39,6 +39,8 @@ enum FFmpegSenderErrCode{
     FFMPEG_SENDER_ERR_TIMEOUT = -2, // timout
 
     FFMPEG_SENDER_ERR_IO = -64,   // IO operation fail
+    FFMPEG_SENDER_ERR_INTER_FRAME_GAP = -65,  // over max inter frame gap
+    FFMPEG_SENDER_ERR_METADATA_MISMATCH = -66,  // ssrc mismatch between the frame and metadata    
     
  
 };

@@ -1,5 +1,5 @@
 /**
- * This file is part of stsw_proxy_source, which belongs to StreamSwitch
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
  * project.  
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
@@ -22,10 +22,10 @@
 **/
 /**
  * stsw_main.cc
- *      main entry file for ffmpeg_source
+ *      main entry file for ffmpeg_sender
  * 
  * author: jamken
- * date: 2015-10-16
+ * date: 2015-11-20
 **/ 
 
 
@@ -41,10 +41,10 @@ extern "C"{
    
 }
 
-#include "stsw_ffmpeg_source_global.h"
-#include "stsw_ffmpeg_arg_parser.h"
+#include "stsw_ffmpeg_sender_global.h"
+#include "stsw_ffmpeg_sender_arg_parser.h"
 #include "stsw_log.h"
-#include "stsw_ffmpeg_demuxer_source.h"
+#include "stsw_ffmpeg_muxer_sender.h"
 
 ///////////////////////////////////////////////////////////////
 //Type
@@ -53,7 +53,6 @@ extern "C"{
 //////////////////////////////////////////////////////////////
 //global variables
 
-volatile int exit_code = 0;
 
 ///////////////////////////////////////////////////////////////
 //macro
@@ -72,21 +71,8 @@ void ParseArgv(int argc, char *argv[],
     std::string err_info;
 
     parser->RegisterBasicOptions();
-    parser->RegisterSourceOptions();
+    parser->RegisterSenderOptions();
     
-    parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
-                   "URL", 
-                   "the input file path or the network URL "
-                   "which the source read media data from by ffmpeg demuxing library. "
-                   "Should be a vaild input for ffmpeg's libavformat", NULL, NULL);  
-
-
-    parser->RegisterOption("debug-flags", 'd', 
-                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
-                    "debug flag for stream_switch core library. "
-                    "Default is 0, means no debug dump" , 
-                    NULL, NULL);  
-  
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
         fprintf(stderr, "Option Parsing Error:%s\n", err_info.c_str());
@@ -99,18 +85,19 @@ void ParseArgv(int argc, char *argv[],
         std::string option_help;
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
-        "a StreamSwitch stream source based on the ffmpeg libavformat "
-        "which can read the media packet from any media resource. \n"
-        "It by now only performs the demuxing from the input resource, "
-        "does not include re-encode or any filter, "
-        "and publish the result data as a live StreamSwitch stream\n"
+        "a StreamSwitch stream sender based on the ffmpeg muxing functions, "
+        "which can read the media frames from some StreamSwitch source, and "
+        "writes to a ffmpeg muxing context. \n"
+        "It by now only performs the muxing to a dest file, "
+        "does not include transcoding or any filter, "
+        "and only support a live StreamSwitch stream\n"
         "Usange: %s [options]\n"
         "\n"
         "Option list:\n"
         "%s"
         "\n"
         "User can send SIGINT/SIGTERM signal to terminate this program\n"
-        "\n", "ffmpeg_demux_source", option_help.c_str());
+        "\n", "ffmpeg_sender", option_help.c_str());
         exit(0);
     }else if(parser->CheckOption("version")){
         
@@ -118,7 +105,21 @@ void ParseArgv(int argc, char *argv[],
         exit(0);
     }
     
-
+    if(!parser->CheckOption("stream-name") && 
+       !parser->CheckOption("host")){
+        fprintf(stderr, "stream-name or host must be set for ffmpeg_sender\n");
+        exit(-1);        
+    }    
+    if(parser->CheckOption("host")){
+        if(!parser->CheckOption("port")){
+            fprintf(stderr, "port must be set for a remote source for ffmpeg_sender\n");
+            exit(-1);
+        }
+    }    
+    if(!parser->CheckOption("url")){
+        fprintf(stderr, "the dest url must be given for sending to\n");
+        exit(-1);
+    }  
     if(parser->CheckOption("log-file")){
         if(!parser->CheckOption("log-size")){
             fprintf(stderr, "log-size must be set if log-file is enabled\n");
@@ -126,10 +127,6 @@ void ParseArgv(int argc, char *argv[],
         }     
     }
 
-}
-static void OnSourceErrorFun(int error_code, void *user_data)
-{
-    exit_code = error_code;    
 }
 
     
@@ -139,16 +136,25 @@ int main(int argc, char *argv[])
 {
     using namespace stream_switch;        
     int ret = 0;
-    FFmpegDemuxerSource * source = NULL;
-    int pub_queue_size = STSW_PUBLISH_SOCKET_HWM;
+    FFmpegMuxerSender * sender = NULL;
+    uint32_t sub_queue_size = STSW_SUBSCRIBE_SOCKET_HWM;
     int log_level = 6;
+    uint64_t max_duration = 0;
+    time_t max_frame_gap = 0;
+    struct timespec cur_ts;    
+    struct timespec start_ts;  
+    struct timespec last_frame_ts;    
+    uint32_t last_frame_num = 0;
     
     GlobalInit();
     
     //parse the cmd line
-    FFmpegArgParser parser;
+    FFmpegSenderArgParser parser;
     ParseArgv(argc, argv, &parser); // parse the cmd line    
     
+    max_duration = (uint64_t)strtoul(parser.OptionValue("duration", "0").c_str(), NULL, 0);
+    max_frame_gap = (time_t)strtoul(parser.OptionValue("inter-frame-gap", "20").c_str(), NULL, 0);
+    sub_queue_size = (uint32_t)strtoul(parser.OptionValue("queue-size", "120").c_str(), NULL, 0);      
     
     //
     // init global logger
@@ -174,85 +180,123 @@ int main(int argc, char *argv[])
 
     /* register all formats and codecs */
     av_register_all();
-    avformat_network_init();
-   
+    avformat_network_init(); 
+       
     //
-    //init source
+    //init sender
     
-    source = FFmpegDemuxerSource::Instance();   
-      
-    if(parser.CheckOption("queue-size")){
-        pub_queue_size = (int)strtol(parser.OptionValue("pub-queue-size", "60").c_str(), NULL, 0);
-    }
-    ret = source->Init(
+    sender = FFmpegMuxerSender::Instance();     
+    ret = sender->Init(
         parser.OptionValue("url", ""), 
-        parser.OptionValue("stream-name", ""), 
         parser.ffmpeg_options(), 
-        (int)strtol(parser.OptionValue("local-max-gap", "20").c_str(), NULL, 0), 
-        (int)strtol(parser.OptionValue("io_timeout", "10").c_str(), NULL, 0), 
-        parser.CheckOption("native-frame-rate"),
-        (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
-        pub_queue_size, 
-        (int)strtol(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
+        parser.OptionValue("stream-name", ""), 
+        parser.OptionValue("host", ""), (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
+        strtoul(parser.OptionValue("io_timeout", "10").c_str(), NULL, 0), 
+        sub_queue_size, 
+        (uint32_t)strtoul(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                    "ffmpeg_demux_srouce init error, exit\n");   
+                    "ffmpeg_sender init error, exit\n");   
         goto exit_2;       
     }
- 
-    
-    //start ffmpeg_demux_srouce
-    ret = source->Start(OnSourceErrorFun, NULL);
+   
+    //start sender
+    ret = sender->Start();
     if(ret){
         goto exit_3;
     }
-
-    //drive the proxy heartbeat    
-    while(1){
+    STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
+               "ffmpeg_sender has started successful for dest URL: %s\n", 
+               parser.OptionValue("url", "").c_str());       
+    //from here, sender has started successful
+    
+    clock_gettime(CLOCK_MONOTONIC, &start_ts);  
+    cur_ts = last_frame_ts = start_ts;
+    
+    //heartbeat check
+    while(1){        
+        clock_gettime(CLOCK_MONOTONIC, &cur_ts); 
         
+        //check duration
+        if(max_duration > 0 ){
+            uint64_t cur_dur = 
+                (cur_ts.tv_sec - start_ts.tv_sec) * 1000 + 
+                (cur_ts.tv_nsec - start_ts.tv_nsec) / 1000000;            
+            if(cur_dur >= max_duration){
+                ret = 0;
+                STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
+                          "Duration is over, exit normally\n");   
+                break;                
+            } 
+        }
+        
+        //check frame gap
+        if(max_frame_gap > 0){
+            if(sender->frame_num() == last_frame_num){
+                if(cur_ts.tv_sec - last_frame_ts.tv_sec > max_frame_gap){
+                    ret = FFMPEG_SENDER_ERR_INTER_FRAME_GAP;
+                    STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                              "inter-frame-gap is over, exit with error\n");   
+                    break;                      
+                }
+            }else{
+                last_frame_ts = cur_ts;
+                last_frame_num = sender->frame_num();
+            }
+
+        }
+        //check sender err
+        if((ret = sender->err_code()){
+            if(ret == FFMPEG_SENDER_ERR_METADATA_MISMATCH){
+                ret = 0; //make metadata mismatch exit normally, 
+                         //so that the sender can be restart at once
+                STDERR_LOG(stream_switch::LOG_LEVEL_INFO,
+                           "ssrc mismatch between frame and metadata, exit normally\n");
+            }else{
+                STDERR_LOG(stream_switch::LOG_LEVEL_ERR,
+                           "sender error with code %d, exit\n", ret);                
+            }
+            break;
+        }
+        // check signal
         if(isGlobalInterrupt()){
             STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
-                      "Receive Terminate Signal, exit\n");  
-            ret = exit_code;
-            
-          
+                      "Receive Terminate Signal, exit normally\n");  
+            ret = 0;         
             {
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                //printf("signal catchtime is %lld.%06d\n", 
-                //   (long long)tv.tv_sec, (int)tv.tv_usec);
+                printf("signal catchtime is %lld.%06d\n", 
+                   (long long)tv.tv_sec, (int)tv.tv_usec);
             }
                
             break;
         }
-        if(exit_code != 0){
-            STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
-                      "Source Running Error, exit\n");  
-            ret = exit_code;
-            break;            
-        }
-
         {
             struct timespec req;
             req.tv_sec = 0;
-            req.tv_nsec = 10000000; //10ms             
+            req.tv_nsec = 20000000; //20ms             
             nanosleep(&req, NULL);
         }     
               
-    }
+    }//while(1){ 
     
     
-    //stop ffmpeg_demux_srouce 
-    source->Stop();    
-    
+    //stop ffmpeg muxer sender 
+    sender->Stop();   
+/* 
+    STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
+               "ffmpeg_sender has stopped for dest URL: %s\n", 
+               parser.OptionValue("url", "").c_str()); 
+*/    
 exit_3:
-    //uninit ffmpeg_demux_srouce
-    source->Uninit();
+    //uninit ffmpeg muxer sender 
+    sender->Uninit();
     
 exit_2:  
 
     //uninstance
-    FFmpegDemuxerSource::Uninstance();  
+    FFmpegMuxerSender::Uninstance();  
   
     //uninit logger
     UninitGlobalLogger();
@@ -260,14 +304,14 @@ exit_1:
     
     //streamswitch library uninit
     GlobalUninit();
-/*
+
     {
                 struct timeval tv;
         gettimeofday(&tv, NULL);
             printf("End time is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);    
     }
-*/   
+ 
     return ret;
 }
 
