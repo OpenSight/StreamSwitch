@@ -74,18 +74,7 @@ void ParseArgv(int argc, char *argv[],
     parser->RegisterBasicOptions();
     parser->RegisterSourceOptions();
     
-    parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
-                   "URL", 
-                   "the input file path or the network URL "
-                   "which the source read media data from by ffmpeg demuxing library. "
-                   "Should be a vaild input for ffmpeg's libavformat", NULL, NULL);  
 
-
-    parser->RegisterOption("debug-flags", 'd', 
-                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
-                    "debug flag for stream_switch core library. "
-                    "Default is 0, means no debug dump" , 
-                    NULL, NULL);  
   
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
@@ -182,14 +171,14 @@ int main(int argc, char *argv[])
     source = FFmpegDemuxerSource::Instance();   
       
     if(parser.CheckOption("queue-size")){
-        pub_queue_size = (int)strtol(parser.OptionValue("pub-queue-size", "60").c_str(), NULL, 0);
+        pub_queue_size = (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0);
     }
     ret = source->Init(
         parser.OptionValue("url", ""), 
         parser.OptionValue("stream-name", ""), 
         parser.ffmpeg_options(), 
         (int)strtol(parser.OptionValue("local-max-gap", "20").c_str(), NULL, 0), 
-        (int)strtol(parser.OptionValue("io_timeout", "10").c_str(), NULL, 0), 
+        (int)strtol(parser.OptionValue("io-timeout", "10").c_str(), NULL, 0), 
         parser.CheckOption("native-frame-rate"),
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
         pub_queue_size, 

@@ -59,7 +59,7 @@ void FFmpegArgParser::RegisterSourceOptions()
     ArgParser::RegisterSourceOptions();
     
     //register the other options
-    RegisterOption("io_timeout", 0, 
+    RegisterOption("io-timeout", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
                    "timeout (in sec) for IO operation. Default is 10 sec", NULL, NULL);
     RegisterOption("local-max-gap", 0, 
@@ -77,10 +77,23 @@ void FFmpegArgParser::RegisterSourceOptions()
     RegisterOption("ffmpeg-[NAME]", 0, 
                    OPTION_FLAG_WITH_ARG, "VALUE",
                    "user can used --ffmpeg-[optioan]=[value] form to pass the options to the ffmpeg library. "
-                   "ffmpeg_source parse the options which start with \"ffmpeg-\", and pass them to ffmpeg librarythe. "
+                   "ffmpeg_demuxer_source parse the options which start with \"ffmpeg-\", "
+                   "and pass them to ffmpeg demuxing context. "
                    "The option name would be extracted from the string after \"ffmpeg-\", the value would be set to VALUE." ,
                    NULL, NULL);
-    
+                   
+    parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
+                   "URL", 
+                   "the input file path or the network URL "
+                   "which the source read media data from by ffmpeg demuxing library. "
+                   "Should be a vaild input for ffmpeg's libavformat", NULL, NULL);  
+
+
+    parser->RegisterOption("debug-flags", 'd', 
+                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
+                    "debug flag for stream_switch core library. "
+                    "Default is 0, means no debug dump" , 
+                    NULL, NULL);      
 }
     
 
