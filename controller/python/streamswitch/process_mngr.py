@@ -148,26 +148,23 @@ class ProcWatcher(object):
             try:
                 if watcher._popen is None:
                     # restart
-                    if watcher._error_restart_interval > 0:  # only restart the process if the err_restart_interval > 0
-                        watcher.auto_restart_count += 1
-                        watcher._launch_process()
-                    else:
-                        return    # make greelet exit if disable restart
+                    watcher.auto_restart_count += 1
+                    watcher._launch_process()
                 else:
                     # check the child process
                     ret = watcher._popen.poll()
                     if ret is not None:
                         # the process terminate
                         watcher._on_process_terminate(ret)
-                        if ret != 0:
-                            # exit with error
-                            if watcher._error_restart_interval > 0:
+                        if watcher._error_restart_interval > 0:
+                            if ret != 0:
+                                # exit with error
                                 sleep_time = watcher._error_restart_interval
                             else:
-                                sleep_time = 0
+                                # exit normally
+                                sleep_time = 0    # restart at once
                         else:
-                            # exit normally
-                            sleep_time = 0    # restart at once
+                            return   # if no need to restart, make the greenlet exit at once
                     else:
                         if watcher.age_time > 0 and (not watcher._has_aged): # if age time present, check age
                             now = time.time()

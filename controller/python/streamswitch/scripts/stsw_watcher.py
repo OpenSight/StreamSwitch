@@ -9,6 +9,11 @@ import signal
 import gevent.signal
 
 
+def term_handler(signum, frame):
+    print("Receive sig handler %d, Exit" % signum)
+    raise SystemExit
+
+
 class WatchCommand(object):
 
     description = """
@@ -38,26 +43,20 @@ which provides extra functions like restarting on error, process aging, and etc.
     def process_status_cb(self, watcher):
         print("prog %s status changed:" % self.args.prog, watcher)
 
-    def term_handler(self, signum, frame):
-        print("Receive sig handler %d, Exit" % signum)
-        raise SystemExit
-
     def run(self):
         # print(self.args)
-        gevent.signal.signal(signal.SIGTERM, self.term_handler)
-        gevent.signal.signal(signal.SIGINT, self.term_handler)
         watcher = spawn_watcher([self.args.prog] + self.args.args,
-                      error_restart_interval=self.args.restart_interval,
-                      age_time=self.args.age_time,
-                      process_status_cb=self.process_cb_listener)
+                                error_restart_interval=self.args.restart_interval,
+                                age_time=self.args.age_time,
+                                process_status_cb=self.process_cb_listener)
 
         gevent.wait()
         watcher.stop()
         watcher.destroy()
 
-
-
 def main(argv=sys.argv):
+    gevent.signal.signal(signal.SIGTERM, term_handler)
+    gevent.signal.signal(signal.SIGINT, term_handler)
     command = WatchCommand()
     return command.run()
 
