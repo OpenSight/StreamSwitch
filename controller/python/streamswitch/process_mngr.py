@@ -18,6 +18,7 @@ import os
 import time
 from .exceptions import StreamSwitchError
 import weakref
+import traceback
 
 PROC_STOP = 0
 PROC_RUNNING = 1
@@ -140,18 +141,19 @@ class ProcWatcher(object):
         while True:
             # print("check")
             watcher = watcher_weakref()
-            if (watcher is None) or (watcher.is_started() == False) \
+            if (watcher is None) or (not watcher.is_started()) \
                 or (watcher._poll_greenlet != current):
-
-                return # make greenlet exit
+                return     # make greenlet exit
             sleep_time = watcher._poll_interval
             try:
                 if watcher._popen is None:
                     # restart
-                    watcher.auto_restart_count += 1
-                    watcher._launch_process()
+                    if watcher._error_restart_interval > 0:  # only restart the process if the err_restart_interval > 0
+                        watcher.auto_restart_count += 1
+                        watcher._launch_process()
+                    else:
+                        return    # make greelet exit if disable restart
                 else:
-
                     # check the child process
                     ret = watcher._popen.poll()
                     if ret is not None:
@@ -159,10 +161,13 @@ class ProcWatcher(object):
                         watcher._on_process_terminate(ret)
                         if ret != 0:
                             # exit with error
-                            sleep_time = watcher._error_restart_interval
+                            if watcher._error_restart_interval > 0:
+                                sleep_time = watcher._error_restart_interval
+                            else:
+                                sleep_time = 0
                         else:
                             # exit normally
-                            sleep_time = 0 # restart at once
+                            sleep_time = 0    # restart at once
                     else:
                         if watcher.age_time > 0 and (not watcher._has_aged): # if age time present, check age
                             now = time.time()
@@ -171,7 +176,10 @@ class ProcWatcher(object):
                             if now - watcher._proc_start_time > watcher.age_time:
                                 watcher._has_aged = True
                                 watcher._popen.terminate()
+
             except Exception:
+                print("process polling greenlet receives the below Exception when running, ignored")
+                traceback.print_exc()
                 pass
             del watcher
             sleep(sleep_time)      # next time to check
@@ -238,8 +246,7 @@ class ProcWatcher(object):
             self._started = True
 
             # spawn a poll greenlet to watch it
-            if self._error_restart_interval > 0:  # only monitor the process if the err_restart_interval > 0
-                self._poll_greenlet = gevent.spawn(self._polling_run, weakref.ref(self))
+            self._poll_greenlet = gevent.spawn(self._polling_run, weakref.ref(self))
 
         except Exception:
             self._started = False
@@ -330,7 +337,6 @@ class ProcWatcher(object):
     
     def destroy(self):
         self.async_stop(DEFAULT_STOP_WAIT_TIMEOUT)
-
 
 
 def spawn_watcher(*args, **kwargs):
