@@ -115,11 +115,11 @@ void ParseArgv(int argc, char *argv[],
             fprintf(stderr, "port must be set for a remote source for ffmpeg_sender\n");
             exit(-1);
         }
-    }    
-    if(!parser->CheckOption("url")){
-        fprintf(stderr, "the dest url must be given for sending to\n");
-        exit(-1);
-    }  
+    }   
+    if(parser.OptionValue("url", "").size() == 0){
+        fprintf(stderr, "url cannot be empty string\n");
+        exit(-1);        
+    }
     if(parser->CheckOption("log-file")){
         if(!parser->CheckOption("log-size")){
             fprintf(stderr, "log-size must be set if log-file is enabled\n");
@@ -188,6 +188,7 @@ int main(int argc, char *argv[])
     sender = FFmpegMuxerSender::Instance();     
     ret = sender->Init(
         parser.OptionValue("url", ""), 
+        parser.OptionValue("format", ""), 
         parser.ffmpeg_options(), 
         parser.OptionValue("stream-name", ""), 
         parser.OptionValue("host", ""), (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 

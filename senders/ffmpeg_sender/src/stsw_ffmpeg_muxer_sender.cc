@@ -75,6 +75,7 @@ FFmpegMuxerSender::~FFmpegMuxerSender()
 
 
 int FFmpegMuxerSender::Init(const std::string &dest_url, 
+                            const std::string &format,
                             const std::string &ffmpeg_options_str,
                             const std::string &stream_name, 
                             const std::string &source_ip, int source_tcp_port, 

@@ -30,8 +30,8 @@
  * date: 2015-11-22
 **/ 
 
-#ifndef STSW_FFMPEG_MUX_H
-#define STSW_FFMPEG_MUX_H
+#ifndef STSW_FFMPEG_MUXER_H
+#define STSW_FFMPEG_MUXER_H
 
 
 #include <stdint.h>
@@ -52,10 +52,6 @@ extern "C"{
 typedef std::vector<StreamMuxParser *> StreamMuxParserVector;
 
 
-enum MuxerPlayMode{
-    MUXER_PLAY_MODE_LIVE = 1,   
-    MUXER_PLAY_MODE_REPLAY = 2,   
-};
 
 
 class FFmpegMuxer{
@@ -63,10 +59,10 @@ public:
     FFmpegMuxer();
     virtual ~FFmpegMuxer();
     virtual int Open(const std::string &dest_url, 
+             const std::string &format,
              const std::string &ffmpeg_options_str, 
              const stream_switch::StreamMetadata &metadata, 
-             int io_timeout, 
-             int play_mode);
+             int io_timeout);
     virtual void Close();
     virtual int WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
                             const char * frame_data, 
@@ -88,6 +84,7 @@ protected:
     AVFormatContext *fmt_ctx_;    
     struct timespec io_start_ts_;
     int io_timeout_;
+    //stream_switch::StreamMetadata metadata_;
     StreamMuxParserVector stream_parsers_;
 };
 

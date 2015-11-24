@@ -21,19 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_ffmpeg_demuxer.cc
- *      FfmpegDemuxer class implementation file, define its methods
- *      FFmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
+ * stsw_ffmpeg_muxer.cc
+ *      FFmpegMuxer class implementation file, define its methods
+ *      FFmpegMuxer is a media file muxer based on ffmpeg libavformat  
  * 
  * author: jamken
- * date: 2015-10-23
+ * date: 2015-11-25
 **/ 
 
 
-#include "stsw_ffmpeg_demuxer.h"
+#include "stsw_ffmpeg_muxer.h"
 #include "stsw_log.h"
-#include "stsw_ffmpeg_source_global.h"
-#include "parser/stsw_stream_parser.h"
+#include "stsw_ffmpeg_sender_global.h"
+//#include "parser/stsw_stream_parser.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -47,9 +47,8 @@ extern "C"{
 }
 
 
-FFmpegDemuxer::FFmpegDemuxer()
-:io_enabled_(true), fmt_ctx_(NULL), io_timeout_(0), 
-ssrc_(0)
+FFmpegMuxer::FFmpegMuxer()
+fmt_ctx_(NULL), io_timeout_(0)
 {
     stream_parsers_.reserve(8); //reserve for 8 streams
     stream_parsers_.clear();
@@ -57,25 +56,23 @@ ssrc_(0)
     io_start_ts_.tv_sec = 0;
     
 }
-FFmpegDemuxer::~FFmpegDemuxer()
+FFmpegMuxer::~FFmpegMuxer()
 {
     
 }
-int FFmpegDemuxer::Open(const std::string &input, 
-             const std::string &ffmpeg_options_str,
-             int io_timeout, 
-             int play_mode)
+int FFmpegMuxer::Open(const std::string &dest_url, 
+                      const std::string &format,
+                      const std::string &ffmpeg_options_str, 
+                      const stream_switch::StreamMetadata &metadata, 
+                      int io_timeout)
 {
     using namespace stream_switch; 
-    int ret;
+    int ret = 0;
     AVDictionary *format_opts = NULL;
     struct timeval start_time;
     const char * protocol_name;
     
-    
-    if(!io_enabled()){
-        return FFMPEG_SOURCE_ERR_IO;
-    }
+#if 0    
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
    
@@ -280,27 +277,17 @@ err_out1:
         av_dict_free(&format_opts);
         format_opts = NULL;
     }
-
+#endif
     return ret;
 }
 
 
-void FFmpegDemuxer::Close()
+void FFmpegMuxer::Close()
 {
+#if 0   
     if(fmt_ctx_ == NULL){
         return;
-    }
-    
-    //free all cached packet
-    {
-        PacketCachedList::iterator it;
-        for(it = cached_pkts.begin(); 
-            it != cached_pkts.end();
-            it++){
-            av_free_packet(&(it->pkt));
-        }
-        cached_pkts.clear();                
-    } 
+    }    
     
     //uninit all parser
     {
@@ -314,13 +301,21 @@ void FFmpegDemuxer::Close()
         }
         stream_parsers_.clear();                
     }    
-    
+
     //close ffmpeg format context
-    avformat_close_input(&fmt_ctx_);
+    av_write_trailer(fmt_ctx_);
+    if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
+        avio_closep(&fmt_ctx_->pb);    
+    avformat_free_context(fmt_ctx_);
+    fmt_ctx_ = NULL;
     
+
+
+#endif    
 }
-int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info, 
-                              AVPacket *pkt, bool* is_meta_changed)
+int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
+                             const char * frame_data, 
+                             size_t frame_size)
 {
     int ret = 0;
     int stream_index = 0;
@@ -403,135 +398,25 @@ error_out1:
 }
 
 
-int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
-{
-    int ret;
-    struct timespec start_ts, cur_ts;
-    
-    if(meta == NULL){
-        return FFMPEG_SOURCE_ERR_GENERAL;
-    }
-    if(fmt_ctx_ == NULL){
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "FFmpegDemuxer not open\n");         
-        return -1;
-    } 
-    if(!io_enabled()){
-        return FFMPEG_SOURCE_ERR_IO;
-    }    
-    
-    clock_gettime(CLOCK_MONOTONIC, &start_ts);
-    ret = 0;
-    while(!IsMetaReady()){
-        PktNode pkt_node;
-        int stream_index;
-        clock_gettime(CLOCK_MONOTONIC, &cur_ts);
-        if(cur_ts.tv_sec - start_ts.tv_sec >= timeout){
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "Read metadata timeout for %s\n", 
-                fmt_ctx_->filename);              
-            ret = FFMPEG_SOURCE_ERR_TIMEOUT;
-            break;
-        }
-        
-        //init pkt_node
-        av_init_packet(&(pkt_node.pkt));
-        pkt_node.pkt.data = NULL;
-        pkt_node.pkt.size = 0;
-        
-        //read the packets
-        StartIO();
-        ret = av_read_frame(fmt_ctx_, &(pkt_node.pkt));
-        StopIO();
-        if(ret == AVERROR_EOF){
-            ret = FFMPEG_SOURCE_ERR_EOF;
-            break;
-        }else if(ret){
-            ret = FFMPEG_SOURCE_ERR_IO;
-            break;       
-        }
-    
-#ifdef DUMP_PACKET
-        {
-            STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
-                       "Read the following packet from input file\n");         
-            av_pkt_dump_log2(NULL, AV_LOG_DEBUG, &(pkt_node.pkt), 0, 
-                fmt_ctx_->streams[pkt_node.pkt.stream_index]);
-                         
-        }
-#endif         
-        stream_index = pkt_node.pkt.stream_index;
-        if(stream_index >= stream_parsers_.size()){
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "packet index excceed the number of stream parsers\n");     
-            ret = FFMPEG_SOURCE_ERR_GENERAL;
-            av_free_packet(&(pkt_node.pkt));
-            break;
-        }
-        ret = stream_parsers_[stream_index]->Parse(&(pkt_node.frame_info), 
-                                                   &(pkt_node.pkt), 
-                                                   NULL);
-        if(ret == FFMPEG_SOURCE_ERR_DROP){
-            av_free_packet(&(pkt_node.pkt));
-            ret = 0;
-            continue; //read next packet
-        }else if(ret){
-            av_free_packet(&(pkt_node.pkt));
-            break;
-        }
-        pkt_node.frame_info.ssrc = ssrc_;
-        
-        cached_pkts.push_back(pkt_node); //cache the packet
-        
-    }//while(!IsMetaReady()){
-    
-    if(ret == 0){ //meta ready
-        (*meta) = meta_;
-    }   
-    return ret;
-}
 
-bool FFmpegDemuxer::IsMetaReady()
-{
-    StreamParserVector::iterator it;
-    for(it = stream_parsers_.begin(); 
-        it != stream_parsers_.end();
-        it++){
-        if((*it)->IsMetaReady() == false){
-            return false;
-        }
-    }
-    return true;  
-}
 
-    
-void FFmpegDemuxer::set_io_enabled(bool io_enabled)
-{
-    io_enabled_ = io_enabled;
-}
-bool FFmpegDemuxer::io_enabled()
-{
-    return io_enabled_;
-}
-    
-
-void FFmpegDemuxer::StartIO()
+void FFmpegMuxer::StartIO()
 {
     clock_gettime(CLOCK_MONOTONIC, &io_start_ts_);
     
 }
-void FFmpegDemuxer::StopIO()
+void FFmpegMuxer::StopIO()
 {
     io_start_ts_.tv_sec = 0;
     io_start_ts_.tv_nsec = 0;
 }
-int FFmpegDemuxer::StaticIOInterruptCB(void* user_data)
+int FFmpegMuxer::StaticIOInterruptCB(void* user_data)
 {
-    FFmpegDemuxer *demuxer = (FFmpegDemuxer *)user_data;
-    return demuxer->IOInterruptCB();
+    FFmpegMuxer *muxer = (FFmpegMuxer *)user_data;
+    return muxer->IOInterruptCB();
 }
 
-int FFmpegDemuxer::IOInterruptCB()
+int FFmpegMuxer::IOInterruptCB()
 {
     if(!io_enabled()){
 
