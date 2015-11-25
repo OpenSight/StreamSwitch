@@ -248,11 +248,11 @@ int main(int argc, char *argv[])
         }
         //check sender err
         if((ret = sender->err_code()){
-            if(ret == FFMPEG_SENDER_ERR_METADATA_MISMATCH){
+            if(ret == FFMPEG_SENDER_ERR_METADATA_EOF){
                 ret = 0; //make metadata mismatch exit normally, 
                          //so that the sender can be restart at once
                 STDERR_LOG(stream_switch::LOG_LEVEL_INFO,
-                           "ssrc mismatch between frame and metadata, exit normally\n");
+                           "stream finished, exit normally\n");
             }else{
                 STDERR_LOG(stream_switch::LOG_LEVEL_ERR,
                            "sender error with code %d, exit\n", ret);                
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
         {
             struct timespec req;
             req.tv_sec = 0;
-            req.tv_nsec = 20000000; //20ms             
+            req.tv_nsec = 10000000; //10ms             
             nanosleep(&req, NULL);
         }     
               

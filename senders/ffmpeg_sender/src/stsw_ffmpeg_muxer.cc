@@ -54,6 +54,8 @@ fmt_ctx_(NULL), io_timeout_(0)
     stream_parsers_.clear();
     io_start_ts_.tv_nsec = 0;
     io_start_ts_.tv_sec = 0;
+    base_timestamp_.tv_sec = 0;
+    base_timestamp_.tv_usec = 0;
     
 }
 FFmpegMuxer::~FFmpegMuxer()
@@ -69,10 +71,9 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     using namespace stream_switch; 
     int ret = 0;
     AVDictionary *format_opts = NULL;
-    struct timeval start_time;
-    const char * protocol_name;
+    const char * format_name = NULL;
     
-#if 0    
+    
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
    
@@ -84,158 +85,35 @@ int FFmpegMuxer::Open(const std::string &dest_url,
         STDERR_LOG(LOG_LEVEL_ERR, 
                    "Failed to parse the ffmpeg_options_str:%s to av_dict(ret:%d)\n", 
                    ffmpeg_options_str.c_str(), ret);    
-        ret = FFMPEG_SOURCE_ERR_GENERAL;                   
+        ret = FFMPEG_SENDER_ERR_GENERAL;                   
         goto err_out1;
     }
 
     //av_dict_set(&format_opts, "rtsp_transport", "tcp", 0);
     //printf("option dict count:%d\n", av_dict_count(format_opts));
-    
+
     
     //allocate the format context
-    fmt_ctx_ = avformat_alloc_context();
+    if(format.size() != 0){
+        format_name = format.c_str();
+    }    
+    ret = avformat_alloc_output_context2(&fmt_ctx_, NULL, format_name, dest_url.c_str());    
     if(fmt_ctx_ == NULL){
         //log        
         STDERR_LOG(LOG_LEVEL_ERR, 
-                   "Failed to allocate AVFormatContext structure\n");           
-        ret = FFMPEG_SOURCE_ERR_GENERAL;
+                   "Failed to allocate AVFormatContext structure:%s\n", 
+                   av_err2str(ret));           
+        ret = FFMPEG_SENDER_ERR_GENERAL;
         goto err_out1;        
     }
     //install the io interrupt callback function
-    fmt_ctx_->interrupt_callback.callback = FFmpegDemuxer::StaticIOInterruptCB;
+    fmt_ctx_->interrupt_callback.callback = FFmpegMuxer::StaticIOInterruptCB;
     fmt_ctx_->interrupt_callback.opaque = this;
     io_timeout_ = io_timeout;
-    
-    
-    // open input file
-    StartIO();
-    ret = avformat_open_input(&fmt_ctx_, input.c_str(), NULL, &format_opts);
-    StopIO();
-    if (ret < 0) {
-        STDERR_LOG(LOG_LEVEL_ERR,  
-            "FFmpegDemuxer::Open(): Could not open input file(ret:%d) %s\n", 
-            ret, input.c_str());
-        ret = FFMPEG_SOURCE_ERR_IO;
-        goto err_out2;   
-    }
-    
-    if(format_opts != NULL){
-        int no_parsed_option_num = av_dict_count(format_opts);
-        if(no_parsed_option_num){
-            STDERR_LOG(stream_switch::LOG_LEVEL_WARNING,  
-            "%d options cannot be parsed by ffmpeg avformat context\n", 
-            no_parsed_option_num);            
-        }
-        //printf("after open, option dict count:%d\n", av_dict_count(format_opts));
-        av_dict_free(&format_opts);
-        format_opts = NULL;
-    }        
 
-    // get stream information 
-    StartIO();    
-    ret = avformat_find_stream_info(fmt_ctx_, NULL);
-    StopIO();    
-    if (ret < 0) {
-        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-            "FFmpegDemuxer::Open(): Could not find stream information(ret:%d)\n", 
-            ret);
-        ret = FFMPEG_SOURCE_ERR_IO;
-        goto err_out2;  
-    }  
-#define DUMP_AVFORMAT
-#ifdef DUMP_AVFORMAT
-        STDERR_LOG(stream_switch::LOG_LEVEL_INFO,  
-            "FFmpegDemuxer::Open(): avformat context is dumped below\n");    
-    av_dump_format(fmt_ctx_, 0, input.c_str(), 0);
-#endif  
-   
-    //calculate ssrc
-    gettimeofday(&start_time, NULL);    
-    srand(((unsigned)getpid()) << 20 + start_time.tv_usec);
-    meta_.ssrc = ssrc_ = (uint32_t)(rand() % 0xffffffff);       
 
-    // parse the stream info into metadata  
-    if(play_mode == PLAY_MODE_AUTO){
-        if(fmt_ctx_->duration == 0 || fmt_ctx_->duration == AV_NOPTS_VALUE){
-            //live
-            meta_.play_type = STREAM_PLAY_TYPE_LIVE;
-            meta_.stream_len = 0.0;
-        }else{
-            //replay
-            meta_.play_type = STREAM_PLAY_TYPE_REPLAY;
-            meta_.stream_len = (double)fmt_ctx_->duration / AV_TIME_BASE;
-            fmt_ctx_->flags |= AVFMT_FLAG_GENPTS; //for replay mode, make sure pts present
-        }
-        
-    }else if(play_mode == PLAY_MODE_LIVE){
-        meta_.play_type = STREAM_PLAY_TYPE_LIVE;
-        meta_.stream_len = 0.0;        
-        
-    }else if(play_mode == PLAY_MODE_REPLAY){
-        meta_.play_type = STREAM_PLAY_TYPE_REPLAY;
-        fmt_ctx_->flags |= AVFMT_FLAG_GENPTS; //for replay mode, make sure pts present
-        
-        if(fmt_ctx_->duration == 0 || fmt_ctx_->duration == AV_NOPTS_VALUE){
-            meta_.stream_len = 0.0;
-        }else{
-            meta_.stream_len = (double)fmt_ctx_->duration / AV_TIME_BASE;
-        }        
-    }
-    protocol_name = avio_find_protocol_name(input.c_str());
-    if(protocol_name == NULL && fmt_ctx_->iformat != NULL){
-        protocol_name = fmt_ctx_->iformat->name;
-    }
-    if(protocol_name == NULL){
-        protocol_name = "ffmpeg";
-    }
-    meta_.source_proto = protocol_name;
-    meta_.bps = fmt_ctx_->bit_rate;
-    
-    for(int i=0; i<fmt_ctx_->nb_streams; i++) {
-        SubStreamMetadata sub_metadata;
-        AVStream *st= fmt_ctx_->streams[i];
-        AVCodecContext *codec= st->codec;
-        sub_metadata.codec_name = CodecNameFromId(codec->codec_id);
-        sub_metadata.sub_stream_index = i;
-        sub_metadata.direction = SUB_STREAM_DIRECTION_OUTBOUND;
-        sub_metadata.extra_data.assign((const char *)codec->extradata, 
-                                       (size_t)codec->extradata_size);
-        switch(codec->codec_type){
-        case AVMEDIA_TYPE_AUDIO:
-            sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_AUDIO;
-            sub_metadata.media_param.audio.channels = codec->channels;
-            sub_metadata.media_param.audio.samples_per_second = 
-                codec->sample_rate;
-            sub_metadata.media_param.audio.bits_per_sample = 
-                codec->bits_per_coded_sample;
-            break;
-        case AVMEDIA_TYPE_VIDEO:
-            sub_metadata.media_type = SUB_STREAM_MEIDA_TYPE_VIDEO;
-            /*frame_rate is volatile*/
-            /*
-            if(st->r_frame_rate.num != 0 && st->r_frame_rate.den !=0 ){
-                sub_metadata.media_param.video.fps = (uint32_t)(av_q2d(st->r_frame_rate) + 0.5);                
-            }*/
-            if(codec->width != 0 && codec->height != 0){
-                sub_metadata.media_param.video.height = codec->height;
-                sub_metadata.media_param.video.width = codec->width;
-            }
-            break;
-        case AVMEDIA_TYPE_DATA:
-        case AVMEDIA_TYPE_UNKNOWN:
-        case AVMEDIA_TYPE_SUBTITLE: //XXX import subtitle work!
-        default:
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                    "FFmpegDemuxer::Open(): codec type (%d) unsupported \n", 
-                    codec->codec_type);
-            ret = FFMPEG_SOURCE_ERR_GENERAL;
-            goto err_out2;
-            break;
-        }
-        meta_.sub_streams.push_back(sub_metadata);        
-    }    
-    
     //setup the parsers
+#if 0
     for(int i=0; i<fmt_ctx_->nb_streams; i++) {
         AVStream *st= fmt_ctx_->streams[i];
         AVCodecContext *codec= st->codec;
@@ -251,47 +129,108 @@ int FFmpegMuxer::Open(const std::string &dest_url,
         }
         stream_parsers_.push_back(parser);        
     }    
+#endif    
     
+    // open output file
+    if (!(fmt_ctx_->flags & AVFMT_NOFILE)) {
+        StartIO();
+        ret = avio_open2(&(fmt_ctx_->pb), dest_url.c_str(), AVIO_FLAG_WRITE, 
+                         &(fmt_ctx_->interrupt_callback), &format_opts);
+        StopIO();
+        if (ret < 0) {
+            STDERR_LOG(LOG_LEVEL_ERR, 
+                   "Could not open output file '%s':%s\n", 
+                   dest_url.c_str(), 
+                   av_err2str(ret));           
+            ret = FFMPEG_SENDER_ERR_GENERAL;
+            goto err_out3;             
+        }
+    }    
+    
+    ret = avformat_write_header(fmt_ctx_, &format_opts);
+    if (ret < 0) {
+        STDERR_LOG(LOG_LEVEL_ERR, 
+                   "Error occurred when write header to the output file: %s\n", 
+                   av_err2str(ret));           
+        ret = FFMPEG_SENDER_ERR_GENERAL;
+        goto err_out4;         
+    }    
+    
+    if(format_opts != NULL){
+        int no_parsed_option_num = av_dict_count(format_opts);
+        if(no_parsed_option_num){
+            STDERR_LOG(stream_switch::LOG_LEVEL_WARNING,  
+            "%d options cannot be parsed by ffmpeg avformat context\n", 
+            no_parsed_option_num);            
+        }
+        //printf("after open, option dict count:%d\n", av_dict_count(format_opts));
+        av_dict_free(&format_opts);
+        format_opts = NULL;
+    }        
+    base_timestamp_.tv_sec = 0;
+    base_timestamp_.tv_usec = 0;
     return 0;
     
+    
+err_out4:
+    if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
+        avio_closep(&fmt_ctx_->pb);     
+
 err_out3:
     
     {
-        StreamParserVector::iterator it;
-        for(it = stream_parsers_.begin(); 
-            it != stream_parsers_.end();
+        StreamMuxParserVector::iterator it;
+        for(it = stream_mux_parsers_.begin(); 
+            it != stream_mux_parsers_.end();
             it++){
             (*it)->Uninit();
             delete (*it);
             (*it) = NULL;
         }
-        stream_parsers_.clear();
+        stream_mux_parsers_.clear();
                 
     }
     
 err_out2:
-    avformat_close_input(&fmt_ctx_);
+    avformat_free_context(fmt_ctx_);
+    fmt_ctx_ = NULL;
     
 err_out1:
     if(format_opts != NULL){
         av_dict_free(&format_opts);
         format_opts = NULL;
     }
-#endif
+
     return ret;
 }
 
 
 void FFmpegMuxer::Close()
 {
-#if 0   
+ 
     if(fmt_ctx_ == NULL){
         return;
     }    
     
+    //flush all parser
+    {
+        StreamMuxParserVector::iterator it;
+        for(it = stream_parsers_.begin(); 
+            it != stream_parsers_.end();
+            it++){
+            (*it)->Flush(fmt_ctx_);
+        }             
+    }    
+    av_write_trailer(fmt_ctx_);
+    
+    //close ffmpeg format context
+
+    if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
+        avio_closep(&fmt_ctx_->pb);  
+        
     //uninit all parser
     {
-        StreamParserVector::iterator it;
+        StreamMuxParserVector::iterator it;
         for(it = stream_parsers_.begin(); 
             it != stream_parsers_.end();
             it++){
@@ -300,101 +239,71 @@ void FFmpegMuxer::Close()
             (*it) = NULL;
         }
         stream_parsers_.clear();                
-    }    
-
-    //close ffmpeg format context
-    av_write_trailer(fmt_ctx_);
-    if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
-        avio_closep(&fmt_ctx_->pb);    
+    }       
     avformat_free_context(fmt_ctx_);
     fmt_ctx_ = NULL;
-    
-
-
-#endif    
 }
+
 int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
                              const char * frame_data, 
                              size_t frame_size)
 {
     int ret = 0;
-    int stream_index = 0;
-    if(frame_info == NULL || pkt == NULL){
-        return -1;
-    }  
+    AVPacket pkt = { 0 }; // data and size must be 0;
+    int stream_index = frame_;
+    const stream_switch::MediaFrameInfo * frame_info_p = NULL;
+    
     if(fmt_ctx_ == NULL){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "FFmpegDemuxer not open\n");         
+                "FFmpegMuxer not open\n");         
         return -1;
     } 
     
-    if(!io_enabled()){
-        return FFMPEG_SOURCE_ERR_IO;
-    }
-    if(pkt->data != NULL){
-        //pkt has not yet free
-        av_free_packet(pkt);
-    }
- 
-    //check cache first
-    if(cached_pkts.size() != 0){
-        (*frame_info) = cached_pkts.front().frame_info;
-        (*pkt) = cached_pkts.front().pkt;
-        if(is_meta_changed != NULL){
-            (*is_meta_changed) = false;
+    //get stream muxer parser
+    for (;;) {
+        AVPacket opkt = { 0 };
+        av_init_packet(&opkt);
+        int ret = interleave_packet(&opkt, &base_timestamp_, frame_info_p, frame_data, frame_size);
+        if (frame_info_p != NULL) {
+            frame_info_p = NULL;
         }
-        cached_pkts.pop_front();
-        return 0;
-    }
-  
-    StartIO();
-    ret = av_read_frame(fmt_ctx_, pkt);
-    StopIO();
-    if(ret == AVERROR_EOF){       
-        ret = FFMPEG_SOURCE_ERR_EOF;
-        goto error_out1;
-    }else if(ret){
-        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "av_read_frame failed with ret(%d)\n", ret);         
-        ret = FFMPEG_SOURCE_ERR_IO;
-        goto error_out1;        
-    }
-
+        if(ret == 0){
+            //no pkt need to write, exit
+            break;
+        }if (ret < 0){
+            //some error ocurs in parse
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+                "Failed to parse the media data from stream %d\n", 
+                frame_info.sub_stream_index);                     
+            break;
+        }
 #define DUMP_PACKET    
 #ifdef DUMP_PACKET
-    {
-        STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
-                "Read the following packet from input file\n");         
-        av_pkt_dump_log2(NULL, AV_LOG_DEBUG, pkt, 0, 
-                         fmt_ctx_->streams[pkt->stream_index]);
+        {
+            STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
+                        "The following packet will be written to the output file\n");         
+                         av_pkt_dump_log2(NULL, AV_LOG_DEBUG, &opkt, 0, 
+                         fmt_ctx_->streams[opkt.stream_index]);
                          
-    }
-#endif      
- 
-    stream_index = pkt->stream_index;
-    if(stream_index >= stream_parsers_.size()){
-        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "packet index excceed the number of stream parsers\n");     
-        ret = FFMPEG_SOURCE_ERR_GENERAL;
-        goto error_out2; 
-    }
-    //printf("file:%s, line:%d\n", __FILE__, __LINE__);    
-    ret = stream_parsers_[stream_index]->Parse(frame_info, 
-                                               pkt, 
-                                               is_meta_changed);
-    if(ret){
-        goto error_out2;   
-    }
-    frame_info->ssrc = ssrc_;
-    //printf("file:%s, line:%d\n", __FILE__, __LINE__);        
-    return 0;
+        }
+#endif             
 
-error_out2:
-    av_free_packet(pkt);
+        ret = av_interleaved_write_frame(s, &opkt);
+        if(ret){
+            //some error ocurs in parse
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+                "Failed to write pkt to the output file:%s\n", 
+                av_err2str(ret));   
+            ret = FFMPEG_SENDER_ERR_IO;            
+            break;            
+        }
+
+            
 
 
-error_out1:
+    }    
     return ret;
+
 }
 
 
@@ -434,3 +343,58 @@ int FFmpegMuxer::IOInterruptCB()
     
 }
 
+static std::string uint2str(unsigned int uint_value)
+{
+    std::stringstream stream;
+    stream<<int_value;
+    return stream.str();
+}
+void FFmpegMuxer::GetClientInfo(const std::string &dest_url, 
+                                const std::string &format,
+                                stream_switch::StreamClientInfo *client_info)
+{
+    const char * protocol_name = NULL; 
+    if(client_info == NULL){
+        return;
+    }
+    //get protocol
+    protocol_name = avio_find_protocol_name(dest_url.c_str());
+    if(protocol_name == NULL){        
+        if(format.size() > 0){
+            protocol_name = format.c_str();            
+        }else{
+            AVOutputFormat *oformat;
+            oformat = av_guess_format(NULL, dest_url.c_str(), NULL);
+            if (oformat!= NULL) {
+                protocol_name = oformat->name;
+            }
+        }//if(format.size() > 0){
+    }
+    if(protocol_name == NULL){
+        protocol_name = "ffmpeg";
+    }
+    client_info->client_text = protocol_name;
+    
+    //get ip and port
+    {
+        char hostname[1024],proto[1024],path[1024];
+        int port;
+        av_url_split(proto, sizeof(proto), NULL, 0, hostname, sizeof(hostname),
+                    &port, path, sizeof(path), dest_url.c_str());  
+        if(port >0 && port < 65536){
+            client_info->client_port = port;
+        }
+        if (hostname[0] != 0){
+            client_info->client_ip = hostname;            
+        }
+        //the url as the client text
+        client_info->client_text = dest_url;
+    }
+    
+    //the pid as the client token
+    {
+        pid_t pid;
+        pid = getpid() ;
+        client_info->client_token = uint2str((unsigned)pid);          
+    }
+}

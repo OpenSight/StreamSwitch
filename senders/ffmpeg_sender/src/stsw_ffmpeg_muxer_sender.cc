@@ -101,7 +101,7 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
     }
    
     //get client_info from muxer based on dest_url
-    //??? 
+    FFmpegMuxer::GetClientInfo(dest_url, format, &client_info);
     
     //init sink
     if(source_ip.size() != 0 && source_tcp_port !=0){

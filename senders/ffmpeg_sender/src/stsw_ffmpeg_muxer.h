@@ -68,7 +68,9 @@ public:
                             const char * frame_data, 
                             size_t frame_size);
     
-    
+    static void GetClientInfo(const std::string &dest_url, 
+                              const std::string &format,
+                              stream_switch::StreamClientInfo *client_info);
    
 protected:
     //friend class StreamMuxParser;
@@ -84,8 +86,9 @@ protected:
     AVFormatContext *fmt_ctx_;    
     struct timespec io_start_ts_;
     int io_timeout_;
+    struct timeval base_timestamp_; 
     //stream_switch::StreamMetadata metadata_;
-    StreamMuxParserVector stream_parsers_;
+    StreamMuxParserVector stream_mux_parsers_;
 };
 
 #endif

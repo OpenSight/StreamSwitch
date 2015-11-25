@@ -40,8 +40,7 @@ enum FFmpegSenderErrCode{
 
     FFMPEG_SENDER_ERR_IO = -64,   // IO operation fail
     FFMPEG_SENDER_ERR_INTER_FRAME_GAP = -65,  // over max inter frame gap
-    FFMPEG_SENDER_ERR_METADATA_MISMATCH = -66,  // ssrc mismatch between the frame and metadata    
-    
+    FFMPEG_SENDER_ERR_METADATA_EOF = -66,  // stream finish      
  
 };
 
