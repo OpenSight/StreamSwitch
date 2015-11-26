@@ -211,18 +211,18 @@ void FFmpegMuxer::Close()
     if(fmt_ctx_ == NULL){
         return;
     }    
-    
+    StartIO();
     //flush all parser
     {
         StreamMuxParserVector::iterator it;
         for(it = stream_parsers_.begin(); 
             it != stream_parsers_.end();
             it++){
-            (*it)->Flush(fmt_ctx_);
+            (*it)->Flush();
         }             
     }    
     av_write_trailer(fmt_ctx_);
-    
+    StopIO();
     //close ffmpeg format context
 
     if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
@@ -252,18 +252,26 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
     AVPacket pkt = { 0 }; // data and size must be 0;
     int stream_index = frame_;
     const stream_switch::MediaFrameInfo * frame_info_p = NULL;
+    StreamMuxParser * parser = NULL;
     
     if(fmt_ctx_ == NULL){
-            STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "FFmpegMuxer not open\n");         
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+                "FFmpegMuxer not open\n");
         return -1;
     } 
+    if(frame_info.sub_stream_index >= stream_mux_parsers_.size()){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
+                "sub_stream_index is over the number of parser\n");
+        return -1;        
+    }
     
     //get stream muxer parser
+    parser = stream_mux_parsers_[frame_info.sub_stream_index];
+    
     for (;;) {
         AVPacket opkt = { 0 };
         av_init_packet(&opkt);
-        int ret = interleave_packet(&opkt, &base_timestamp_, frame_info_p, frame_data, frame_size);
+        int ret = interleave_packet(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
         }
@@ -277,6 +285,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                 frame_info.sub_stream_index);                     
             break;
         }
+                
 #define DUMP_PACKET    
 #ifdef DUMP_PACKET
         {
@@ -287,8 +296,9 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                          
         }
 #endif             
-
+        StartIO();
         ret = av_interleaved_write_frame(s, &opkt);
+        StopIO();
         if(ret){
             //some error ocurs in parse
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
@@ -297,13 +307,8 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
             ret = FFMPEG_SENDER_ERR_IO;            
             break;            
         }
-
-            
-
-
     }    
     return ret;
-
 }
 
 
@@ -380,7 +385,7 @@ void FFmpegMuxer::GetClientInfo(const std::string &dest_url,
         char hostname[1024],proto[1024],path[1024];
         int port;
         av_url_split(proto, sizeof(proto), NULL, 0, hostname, sizeof(hostname),
-                    &port, path, sizeof(path), dest_url.c_str());  
+                     &port, path, sizeof(path), dest_url.c_str());  
         if(port >0 && port < 65536){
             client_info->client_port = port;
         }

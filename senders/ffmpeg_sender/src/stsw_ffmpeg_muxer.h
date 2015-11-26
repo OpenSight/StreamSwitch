@@ -46,7 +46,7 @@ extern "C"{
 #include <libavformat/avformat.h>      
 }
 
-//class StreamMuxParser;
+class StreamMuxParser;
 //class H264or5MuxParser;
 //class Mpeg4MuxParser;
 typedef std::vector<StreamMuxParser *> StreamMuxParserVector;

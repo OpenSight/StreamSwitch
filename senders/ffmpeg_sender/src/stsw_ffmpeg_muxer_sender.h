@@ -105,7 +105,7 @@ protected:
     static FFmpegMuxerSender * s_instance;
 
     stream_switch::StreamSink *sink_; 
-    //FFmpegMuxer * muxer_; 
+    FFmpegMuxer * muxer_; 
     stream_switch::StreamMetadata meta_;
     int error_code_;
     

@@ -51,10 +51,9 @@ FFmpegMuxerSender * FFmpegMuxerSender::s_instance = NULL;
 FFmpegMuxerSender::FFmpegMuxerSender()
 :error_code_(0), is_started_(false)
 {
-
  
     // create demuxer object for this input type
-    //demuxer_ = new FFmpegDemuxer();
+    muxer_ = new FFmpegMuxer();
     sink_ = new stream_switch::StreamSink();
 }
 
@@ -62,10 +61,10 @@ FFmpegMuxerSender::FFmpegMuxerSender()
 
 FFmpegMuxerSender::~FFmpegMuxerSender()
 {
-    //if(demuxer_ != NULL){
-    //    delete demuxer_;
-    //    demuxer_ = NULL;
-    //}
+    if(muxer_ != NULL){
+        delete muxer_;
+        muxer_ = NULL;
+    }
     
     if(sink_ != NULL){
         delete sink_;
@@ -138,9 +137,27 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
         ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto error_out2;
     }    
+    if(meta_.play_type != stream_switch::STREAM_PLAY_TYPE_LIVE){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "ffmpeg_sender cannot support non-live stream by now:\n");  
+        ret = FFMPEG_SOURCE_ERR_GENERAL;
+        goto error_out2;       
+    }
+    
+    
     clock_gettime(CLOCK_MONOTONIC, &sink_init_ts); 
     
     //open the muxer
+    ret = muxer_->Open(dest_url, 
+                       format, 
+                       ffmpeg_options_str, 
+                       meta_, 
+                       io_timeout);
+    if(ret){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "Open muxer Failed (%d)\n", ret);  
+        goto error_out2;        
+    }
     
     
 #define MAX_SUBSCRIBER_BUFFER_TIME 4000     
@@ -175,6 +192,9 @@ void FFmpegMuxerSender::Uninit()
     error_code_ = 0;
     //init_ts_.tv_nsec = init_ts_.tv_sec = 0;
     dest_url_.clear();
+    
+    //close muxer
+    muxer_->Close();
     
     //Uninit source
     sink_->Uninit(); 
@@ -241,13 +261,22 @@ void FFmpegMuxerSender::OnLiveMediaFrame(const MediaFrameInfo &frame_info,
                                          const char * frame_data, 
                                          size_t frame_size)
 {
+    int ret = 0;
+    
     if(error_code_){
         //if there is already some error, ignore the receiving frame
         return;
     }
     
     //send the frame to muxer
-    
+    ret = muxer_->WritePacket(frame_info, frame_data, frame_size);
+    if(ret){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                   "Write packet failed (ret: %d) for file: %s\n", 
+                   ret, dest_url_.c_str());   
+        error_code_ = ret;
+    }
+
                                              
 }
     
