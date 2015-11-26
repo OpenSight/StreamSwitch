@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
         parser.OptionValue("stream-name", ""), 
         parser.ffmpeg_options(), 
         (int)strtol(parser.OptionValue("local-max-gap", "20").c_str(), NULL, 0), 
-        (int)strtol(parser.OptionValue("io-timeout", "10").c_str(), NULL, 0), 
+        (uint32_t)strtoul(parser.OptionValue("io-timeout", "10000").c_str(), NULL, 0), 
         parser.CheckOption("native-frame-rate"),
         (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
         pub_queue_size, 

@@ -60,8 +60,8 @@ void FFmpegArgParser::RegisterSourceOptions()
     
     //register the other options
     RegisterOption("io-timeout", 0, 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
-                   "timeout (in sec) for IO operation. Default is 10 sec", NULL, NULL);
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MSEC",
+                   "timeout (in millisec) for IO operation. Default is 10000 ms", NULL, NULL);
     RegisterOption("local-max-gap", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
                    "the max time gap (in sec) between the local and the received live frame. "

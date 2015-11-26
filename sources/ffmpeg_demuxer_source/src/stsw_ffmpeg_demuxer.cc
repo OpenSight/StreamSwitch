@@ -63,7 +63,7 @@ FFmpegDemuxer::~FFmpegDemuxer()
 }
 int FFmpegDemuxer::Open(const std::string &input, 
              const std::string &ffmpeg_options_str,
-             int io_timeout, 
+             uint32_t io_timeout, 
              int play_mode)
 {
     using namespace stream_switch; 
@@ -540,7 +540,9 @@ int FFmpegDemuxer::IOInterruptCB()
     if(io_start_ts_.tv_sec != 0){
         struct timespec cur_ts;
         clock_gettime(CLOCK_MONOTONIC, &cur_ts);
-        if(cur_ts.tv_sec - io_start_ts_.tv_sec >= io_timeout_){
+        uint64_t io_dur = (cur_ts.tv_sec - io_start_ts_.tv_sec) * 1000 +
+              (cur_ts.tv_nsec - io_start_ts_.tv_nsec) / 1000000;       
+        if(io_dur >= (uint64_t)io_timeout_){
             return 1;
         }
     }
