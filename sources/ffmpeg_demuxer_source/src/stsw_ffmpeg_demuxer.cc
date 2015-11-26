@@ -63,7 +63,7 @@ FFmpegDemuxer::~FFmpegDemuxer()
 }
 int FFmpegDemuxer::Open(const std::string &input, 
              const std::string &ffmpeg_options_str,
-             uint32_t io_timeout, 
+             unsigned long io_timeout, 
              int play_mode)
 {
     using namespace stream_switch; 

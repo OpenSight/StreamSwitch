@@ -85,7 +85,7 @@ public:
              std::string stream_name, 
              std::string ffmpeg_options_str,
              int local_gap_max_time, 
-             uint32_t io_timeout,
+             unsigned long io_timeout,
              bool native_frame_rate, 
              int source_tcp_port, 
              int queue_size, 
@@ -118,7 +118,7 @@ protected:
  
     pthread_t live_thread_id_;
     std::string input_name_;    
-    uint32_t io_timeout_;
+    unsigned long io_timeout_;
     std::string ffmpeg_options_str_;
  
     bool is_started_;

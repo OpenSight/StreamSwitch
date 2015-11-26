@@ -68,7 +68,7 @@ public:
     virtual ~FFmpegDemuxer();
     int Open(const std::string &input, 
              const std::string &ffmpeg_options_str,
-             uint32_t io_timeout, 
+             unsigned long io_timeout, 
              int play_mode);
     void Close();
     int ReadPacket(stream_switch::MediaFrameInfo *frame_info, 
@@ -96,7 +96,7 @@ protected:
     bool io_enabled_;
     AVFormatContext *fmt_ctx_;    
     struct timespec io_start_ts_;
-    uint32_t io_timeout_;
+    unsigned long io_timeout_;
     stream_switch::StreamMetadata meta_;
     StreamParserVector stream_parsers_;
     PacketCachedList cached_pkts;
