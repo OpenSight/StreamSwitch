@@ -7,6 +7,7 @@ from streamswitch.process_mngr import spawn_watcher
 from gevent import sleep
 import signal
 import gevent.signal
+import time
 
 
 def term_handler(signum, frame):
@@ -41,7 +42,9 @@ which provides extra functions like restarting on error, process aging, and etc.
         self.process_cb_listener = self.process_status_cb
 
     def process_status_cb(self, watcher):
-        print("prog %s status changed:" % self.args.prog, watcher)
+        print("prog %s status changed at %s:" % (self.args.prog,
+                                                 time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())),
+              watcher)
 
     def run(self):
         # print(self.args)
