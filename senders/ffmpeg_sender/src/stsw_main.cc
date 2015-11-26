@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
     uint32_t sub_queue_size = STSW_SUBSCRIBE_SOCKET_HWM;
     int log_level = 6;
     uint64_t max_duration = 0;
-    time_t max_frame_gap = 0;
+    uint64_t max_frame_gap = 0;
     struct timespec cur_ts;    
     struct timespec start_ts;  
     struct timespec last_frame_ts;    
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     ParseArgv(argc, argv, &parser); // parse the cmd line    
     
     max_duration = (uint64_t)strtoul(parser.OptionValue("duration", "0").c_str(), NULL, 0);
-    max_frame_gap = (time_t)strtoul(parser.OptionValue("inter-frame-gap", "20").c_str(), NULL, 0);
+    max_frame_gap = (uint64_t)strtoul(parser.OptionValue("inter-frame-gap", "20000").c_str(), NULL, 0);
     sub_queue_size = (uint32_t)strtoul(parser.OptionValue("queue-size", "120").c_str(), NULL, 0);      
     
     //
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
         parser.ffmpeg_options(), 
         parser.OptionValue("stream-name", ""), 
         parser.OptionValue("host", ""), (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
-        strtoul(parser.OptionValue("io_timeout", "10").c_str(), NULL, 0), 
+        strtoul(parser.OptionValue("io_timeout", "10000").c_str(), NULL, 0), 
         sub_queue_size, 
         (uint32_t)strtoul(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
     if(ret){
@@ -234,7 +234,9 @@ int main(int argc, char *argv[])
         //check frame gap
         if(max_frame_gap > 0){
             if(sender->frame_num() == last_frame_num){
-                if(cur_ts.tv_sec - last_frame_ts.tv_sec > max_frame_gap){
+                uint64_t frame_gap = (cur_ts.tv_sec - last_frame_ts.tv_sec) * 1000 + 
+                            (cur_ts.tv_nsec - last_frame_ts.tv_nsec) / 1000000;       
+                if(frame_gap > max_frame_gap){
                     ret = FFMPEG_SENDER_ERR_INTER_FRAME_GAP;
                     STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                               "inter-frame-gap is over, exit with error\n");   

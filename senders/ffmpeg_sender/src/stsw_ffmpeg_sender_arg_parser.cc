@@ -97,13 +97,13 @@ void FFmpegSenderArgParser::RegisterSenderOptions()
                    "ffmpeg_sender would guess the format by the given url", NULL, NULL);     
     //register the other options
     RegisterOption("io-timeout", 0, 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
-                   "timeout (in sec) for ffmpeg IO operation. Default is 10 sec", NULL, NULL);
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",
+                   "timeout (in millisec) for ffmpeg IO operation. Default is 10000 ms", NULL, NULL);
     RegisterOption("inter-frame-gap", 0, 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "SEC",
-                   "the max time (in sec) between the two consecutive frames "
+                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",
+                   "the max time (in millisec) between the two consecutive frames "
                    "If the gap is over this limitation, this sender would exit with error. "
-                   "Defualt is 20 sec", NULL, NULL);
+                   "Defualt is 20000 ms", NULL, NULL);
 /*                   
     RegisterOption("retry-count", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "COUNT",

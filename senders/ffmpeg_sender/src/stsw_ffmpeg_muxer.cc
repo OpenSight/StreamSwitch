@@ -48,7 +48,7 @@ extern "C"{
 
 
 FFmpegMuxer::FFmpegMuxer()
-fmt_ctx_(NULL), io_timeout_(0)
+fmt_ctx_(NULL), io_timeout_(0), frame_num_(0)
 {
     stream_parsers_.reserve(8); //reserve for 8 streams
     stream_parsers_.clear();
@@ -66,7 +66,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
                       const std::string &format,
                       const std::string &ffmpeg_options_str, 
                       const stream_switch::StreamMetadata &metadata, 
-                      int io_timeout)
+                      unsigned long io_timeout)
 {
     using namespace stream_switch; 
     int ret = 0;
@@ -169,6 +169,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     }        
     base_timestamp_.tv_sec = 0;
     base_timestamp_.tv_usec = 0;
+    frame_num_ = 0;
     return 0;
     
     
@@ -307,11 +308,15 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
             ret = FFMPEG_SENDER_ERR_IO;            
             break;            
         }
+        frame_num_++;
     }    
     return ret;
 }
 
-
+uint32_t FFmpegMuxer::frame_num()
+{
+    return frame_num_;
+}
 
 
 void FFmpegMuxer::StartIO()
@@ -332,14 +337,12 @@ int FFmpegMuxer::StaticIOInterruptCB(void* user_data)
 
 int FFmpegMuxer::IOInterruptCB()
 {
-    if(!io_enabled()){
-
-        return 1;
-    }
     if(io_start_ts_.tv_sec != 0){
         struct timespec cur_ts;
         clock_gettime(CLOCK_MONOTONIC, &cur_ts);
-        if(cur_ts.tv_sec - io_start_ts_.tv_sec >= io_timeout_){
+        uint64_t io_dur = (cur_ts.tv_sec - io_start_ts_.tv_sec) * 1000 +
+              (cur_ts.tv_nsec - io_start_ts_.tv_nsec) / 1000000;       
+        if(io_dur >= (uint64_t)io_timeout_){
             return 1;
         }
     }

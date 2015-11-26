@@ -130,7 +130,7 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
         goto error_out1;
     }
     
-    ret = sink_->UpdateStreamMetaData(io_timeout*1000, &meta_, &err_info);
+    ret = sink_->UpdateStreamMetaData(io_timeout, &meta_, &err_info);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Update Sink metadata Failed (%d): %s\n", ret, err_info.c_str());  
@@ -254,7 +254,7 @@ int FFmpegMuxerSender::err_code()
 
 uint32_t FFmpegMuxerSender::frame_num()
 {
-    return 0;
+    return muxer_->frame_num();
 }
 
 void FFmpegMuxerSender::OnLiveMediaFrame(const MediaFrameInfo &frame_info, 

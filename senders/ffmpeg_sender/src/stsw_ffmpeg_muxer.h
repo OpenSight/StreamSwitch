@@ -62,18 +62,19 @@ public:
              const std::string &format,
              const std::string &ffmpeg_options_str, 
              const stream_switch::StreamMetadata &metadata, 
-             int io_timeout);
+             unsigned long io_timeout);
     virtual void Close();
     virtual int WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
                             const char * frame_data, 
                             size_t frame_size);
+    virtual uint32_t frame_num();
     
     static void GetClientInfo(const std::string &dest_url, 
                               const std::string &format,
                               stream_switch::StreamClientInfo *client_info);
    
 protected:
-    //friend class StreamMuxParser;
+    friend class StreamMuxParser;
     //friend class H264or5MuxParser;
     //friend class Mpeg4MuxParser;
 
@@ -85,10 +86,11 @@ protected:
     
     AVFormatContext *fmt_ctx_;    
     struct timespec io_start_ts_;
-    int io_timeout_;
+    unsigned long io_timeout_;
     struct timeval base_timestamp_; 
     //stream_switch::StreamMetadata metadata_;
     StreamMuxParserVector stream_mux_parsers_;
+    uint32_t frame_num_;
 };
 
 #endif
