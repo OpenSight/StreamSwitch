@@ -48,263 +48,155 @@ extern "C"{
 #include <libavcodec/avcodec.h>      
 }
 
-StreamParser::StreamParser()
-:is_init_(false), stream_index_(0),  demuxer_(NULL), stream_(NULL), is_live_(true), 
-gop_started_(false),
-last_pts_(AV_NOPTS_VALUE), last_dur_(0)
+StreamMuxParser::StreamMuxParser()
+:is_init_(false), muxer_(NULL),  fmt_ctx_(NULL), stream_(NULL)
 {
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;
+
 }
-StreamParser::~StreamParser()
+StreamMuxParser::~StreamMuxParser()
 {
     
 }
-int StreamParser::Init(FFmpegDemuxer *demuxer, int stream_index)
+int StreamMuxParser::Init(FFmpegMuxer * muxer, 
+                          const stream_switch::SubStreamMetadata &sub_metadata, 
+                          AVFormatContext *fmt_ctx)
 {   
     int ret = 0;
     if(is_init_){
         return 0;
     }
-    demuxer_ = demuxer;
-    stream_index_ = stream_index;
-    stream_ = demuxer->fmt_ctx_->streams[stream_index];
-    is_live_ = 
-        (demuxer->meta_.play_type == stream_switch::STREAM_PLAY_TYPE_LIVE);
-    gop_started_ = false;
-    last_pts_ = AV_NOPTS_VALUE;
-    last_dur_ = 0;
+    //setup stream
     
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;  
     
+    
+    muxer_ = muxer;
+    fmt_ctx_ = fmt_ctx
+
     is_init_ = true;
     return 0;
 }
-void StreamParser::Uninit()
+void StreamMuxParser::Uninit()
 {
     if(!is_init_){
         return;
     }
     is_init_ = false;
-    stream_index_ = 0;
-    demuxer_ = NULL;
+
+    muxer_ = NULL;
     stream_ = NULL;
-    is_live_ = true;
-    gop_started_ = false;
-    last_pts_ = AV_NOPTS_VALUE;
-    last_dur_ = 0;
-    
-    last_live_ts_.tv_sec = 0;
-    last_live_ts_.tv_usec = 0;     
+    fmt_ctx_ = NULL;
+   
     
     return;
 }
-int StreamParser::Parse(stream_switch::MediaFrameInfo *frame_info, 
-                        AVPacket *pkt, 
-                        bool* is_meta_changed)
+int StreamMuxParser::Parse(stream_switch::MediaFrameInfo *frame_info, 
+                           const char * frame_data,
+                           size_t frame_size,
+                           struct timeval *base_timestamp,
+                           AVPacket *opkt)
 {
     int ret = 0;
-
-    if(pkt->flags & AV_PKT_FLAG_CORRUPT){
-        //for corrupt packet, juet ignore and drop
-        return FFMPEG_SOURCE_ERR_DROP;
-    }
     
-    ret = DoUpdateFrameInfo(frame_info, pkt);
-    if(ret){
-        return ret;
+    if(!is_init_){
+        return FFMPEG_SENDER_ERR_GENERAL;
     }    
     
-    ret = DoUpdateMeta(pkt, is_meta_changed);
-    if(ret){
-        return ret;
+    if(frame_info == NULL){
+        return 0; //no further packet to write to the context
     }
     
-    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
-        gop_started_ = true;
+    if(stream_ == NULL){
+        //no associate any stream, just drop the frame
+        return 0;
     }
     
-    if(!gop_started_){
-        return FFMPEG_SOURCE_ERR_DROP;
-    }
+    //write the frame to opkt, no cached mechanism
     
-    return 0;
-}
-void StreamParser::reset()
-{
-    gop_started_ = false;
-    return;
-}
-
-bool StreamParser::IsMetaReady()
-{
-    return true;
-}
-
-
-int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info, 
-                                    AVPacket *pkt)
-{
-    frame_info->ssrc = 0;
-    frame_info->sub_stream_index = stream_index_;    
-    if(pkt->flags & AV_PKT_FLAG_KEY){
-        frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME;
+    //calculate pts&dts
+    double ts_delta = 0.0;
+    if(base_timestamp->tv_sec == 0 && base_timestamp->tv_usec == 0){
+        (*base_timestamp) =  frame_info->timestamp;
+        ts_delta = 0.0;
     }else{
-        frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
-    }    
-    //calculate timestamp
-    if(is_live_){        
-        if(last_pts_ == AV_NOPTS_VALUE){
-            //this is the first (has pts) packet to parse, use it as base
-            last_pts_ = pkt->pts;
-            last_dur_ = pkt->duration;
-            gettimeofday(&last_live_ts_, NULL);
-            frame_info->timestamp = last_live_ts_;
-            
-        }else{
-            if(pkt->pts == AV_NOPTS_VALUE){
-                // no pts for this packet, may be because of B frame situation, 
-                // which is not support for live stream, use the last packt time
-                frame_info->timestamp = last_live_ts_;
-                last_dur_ += pkt->duration;
-          
-            }else {
-                int64_t pts_delta = 0;
-                if(pkt->pts < last_pts_ || 
-                   (pkt->pts - last_pts_) * stream_->time_base.num / stream_->time_base.den > 60) {
-                    //this pts lose sync with the last pts, try to guess their delta 
-                    if(last_dur_ > 0){
-                        //if duration is known, used last duration as delta
-                        pts_delta = last_dur_;
-                    }else if (stream_->codec->codec_type == AVMEDIA_TYPE_VIDEO && 
-                              stream_->avg_frame_rate.den && 
-                              stream_->avg_frame_rate.num){
-                        //make use of average fps to calculate delta
-                        pts_delta = (stream_->avg_frame_rate.den * stream_->time_base.den) /
-                                    (stream_->avg_frame_rate.num * stream_->time_base.num);
-                    }else{
-                        //no any way to know delta
-                        pts_delta = 0;
-                    }
-                }else{
-                    //normal case
-                    pts_delta = pkt->pts - last_pts_;
-                    
-                }
-                
-                frame_info->timestamp.tv_sec = 
-                    (pts_delta * stream_->time_base.num) / stream_->time_base.den + 
-                    last_live_ts_.tv_sec;
-                frame_info->timestamp.tv_usec = 
-                    ((pts_delta * stream_->time_base.num) % stream_->time_base.den) 
-                    * 1000000 / stream_->time_base.den + 
-                    last_live_ts_.tv_usec;  
-                while(frame_info->timestamp.tv_usec >= 1000000){
-                    frame_info->timestamp.tv_sec ++;
-                    frame_info->timestamp.tv_usec -= 1000000;
-                }
-
-                last_pts_ = pkt->pts;
-                last_dur_ = pkt->duration;
-                last_live_ts_ = frame_info->timestamp;
-                
-            }//if(pkt->pts == AV_NOPTS_VALUE){             
-            
-        }//if(pkt->pts == AV_NOPTS_VALUE){
-       
-    }else{ // replay
-        
-        int64_t pts;
-        //for non-live mode, use pts directly
-        if(pkt->pts == AV_NOPTS_VALUE){
-            if(last_pts_ != AV_NOPTS_VALUE){
-                pts = last_pts_;
-            }else{
-                pts = 0;
-            }            
-        }else{
-            pts = pkt->pts;
-            last_pts_ = pts;
-            last_dur_ = pkt->duration;
-        }
-        
-        frame_info->timestamp.tv_sec = 
-            (pts * stream_->time_base.num) / stream_->time_base.den;
-        frame_info->timestamp.tv_usec = 
-            ((pts * stream_->time_base.num) % stream_->time_base.den) 
-            * 1000000 / stream_->time_base.den;        
-    }   
-    return 0;
-}
-
-
-int StreamParser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
-{
-    
-    
-    
-    if(is_meta_changed != NULL){
-        (*is_meta_changed) = false;
+        ts_delta = 
+            (double) (frame_info->timestamp.tv_sec - base_timestamp->tv_sec) + 
+            (((double)(frame_info->timestamp.tv_usec - base_timestamp->tv_usec)) / 1000000.0);
+        if(ts_delta < 0.0){
+            ts_delta = 0.0;
+        }            
     }
-    return 0;
+    opkt->pts = opkt->dts = 
+        (int64_t)(ts_delta * stream_->time_base.den / stream_->time_base.num);
+    opkt->stream_index = stream_->index;
+    if(frame_info->frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+        opkt->flags |= AV_PKT_FLAG_KEY;
+    }
+    opkt->data = frame_data;
+    opkt->size = frame_size;
+   
+    return 1;
 }
 
-
+void StreamMuxParser::Flush()
+{
+    //nothing to do for default mux stream parser
+}
 
 
 
 
 template<class T>
-StreamParser* StreamParserFatcory()
+StreamMuxParser* StreamMuxParserFatcory()
 {
 	return new T;
 }
 
-struct ParserInfo {
+struct MuxParserInfo {
     const int codec_id;
-    StreamParser* (*factory)();
-    const char name[11];
+    StreamMuxParser* (*factory)();
+    const char codec_name[11];
 };
 
 //FIXME this should be simplified!
-static const ParserInfo parser_infos[] = {
-   { AV_CODEC_ID_H264, StreamParserFatcory<H264or5Parser>, "H264" },
-   { AV_CODEC_ID_H265, StreamParserFatcory<H264or5Parser>, "H265" }, 
-   { AV_CODEC_ID_MPEG4, StreamParserFatcory<Mpeg4Parser>, "MP4V-ES" },
+static const MuxParserInfo parser_infos[] = {
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},
    { AV_CODEC_ID_NONE, NULL, "NONE"}//XXX ...
 };
 
-const char * CodecNameFromId(int codec_id)
+
+static int CodecIdFromName(std::string codec_name)
 {
-    const ParserInfo *parser_info = parser_infos;
+    const MuxParserInfo *parser_info = parser_infos;
     while (parser_info->codec_id != AV_CODEC_ID_NONE) {
-        if (parser_info->codec_id == codec_id){
-            if(parser_info->name != NULL){
-                return parser_info->name;
-            }else{
-                return avcodec_get_name((enum AVCodecID)codec_id);
-            }
+        if (strcasecmp(codec_name.c_str(), parser_info->codec_name) == 0){
+            return parser_info->codec_id;
         }            
         parser_info++;
     }
-    return avcodec_get_name((enum AVCodecID)codec_id);
+    AVCodec *c = NULL;
+    while ((c = av_codec_next(c))) {
+        if(strcasecmp(codec_name.c_str(),c->name) == 0){
+            return c->id;
+        }        
+    }    
+    return AV_CODEC_ID_NONE;
 }
-StreamParser * NewStreamParser(int codec_id)
+
+
+StreamMuxParser * NewStreamParser(std::string codec_name)
 {
-    const ParserInfo *parser_info = parser_infos;
+    const MuxParserInfo *parser_info = parser_infos;
     while (parser_info->codec_id != AV_CODEC_ID_NONE) {
-        if (parser_info->codec_id == codec_id){
+        if (strcasecmp(codec_name.c_str(), parser_info->codec_name) == 0){
             if(parser_info->factory != NULL){
                 return parser_info->factory();
             }else{
-                return new StreamParser();
+                return new StreamMuxParser();
             }
         }            
         parser_info++;
     }
-    return new StreamParser();
+    return new StreamMuxParser();
 }

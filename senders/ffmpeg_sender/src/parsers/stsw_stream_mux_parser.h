@@ -59,7 +59,7 @@ public:
     virtual ~StreamParser();
     virtual int Init(FFmpegMuxer * muxer, 
                      const stream_switch::SubStreamMetadata &sub_metadata, 
-                     AVFormatContext *fmt_ctx_);
+                     AVFormatContext *fmt_ctx);
     virtual void Uninit();
     virtual void Flush();    
     
@@ -71,16 +71,17 @@ public:
 
 
 protected:
+
+
     
     bool is_init_;
-    FFmpegMmuxer *demuxer_;
-
+    FFmpegMmuxer *muxer_;
+    AVFormatContext *fmt_ctx_;
+    AVStream * stream_;
 
 
 };
     
-
-const char * CodecNameFromId(int codec_id);
-StreamParser * NewStreamMuxParser(int codec_id);
+StreamMuxParser * NewStreamMuxParser(std::string codec_name);
 
 #endif
