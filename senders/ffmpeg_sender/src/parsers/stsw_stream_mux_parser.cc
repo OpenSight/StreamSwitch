@@ -316,7 +316,7 @@ static enum AVCodecID CodecIdFromName(std::string codec_name)
 }
 
 
-StreamMuxParser * NewStreamParser(std::string codec_name)
+StreamMuxParser * NewStreamMuxParser(std::string codec_name)
 {
     const MuxParserInfo *parser_info = parser_infos;
     while (parser_info->codec_id != AV_CODEC_ID_NONE) {

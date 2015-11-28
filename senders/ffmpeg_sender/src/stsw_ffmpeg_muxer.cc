@@ -73,6 +73,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     int ret = 0;
     AVDictionary *format_opts = NULL;
     const char * format_name = NULL;
+    SubStreamMetadataVector::const_iterator meta_it;
     
     
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
@@ -114,23 +115,22 @@ int FFmpegMuxer::Open(const std::string &dest_url,
 
 
     //setup the parsers
-#if 0
-    for(int i=0; i<fmt_ctx_->nb_streams; i++) {
-        AVStream *st= fmt_ctx_->streams[i];
-        AVCodecContext *codec= st->codec;
-        StreamParser *parser = NewStreamParser(codec->codec_id);
-        ret = parser->Init(this, i);
+    for(meta_it=metadata.sub_streams.begin();
+        meta_it!=metadata.sub_streams.end();
+        meta_it++){  
+        StreamMuxParser *parser = NewStreamMuxParser(meta_it->codec_name);
+        ret = parser->Init(this, (*meta_it), fmt_ctx_);
         if(ret){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
-                "Parser for codec (id:%d) init failed\n", 
-                codec->codec_id); 
+                "Parser for codec (name:%s) init failed\n", 
+                meta_it->codec_name.c_str()); 
             delete parser;
-            ret = FFMPEG_SOURCE_ERR_GENERAL;
+            ret = FFMPEG_SENDER_ERR_GENERAL;
             goto err_out3;
         }
-        stream_parsers_.push_back(parser);        
-    }    
-#endif    
+        stream_mux_parsers_.push_back(parser);          
+    }
+   
     
     // open output file
     if (!(fmt_ctx_->flags & AVFMT_NOFILE)) {
@@ -193,7 +193,7 @@ err_out3:
                 
     }
     
-err_out2:
+//err_out2:
     avformat_free_context(fmt_ctx_);
     fmt_ctx_ = NULL;
     
