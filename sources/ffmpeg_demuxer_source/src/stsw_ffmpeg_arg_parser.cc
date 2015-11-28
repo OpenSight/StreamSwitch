@@ -82,14 +82,14 @@ void FFmpegArgParser::RegisterSourceOptions()
                    "The option name would be extracted from the string after \"ffmpeg-\", the value would be set to VALUE." ,
                    NULL, NULL);
                    
-    parser->RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
+    RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
                    "URL", 
                    "the input file path or the network URL "
                    "which the source read media data from by ffmpeg demuxing library. "
                    "Should be a vaild input for ffmpeg's libavformat", NULL, NULL);  
 
 
-    parser->RegisterOption("debug-flags", 'd', 
+    RegisterOption("debug-flags", 'd', 
                     OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
                     "debug flag for stream_switch core library. "
                     "Default is 0, means no debug dump" , 

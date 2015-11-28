@@ -264,7 +264,7 @@ StreamParser* StreamParserFatcory()
 struct ParserInfo {
     const int codec_id;
     StreamParser* (*factory)();
-    const char name[11];
+    const char name[32];
 };
 
 //FIXME this should be simplified!
@@ -272,6 +272,7 @@ static const ParserInfo parser_infos[] = {
    { AV_CODEC_ID_H264, StreamParserFatcory<H264or5Parser>, "H264" },
    { AV_CODEC_ID_H265, StreamParserFatcory<H264or5Parser>, "H265" }, 
    { AV_CODEC_ID_MPEG4, StreamParserFatcory<Mpeg4Parser>, "MP4V-ES" },
+   { AV_CODEC_ID_AAC, NULL, "MPEG4-GENERIC" },     
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},
