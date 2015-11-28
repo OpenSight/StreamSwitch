@@ -55,15 +55,15 @@ typedef struct AVStream AVStream;
 class StreamMuxParser{
   
 public:
-    StreamParser();
-    virtual ~StreamParser();
+    StreamMuxParser();
+    virtual ~StreamMuxParser();
     virtual int Init(FFmpegMuxer * muxer, 
                      const stream_switch::SubStreamMetadata &sub_metadata, 
                      AVFormatContext *fmt_ctx);
     virtual void Uninit();
     virtual void Flush();    
     
-    virtual int Parse(stream_switch::MediaFrameInfo *frame_info, 
+    virtual int Parse(const stream_switch::MediaFrameInfo *frame_info, 
                       const char * frame_data,
                       size_t frame_size,
                       struct timeval *base_timestamp,
@@ -71,13 +71,12 @@ public:
 
 
 protected:
-
-
     
     bool is_init_;
-    FFmpegMmuxer *muxer_;
+    FFmpegMuxer *muxer_;
     AVFormatContext *fmt_ctx_;
     AVStream * stream_;
+    std::string extra_data_;
 
 
 };

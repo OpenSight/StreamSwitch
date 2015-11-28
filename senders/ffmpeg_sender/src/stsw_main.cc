@@ -65,7 +65,7 @@ extern "C"{
 //functions
     
 void ParseArgv(int argc, char *argv[], 
-               FFmpegArgParser *parser)
+               FFmpegSenderArgParser *parser)
 {
     int ret = 0;
     std::string err_info;
@@ -116,7 +116,7 @@ void ParseArgv(int argc, char *argv[],
             exit(-1);
         }
     }   
-    if(parser.OptionValue("url", "").size() == 0){
+    if(parser->OptionValue("url", "").size() == 0){
         fprintf(stderr, "url cannot be empty string\n");
         exit(-1);        
     }
@@ -249,8 +249,8 @@ int main(int argc, char *argv[])
 
         }
         //check sender err
-        if((ret = sender->err_code()){
-            if(ret == FFMPEG_SENDER_ERR_METADATA_EOF){
+        if((ret = sender->err_code()) != 0){
+            if(ret == FFMPEG_SENDER_ERR_EOF){
                 ret = 0; //make metadata mismatch exit normally, 
                          //so that the sender can be restart at once
                 STDERR_LOG(stream_switch::LOG_LEVEL_INFO,

@@ -51,7 +51,7 @@
 //Type
 
 class FFmpegMuxer;
-class FFmpegMuxerSender: public stream_switch::SourceListener{
+class FFmpegMuxerSender: public stream_switch::SinkListener{
   
 public:
 
@@ -93,7 +93,7 @@ public:
     uint32_t frame_num();
     
     // stream_switch::SourceListener interface
-    virtual void OnLiveMediaFrame(const MediaFrameInfo &frame_info, 
+    virtual void OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
                                   const char * frame_data, 
                                   size_t frame_size);    
     

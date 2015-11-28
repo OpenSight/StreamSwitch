@@ -33,12 +33,13 @@
 #include "stsw_ffmpeg_muxer.h"
 #include "stsw_log.h"
 #include "stsw_ffmpeg_sender_global.h"
-//#include "parser/stsw_stream_parser.h"
+#include "parsers/stsw_stream_mux_parser.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <string>
+#include <sstream>
 
 extern "C"{
 
@@ -48,10 +49,10 @@ extern "C"{
 
 
 FFmpegMuxer::FFmpegMuxer()
-fmt_ctx_(NULL), io_timeout_(0), frame_num_(0)
+:fmt_ctx_(NULL), io_timeout_(0), frame_num_(0)
 {
-    stream_parsers_.reserve(8); //reserve for 8 streams
-    stream_parsers_.clear();
+    stream_mux_parsers_.reserve(8); //reserve for 8 streams
+    stream_mux_parsers_.clear();
     io_start_ts_.tv_nsec = 0;
     io_start_ts_.tv_sec = 0;
     base_timestamp_.tv_sec = 0;
@@ -216,8 +217,8 @@ void FFmpegMuxer::Close()
     //flush all parser
     {
         StreamMuxParserVector::iterator it;
-        for(it = stream_parsers_.begin(); 
-            it != stream_parsers_.end();
+        for(it = stream_mux_parsers_.begin(); 
+            it != stream_mux_parsers_.end();
             it++){
             (*it)->Flush();
         }             
@@ -232,14 +233,14 @@ void FFmpegMuxer::Close()
     //uninit all parser
     {
         StreamMuxParserVector::iterator it;
-        for(it = stream_parsers_.begin(); 
-            it != stream_parsers_.end();
+        for(it = stream_mux_parsers_.begin(); 
+            it != stream_mux_parsers_.end();
             it++){
             (*it)->Uninit();
             delete (*it);
             (*it) = NULL;
         }
-        stream_parsers_.clear();                
+        stream_mux_parsers_.clear();                
     }       
     avformat_free_context(fmt_ctx_);
     fmt_ctx_ = NULL;
@@ -251,7 +252,6 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
 {
     int ret = 0;
     AVPacket pkt = { 0 }; // data and size must be 0;
-    int stream_index = frame_;
     const stream_switch::MediaFrameInfo * frame_info_p = NULL;
     StreamMuxParser * parser = NULL;
     
@@ -272,7 +272,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
     for (;;) {
         AVPacket opkt = { 0 };
         av_init_packet(&opkt);
-        int ret = interleave_packet(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
+        int ret = parser->Parse(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
         }
@@ -298,7 +298,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         }
 #endif             
         StartIO();
-        ret = av_interleaved_write_frame(s, &opkt);
+        ret = av_interleaved_write_frame(fmt_ctx_, &opkt);
         StopIO();
         if(ret){
             //some error ocurs in parse
@@ -354,7 +354,7 @@ int FFmpegMuxer::IOInterruptCB()
 static std::string uint2str(unsigned int uint_value)
 {
     std::stringstream stream;
-    stream<<int_value;
+    stream<<uint_value;
     return stream.str();
 }
 void FFmpegMuxer::GetClientInfo(const std::string &dest_url, 

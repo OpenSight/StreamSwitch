@@ -29,24 +29,26 @@
  * codec. All other streams would be associated this default parser
  * 
  * author: jamken
- * date: 2015-10-27
+ * date: 2015-11-27
 **/ 
 
-#include "stsw_stream_parser.h"
+#include "stsw_stream_mux_parser.h"
 
 #include <stdint.h>
 
 
-#include "../stsw_ffmpeg_demuxer.h"
-#include "../stsw_ffmpeg_source_global.h"
-#include "stsw_h264or5_parser.h"
-#include "stsw_mpeg4_parser.h"
+#include "../stsw_ffmpeg_muxer.h"
+#include "../stsw_ffmpeg_sender_global.h"
+#include "../stsw_log.h"
 
 extern "C"{
 
  
 #include <libavcodec/avcodec.h>      
 }
+
+static enum AVCodecID CodecIdFromName(std::string codec_name);
+
 
 StreamMuxParser::StreamMuxParser()
 :is_init_(false), muxer_(NULL),  fmt_ctx_(NULL), stream_(NULL)
@@ -61,16 +63,141 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
                           const stream_switch::SubStreamMetadata &sub_metadata, 
                           AVFormatContext *fmt_ctx)
 {   
+    using namespace stream_switch; 
     int ret = 0;
     if(is_init_){
         return 0;
     }
     //setup stream
-    
-    
+    if((sub_metadata.media_type == SUB_STREAM_MEIDA_TYPE_VIDEO || 
+        sub_metadata.media_type == SUB_STREAM_MEIDA_TYPE_AUDIO) && 
+       sub_metadata.direction == SUB_STREAM_DIRECTION_OUTBOUND){
+        //only support outbound video/audio stream now
+        AVCodecContext *c = NULL;
+        AVCodec *codec = NULL;
+        AVStream * stream = NULL;
+        int i;
+        enum AVCodecID codec_id = AV_CODEC_ID_NONE;
+        
+        codec_id = CodecIdFromName(sub_metadata.codec_name);
+        if(codec_id == AV_CODEC_ID_NONE){
+            STDERR_LOG(LOG_LEVEL_ERR, "codec %s not support\n", 
+                   sub_metadata.codec_name.c_str());             
+            return FFMPEG_SENDER_ERR_NOT_SUPPORT;
+        }
+        /* find the encoder, 
+         * use decoder instead of encoder, 
+         * because can make use of extra_data to set up the codec context
+         */
+        /*
+        if(sub_metadata.extra_data.size() == 0){
+            codec = avcodec_find_encoder(codec_id);
+        }*/
+        if(codec == NULL){
+            codec = avcodec_find_decoder(codec_id);
+        }
+        
+        if (codec == NULL) {
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not find decoder for '%s'\n",
+                    avcodec_get_name(codec_id));
+            return FFMPEG_SENDER_ERR_NOT_SUPPORT;
+        }
+
+        stream = avformat_new_stream(fmt_ctx, codec);
+        if (!stream) {
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not allocate stream\n");
+            return FFMPEG_SENDER_ERR_GENERAL;
+        }
+        stream->id = stream->index;
+        c = stream->codec;        
+
+        switch (codec->type) {
+        case AVMEDIA_TYPE_AUDIO:
+            c->sample_fmt  = codec->sample_fmts ?
+                codec->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
+            c->bit_rate    = 64000;
+            if(sub_metadata.media_param.audio.samples_per_second != 0){
+                c->sample_rate = 
+                    sub_metadata.media_param.audio.samples_per_second;
+            }else{
+                c->sample_rate = 8000; //the lowest rate
+                if (codec->supported_samplerates) {
+                    c->sample_rate = codec->supported_samplerates[0];
+                    for (i = 0; codec->supported_samplerates[i]; i++) {
+                        if (codec->supported_samplerates[i] == 8000)
+                            c->sample_rate = 8000;
+                    }
+                }
+            }        
+
+            if(sub_metadata.media_param.audio.channels != 0){
+                c->channels = sub_metadata.media_param.audio.channels;
+                c->channel_layout = av_get_default_channel_layout(c->channels);
+            }else{
+                c->channel_layout = AV_CH_LAYOUT_MONO;
+                if (codec->channel_layouts) {
+                    c->channel_layout = codec->channel_layouts[0];
+                    for (i = 0; codec->channel_layouts[i]; i++) {
+                        if (codec->channel_layouts[i] == AV_CH_LAYOUT_MONO)
+                            c->channel_layout = AV_CH_LAYOUT_MONO;
+                    }
+                }
+                c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
+                
+            }
+            stream->time_base = (AVRational){ 1, c->sample_rate };
+            break;  
+        case AVMEDIA_TYPE_VIDEO:
+
+        
+            /* Resolution must be a multiple of two. */
+            if(sub_metadata.media_param.video.height != 0 &&
+               sub_metadata.media_param.video.width != 0){
+                c->width = sub_metadata.media_param.video.width;
+                c->height = sub_metadata.media_param.video.height;
+            }else{
+                /*default is 1080P*/
+                c->width    = 1920;
+                c->height   = 1080;                
+            }
+            /* timebase: default is 1/90K */
+            stream->time_base = (AVRational){ 1, 90000 };
+            c->time_base       = stream->time_base;
+            if(sub_metadata.media_param.video.fps != 0){
+                stream->avg_frame_rate.num = sub_metadata.media_param.video.fps;
+                stream->avg_frame_rate.den = 1;
+            }
+            if(sub_metadata.media_param.video.gov != 0){
+                c->gop_size = sub_metadata.media_param.video.gov;
+            }
+            c->pix_fmt       = AV_PIX_FMT_YUV420P;
+            c->max_b_frames = 0;
+            break;
+        default:
+            break;   
+        }
+        if(sub_metadata.extra_data.size() != 0){
+            //make use of extra data to initialize the other field of the context
+            extra_data_ = sub_metadata.extra_data;
+            c->extradata = (uint8_t*)extra_data_.data();
+            c->extradata_size = extra_data_.size();
+            ret = avcodec_open2(c, NULL, NULL);
+            if(ret){
+                STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
+                    avcodec_get_name(codec_id), av_err2str(ret));
+                return FFMPEG_SENDER_ERR_GENERAL;                
+            }
+            avcodec_close(c);
+        }
+        stream_ = stream;
+       
+    }else{
+        //for stream of other type, ignore
+        stream_ = NULL;
+    }    
     
     muxer_ = muxer;
-    fmt_ctx_ = fmt_ctx
+    fmt_ctx_ = fmt_ctx;
 
     is_init_ = true;
     return 0;
@@ -89,7 +216,7 @@ void StreamMuxParser::Uninit()
     
     return;
 }
-int StreamMuxParser::Parse(stream_switch::MediaFrameInfo *frame_info, 
+int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info, 
                            const char * frame_data,
                            size_t frame_size,
                            struct timeval *base_timestamp,
@@ -128,10 +255,10 @@ int StreamMuxParser::Parse(stream_switch::MediaFrameInfo *frame_info,
     opkt->pts = opkt->dts = 
         (int64_t)(ts_delta * stream_->time_base.den / stream_->time_base.num);
     opkt->stream_index = stream_->index;
-    if(frame_info->frame_type == MEDIA_FRAME_TYPE_KEY_FRAME){
+    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
         opkt->flags |= AV_PKT_FLAG_KEY;
     }
-    opkt->data = frame_data;
+    opkt->data = (uint8_t *)frame_data;
     opkt->size = frame_size;
    
     return 1;
@@ -152,13 +279,17 @@ StreamMuxParser* StreamMuxParserFatcory()
 }
 
 struct MuxParserInfo {
-    const int codec_id;
+    enum AVCodecID codec_id;
     StreamMuxParser* (*factory)();
-    const char codec_name[11];
+    const char codec_name[32];
 };
 
 //FIXME this should be simplified!
 static const MuxParserInfo parser_infos[] = {
+   { AV_CODEC_ID_H264, NULL, "H264" },
+   { AV_CODEC_ID_H265, NULL, "H265" }, 
+   { AV_CODEC_ID_MPEG4, NULL, "MP4V-ES" },   
+   { AV_CODEC_ID_AAC, NULL, "MPEG4-GENERIC" },   
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},
@@ -166,7 +297,7 @@ static const MuxParserInfo parser_infos[] = {
 };
 
 
-static int CodecIdFromName(std::string codec_name)
+static enum AVCodecID CodecIdFromName(std::string codec_name)
 {
     const MuxParserInfo *parser_info = parser_infos;
     while (parser_info->codec_id != AV_CODEC_ID_NONE) {

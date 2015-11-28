@@ -86,7 +86,7 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
 {
     std::string err_info;
     int ret = 0;
-    uint32_t retry = muxer_retry_count;
+    //uint32_t retry = muxer_retry_count;
     stream_switch::StreamClientInfo client_info;
     struct timespec sink_init_ts;  
 
@@ -126,7 +126,7 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Init Sink Failed (%d): %s\n", ret, err_info.c_str());  
-        ret = FFMPEG_SOURCE_ERR_GENERAL;
+        ret = FFMPEG_SENDER_ERR_GENERAL;
         goto error_out1;
     }
     
@@ -134,13 +134,13 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Update Sink metadata Failed (%d): %s\n", ret, err_info.c_str());  
-        ret = FFMPEG_SOURCE_ERR_GENERAL;
+        ret = FFMPEG_SENDER_ERR_GENERAL;
         goto error_out2;
     }    
     if(meta_.play_type != stream_switch::STREAM_PLAY_TYPE_LIVE){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "ffmpeg_sender cannot support non-live stream by now:\n");  
-        ret = FFMPEG_SOURCE_ERR_GENERAL;
+        ret = FFMPEG_SENDER_ERR_GENERAL;
         goto error_out2;       
     }
     
@@ -248,7 +248,7 @@ void FFmpegMuxerSender::Stop()
 
 int FFmpegMuxerSender::err_code()
 {
-    return err_code_;
+    return error_code_;
 }
 
 
@@ -257,7 +257,7 @@ uint32_t FFmpegMuxerSender::frame_num()
     return muxer_->frame_num();
 }
 
-void FFmpegMuxerSender::OnLiveMediaFrame(const MediaFrameInfo &frame_info, 
+void FFmpegMuxerSender::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &frame_info, 
                                          const char * frame_data, 
                                          size_t frame_size)
 {
@@ -282,5 +282,5 @@ void FFmpegMuxerSender::OnLiveMediaFrame(const MediaFrameInfo &frame_info,
     
 void FFmpegMuxerSender::OnMetadataMismatch(uint32_t mismatch_ssrc)
 {
-    error_code_ = FFMPEG_SENDER_ERR_METADATA_MISMATCH;
+    error_code_ = FFMPEG_SENDER_ERR_EOF;
 }

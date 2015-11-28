@@ -38,6 +38,7 @@ host_triplet = @host@
 @INCLUDE_PROXY_SOURCE_TRUE@am__append_3 = sources/stsw_proxy_source
 @INCLUDE_RTSP_PORT_TRUE@am__append_4 = ports/stsw_rtsp_port
 @INCLUDE_FFMPEG_DEMUXER_SOURCE_TRUE@am__append_5 = sources/ffmpeg_demuxer_source
+@INCLUDE_FFMPEG_SENDER_TRUE@am__append_6 = senders/ffmpeg_sender
 subdir = .
 DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS \
@@ -80,7 +81,8 @@ ETAGS = etags
 CTAGS = ctags
 DIST_SUBDIRS = libstreamswitch sources/stsw_rtsp_source \
 	sources/stsw_rtmp_source sources/stsw_proxy_source \
-	ports/stsw_rtsp_port sources/ffmpeg_demuxer_source
+	ports/stsw_rtsp_port sources/ffmpeg_demuxer_source \
+	senders/ffmpeg_sender
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -253,7 +255,8 @@ AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = License README.md DEPENDS controller ports recorders sources
 SUBDIRS = libstreamswitch $(am__append_1) $(am__append_2) \
-	$(am__append_3) $(am__append_4) $(am__append_5)
+	$(am__append_3) $(am__append_4) $(am__append_5) \
+	$(am__append_6)
 all: all-recursive
 
 .SUFFIXES:

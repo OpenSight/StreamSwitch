@@ -34,7 +34,6 @@ AC_ARG_WITH([rtmp-source],
 [would contains the stsw_rtmp_source program @<:@default=no@:>@])], 
 [rtmp_source=${withval}], [rtmp_source=no]) 
 
-
 AM_CONDITIONAL([INCLUDE_RTMP_SOURCE], [test "x$rtmp_source" = xyes])
 
 
@@ -43,16 +42,24 @@ AC_ARG_WITH([proxy-source],
 [would contains the stsw_proxy_source program @<:@default=yes@:>@])], 
 [proxy_source=${withval}], [proxy_source=yes]) 
 
-
 AM_CONDITIONAL([INCLUDE_PROXY_SOURCE], [test "x$proxy_source" = xyes])
+
 
 AC_ARG_WITH([ffmpeg-demuxer-source], 
 [AS_HELP_STRING([--with-ffmpeg-demuxer-source], 
-[would contains the ffmpeg-demuxer-source program @<:@default=yes@:>@])], 
+[would contains the ffmpeg_demuxer_source program @<:@default=yes@:>@])], 
 [ffmpeg_demuxer_source=${withval}], [ffmpeg_demuxer_source=yes]) 
 
-
 AM_CONDITIONAL([INCLUDE_FFMPEG_DEMUXER_SOURCE], [test "x$ffmpeg_demuxer_source" = xyes])
+
+
+
+AC_ARG_WITH([ffmpeg-sender], 
+[AS_HELP_STRING([--with-ffmpeg-sender], 
+[would contains the ffmpeg_sender program @<:@default=yes@:>@])], 
+[ffmpeg_sender=${withval}], [ffmpeg_sender=yes]) 
+
+AM_CONDITIONAL([INCLUDE_FFMPEG_SENDER], [test "x$ffmpeg_sender" = xyes])
 
 
 AC_ARG_WITH([rtsp-port], 
@@ -113,8 +120,8 @@ AC_SUBST(glib_LIBS)
 AC_SUBST(glib_CFLAGS)
 
 
-# Checks for stsw_rtmp_source
-if test "x$ffmpeg_demuxer_source" = xyes; then
+# Checks for ffmpeg_demuxer_source & ffmpeg_sender
+if test "x$ffmpeg_demuxer_source" = xyes -o "x$ffmpeg_sender" = xyes; then
   PKG_CHECK_MODULES(libavformat, [libavformat >= 56.40.0])
   PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.0])  
 fi
@@ -150,6 +157,7 @@ AC_CONFIG_FILES([Makefile \
                  sources/stsw_rtmp_source/Makefile \
                  sources/stsw_proxy_source/Makefile \
                  sources/ffmpeg_demuxer_source/Makefile \
+                 senders/ffmpeg_sender/Makefile \
                  ports/stsw_rtsp_port/Makefile])
 
 # Generate other makefiles
@@ -177,6 +185,7 @@ stsw_rtsp_source included............. : $rtsp_source
 stsw_rtmp_source included ............ : $rtmp_source
 stsw_proxy_source included ........... : $proxy_source
 ffmpeg_demuxer_source included ....... : $ffmpeg_demuxer_source
+ffmpeg_sender included ............... : $ffmpeg_sender
 stsw_rtsp_port included .............. : $rtsp_port
 
 

@@ -24,3 +24,7 @@ endif
 if INCLUDE_FFMPEG_DEMUXER_SOURCE
 SUBDIRS += sources/ffmpeg_demuxer_source
 endif
+
+if INCLUDE_FFMPEG_SENDER
+SUBDIRS += senders/ffmpeg_sender
+endif
