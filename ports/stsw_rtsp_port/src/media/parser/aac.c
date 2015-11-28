@@ -29,7 +29,7 @@
 #include "fnc_log.h"
 
 static const MediaParserInfo info = {
-    "aac",
+    "MPEG4-GENERIC",
     MP_audio
 };
 
