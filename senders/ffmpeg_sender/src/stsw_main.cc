@@ -197,13 +197,17 @@ int main(int argc, char *argv[])
         (uint32_t)strtoul(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
-                    "ffmpeg_sender init error, exit\n");   
+                    "ffmpeg_sender init error for url:%s\n", 
+                    parser.OptionValue("url", "").c_str());   
         goto exit_2;       
     }
    
     //start sender
     ret = sender->Start();
     if(ret){
+        STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                    "ffmpeg_sender start failed for url:%s\n", 
+                    parser.OptionValue("url", "").c_str());          
         goto exit_3;
     }
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 

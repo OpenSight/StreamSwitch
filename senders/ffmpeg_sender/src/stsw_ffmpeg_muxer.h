@@ -47,8 +47,8 @@ extern "C"{
 }
 
 class StreamMuxParser;
-//class H264or5MuxParser;
-//class Mpeg4MuxParser;
+
+
 typedef std::vector<StreamMuxParser *> StreamMuxParserVector;
 
 
@@ -75,9 +75,6 @@ public:
    
 protected:
     friend class StreamMuxParser;
-    //friend class H264or5MuxParser;
-    //friend class Mpeg4MuxParser;
-
     
     static int StaticIOInterruptCB(void* user_data);
     int IOInterruptCB();    

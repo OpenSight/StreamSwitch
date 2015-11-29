@@ -217,8 +217,7 @@ int FFmpegMuxerSender::Start()
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
                    "Sink Start failed (ret: %d): %s\n", 
-                   ret, err_info.c_str());   
-
+                   ret, err_info.c_str()); 
         goto err_out1;
     }    
     error_code_ = 0;    
@@ -276,7 +275,6 @@ void FFmpegMuxerSender::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &fr
                    ret, dest_url_.c_str());   
         error_code_ = ret;
     }
-
                                              
 }
     

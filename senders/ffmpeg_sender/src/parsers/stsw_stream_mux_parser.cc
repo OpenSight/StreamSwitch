@@ -212,6 +212,7 @@ void StreamMuxParser::Uninit()
     muxer_ = NULL;
     stream_ = NULL;
     fmt_ctx_ = NULL;
+    
    
     
     return;

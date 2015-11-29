@@ -94,7 +94,7 @@ void FFmpegSenderArgParser::RegisterSenderOptions()
     RegisterOption("format", 'f', OPTION_FLAG_WITH_ARG,
                    "NAME", 
                    "specify the name of the dest file format, if this option is absent, "
-                   "ffmpeg_sender would guess the format by the given url", NULL, NULL);     
+                   "ffmpeg_sender would guess the format according to the url", NULL, NULL);     
     //register the other options
     RegisterOption("io-timeout", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",

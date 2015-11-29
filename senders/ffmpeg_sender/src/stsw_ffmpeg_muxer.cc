@@ -251,7 +251,6 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                              size_t frame_size)
 {
     int ret = 0;
-    AVPacket pkt = { 0 }; // data and size must be 0;
     const stream_switch::MediaFrameInfo * frame_info_p = NULL;
     StreamMuxParser * parser = NULL;
     
