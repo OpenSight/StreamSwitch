@@ -29,3 +29,7 @@ packages of the following projects:
 4. ffmpeg_demuxer_source depends
 
     * ffmpeg >= 2.8
+
+5. ffmpeg_sender depends
+
+    * ffmpeg >= 2.8    
