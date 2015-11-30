@@ -107,6 +107,7 @@ class SubProcessPort(BasePort):
         self._executable = executable
         self._proc_watcher = None
         self.cmd_args = self._generate_cmd_args()
+        self._process_status_cb_ref = self._process_status_cb
 
     def __del__(self):
         self.stop()
@@ -116,14 +117,13 @@ class SubProcessPort(BasePort):
             return    # alread start
         self._proc_watcher = spawn_watcher(self.cmd_args,
                                            error_restart_interval=self.err_restart_interval,
-                                           process_status_cb=self._process_status_cb)
+                                           process_status_cb=self._process_status_cb_ref)
 
     def stop(self):
         if self._proc_watcher is not None:
-            proc_watcher = self._proc_watcher
+            self._proc_watcher.stop()
+            self._proc_watcher.destroy()
             self._proc_watcher = None
-            proc_watcher.stop()
-            proc_watcher.destroy()
 
     def is_running(self):
         if self._proc_watcher is not None:

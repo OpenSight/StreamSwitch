@@ -704,6 +704,7 @@ class SourceProcessStream(BaseStream):
         self._proc_watcher = None
         self.mode = STREAM_MODE_ACTIVE
         self.cmd_args = self._generate_cmd_args()
+        self._process_status_cb_ref = None
 
     def _generate_cmd_args(self):
         if self._executable is None or len(self._executable) == 0:
@@ -731,10 +732,11 @@ class SourceProcessStream(BaseStream):
     def _start_internal(self):
         if self._proc_watcher is not None:
             self._proc_watcher.destroy()
+        self._process_status_cb_ref = self._process_status_cb
         self._proc_watcher = spawn_watcher(self.cmd_args,
                                            error_restart_interval=self.err_restart_interval,
                                            age_time=self.age_time,
-                                           process_status_cb=self._process_status_cb)
+                                           process_status_cb=self._process_status_cb_ref)
 
     def _restart_internal(self):
         if self._proc_watcher is not None:
@@ -748,6 +750,7 @@ class SourceProcessStream(BaseStream):
             self._proc_watcher.stop()
             self._proc_watcher.destroy()
             self._proc_watcher = None
+        self._process_status_cb_ref = None
 
     def _process_status_cb(self, proc_watcher):
         if self._proc_watcher is proc_watcher and \
@@ -791,7 +794,7 @@ def create_stream(source_type, stream_name, url, api_tcp_port=0, log_file=None, 
                      extra_options={}, event_listener=None, **kwargs):
     # check params
     if source_type is None or stream_name is None:
-        raise StreamSwitchError("Param error" % source_type, 404)
+        raise StreamSwitchError("Param error", 404)
 
     stream_factory = _source_type_map.get(source_type)
     if stream_factory is None:
