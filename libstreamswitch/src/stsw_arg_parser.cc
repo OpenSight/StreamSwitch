@@ -102,17 +102,17 @@ void ArgParser::RegisterSenderOptions()
 {
     RegisterOption("stream-name", 's', 
                    OPTION_FLAG_WITH_ARG, "STREAM",
-                   "local stream name, if the user want to send out from "
+                   "local stream name, if the sender want to read from"
                    "a local stream, this option should be used to set the "
                    "name of the stream", NULL, NULL);
     RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, "HOSTADDR", 
-                   "host IP address of the remote stream, if the user want to "
-                   "send out from a remote stream, this option should be used to "
+                   "host IP address of the remote stream, if the sender want to "
+                   "read from a remote stream, this option should be used to "
                    "set the remote host address of this stream", NULL, NULL);                                      
     RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                    "PORT", 
-                   "tcp port of the remote stream, if the user want "
-                   "send out from a remote stream, this option "
+                   "tcp port of the remote stream, if the sender want "
+                   "read from a remote stream, this option "
                    "should be used to set the remote tcp port of this stream", NULL, NULL);
     RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
                    "log file path for debug, default is no log", NULL, NULL);   

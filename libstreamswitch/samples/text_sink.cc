@@ -445,40 +445,19 @@ void ParseArgv(int argc, char *argv[],
     int ret;
     std::string err_info;
     parser->RegisterBasicOptions();
-
-    //register the default options
-    parser->RegisterOption("debug-flags", 'd', 
-                    OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
-                    "debug flag for stream_switch core library. "
-                    "Default is 0, means no debug dump" , 
-                    NULL, NULL);     
-    parser->RegisterOption("stream-name", 's', OPTION_FLAG_WITH_ARG, "STREAM",
-                   "local stream name, if the user want to connect this sink "
-                   "to local stream, this option should be used to set the "
-                   "stream name of the stream", NULL, NULL);
-    parser->RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, "HOSTADDR", 
-                   "remote host IP address, if the user want to connect this "
-                   "sink to a remote stream, this option should be used to "
-                   "set the remote host address of this stream", NULL, NULL);                   
-    parser->RegisterOption("port", 'p', 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "PORT", 
-                   "remote tcp port, if the user want "
-                   "to connect this sink to a remote stream, this option "
-                   "should be used to set the remote tcp port of this stream", 
-                   NULL, NULL);
-    parser->RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
-                   "log file path for debug", NULL, NULL);   
-    parser->RegisterOption("log-size", 'L', 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  "SIZE",
-                   "log file max size in bytes", NULL, NULL);   
-    parser->RegisterOption("log-rotate", 'r', 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  "NUM",
-                   "log rotate number, 0 means no rotating", NULL, NULL);       
-    parser->RegisterOption("sink-file", 'f', 
-                    OPTION_FLAG_WITH_ARG,  "FILE", 
+    parser->RegisterSenderOptions();
+    
+    parser->UnregisterOption("url");
+    parser->RegisterOption("url", 'u', OPTION_FLAG_WITH_ARG,
+                   "FILE", 
                    "the text file path to which this sink dumps the frames info. "
-                   "If not given, no file is generated", 
-                   NULL, NULL); 
+                   "If not given, no file is generated", NULL, NULL);  
+    parser->UnregisterOption("format");
+    parser->RegisterOption("format", 'f', OPTION_FLAG_WITH_ARG,
+                   "NAME", 
+                   "the dest file format, this option make no sense for text_sink", 
+                   NULL, NULL);    
+
     parser->RegisterOption("queue-size", 'q', 
                     OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
                     "NUM",
@@ -564,11 +543,13 @@ int main(int argc, char *argv[])
         global_logger = new RotateLogger();
         std::string log_file = 
             parser.OptionValue("log-file", "");
-        int log_size = 
+        int log_size = (int)
             strtol(parser.OptionValue("log-size", "0").c_str(), NULL, 0);
-        int rotate_num = 
+        int rotate_num = (int)
             strtol(parser.OptionValue("log-rotate", "0").c_str(), NULL, 0);      
-        int log_level = LOG_LEVEL_DEBUG;
+        int log_level = (int)
+            strtol(parser.OptionValue("log-level", "6").c_str(), NULL, 0);      
+
         
         ret = global_logger->Init("file_live_source", 
             log_file, log_size, rotate_num, log_level, false);
@@ -583,7 +564,7 @@ int main(int argc, char *argv[])
     
 
     if(parser.CheckOption("queue-size")){
-        queue_size = (int)strtol(parser.OptionValue("queue-size", "60").c_str(), NULL, 0);
+        queue_size = (int)strtol(parser.OptionValue("queue-size", "120").c_str(), NULL, 0);
     }
 
      
@@ -592,7 +573,7 @@ int main(int argc, char *argv[])
     
     if(parser.CheckOption("stream-name")){
         ret = text_sink.InitLocal(
-            parser.OptionValue("sink-file", ""),
+            parser.OptionValue("url", ""),
             parser.OptionValue("stream-name", "default"), 
             queue_size,
             str2int(parser.OptionValue("debug-flags", "0")));
@@ -600,7 +581,7 @@ int main(int argc, char *argv[])
         
     }else if(parser.CheckOption("host")){
         ret = text_sink.InitRemote(
-            parser.OptionValue("sink-file", ""),        
+            parser.OptionValue("url", ""),        
             parser.OptionValue("host", ""),
             str2int(parser.OptionValue("port", "0")), 
             queue_size, 
