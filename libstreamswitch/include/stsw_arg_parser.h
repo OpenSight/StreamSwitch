@@ -78,9 +78,26 @@ public:
     //   log-file          l                   log file path for debug
     //   log-size          L                   log file max size in bytes
     //   log-rotate        r                   log rotate number, 0 means no rotating
+    //   log-level                             log level
     //   url               u                   the url which source would connect to  
+    //   queue-size        q                   the size of the message queue for Publish, 0 means no limit
     virtual void RegisterSourceOptions();    
     
+
+    // RegisterSenderOptions()
+    // Register the following options for sender application
+    //    Name            Short                Meaning
+    //   stream-name       s                   local stream name
+    //   host              H                   host IP address of the remote stream
+    //   port              p                   tcp port of the remote stream 
+    //   log-file          l                   log file path for debug
+    //   log-size          L                   log file max size in bytes
+    //   log-rotate        r                   log rotate number, 0 means no rotating
+    //   log-level                             log level
+    //   url               u                   the url of the dest file which the sender send to
+    //   format            f                   the dest file format name
+    //   queue-size        q                   the size of the message queue for Subscriber    
+    virtual void RegisterSenderOptions();    
 
     // clear this parser
     virtual void Clear();

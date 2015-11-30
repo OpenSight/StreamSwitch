@@ -56,46 +56,9 @@ FFmpegSenderArgParser::~FFmpegSenderArgParser()
 
 void FFmpegSenderArgParser::RegisterSenderOptions()
 {
-    RegisterOption("stream-name", 's', 
-                   OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG, "STREAM",
-                   "local stream name, if the user want to send out from "
-                   "a local stream, this option should be used to set the "
-                   "name of the stream", NULL, NULL);
-    RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, "HOSTADDR", 
-                   "remote host IP address, if the user want to "
-                   "send out from a remote stream, this option should be used to "
-                   "set the remote host address of this stream", NULL, NULL);                                      
-    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
-                   "PORT", 
-                   "remote tcp port, if the user want "
-                   "send out from a remote stream, this option "
-                   "should be used to set the remote tcp port of this stream", NULL, NULL);
-    RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
-                   "log file path for debug, default is no log", NULL, NULL);   
-    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  
-                   "SIZE",
-                   "log file max size in bytes", NULL, NULL);   
-    RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
-                   "NUM",
-                   "log rotate number, 0 means no rotating, default is 0", NULL, NULL);  
-    RegisterOption("log-level", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
-                   "NUM",
-                   "log level, compatible with syslog's log level number. "
-                   "By default, it's LOG_INFO(6)", NULL, NULL);  
-    RegisterOption("queue-size", 'q', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
-                   "NUM",
-                   "the size of the message queue for Subscriber, 0 means no limit."
-                   "Default is an internal value determined when compiling", NULL, NULL);  
-     
-    RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
-                   "URL", 
-                   "the url of the dest file which the sender send to", NULL, NULL);   
-
-    RegisterOption("format", 'f', OPTION_FLAG_WITH_ARG,
-                   "NAME", 
-                   "specify the name of the dest file format, if this option is absent, "
-                   "ffmpeg_sender would guess the format according to the url", NULL, NULL);     
-    //register the other options
+    stream_switch::ArgParser::RegisterSenderOptions();
+    
+    //register the other sender options for ffmpeg_sender
     RegisterOption("io-timeout", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",
                    "timeout (in millisec) for ffmpeg IO operation. Default is 10000 ms", NULL, NULL);
@@ -104,16 +67,7 @@ void FFmpegSenderArgParser::RegisterSenderOptions()
                    "the max time (in millisec) between the two consecutive frames "
                    "If the gap is over this limitation, this sender would exit with error. "
                    "Defualt is 20000 ms", NULL, NULL);
-/*                   
-    RegisterOption("retry-count", 0, 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "COUNT",
-                   "how many time would the sender try to initialize the dest file. "
-                   "Defualt is 3", NULL, NULL);    
-    RegisterOption("retry-interval", 0, 
-                   OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",
-                   "The time interval (in millisecond) before reinitialize the dest file. "
-                   "Defualt is 50 ms", NULL, NULL);      
-*/    
+  
     RegisterOption("duration", 0, 
                    OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG, "MS",
                    "how long (in millisecond) the sender does work for, "

@@ -98,7 +98,48 @@ void ArgParser::RegisterSourceOptions()
                    
     
 }
-    
+void ArgParser::RegisterSenderOptions()
+{
+    RegisterOption("stream-name", 's', 
+                   OPTION_FLAG_WITH_ARG, "STREAM",
+                   "local stream name, if the user want to send out from "
+                   "a local stream, this option should be used to set the "
+                   "name of the stream", NULL, NULL);
+    RegisterOption("host", 'H', OPTION_FLAG_WITH_ARG, "HOSTADDR", 
+                   "host IP address of the remote stream, if the user want to "
+                   "send out from a remote stream, this option should be used to "
+                   "set the remote host address of this stream", NULL, NULL);                                      
+    RegisterOption("port", 'p', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "PORT", 
+                   "tcp port of the remote stream, if the user want "
+                   "send out from a remote stream, this option "
+                   "should be used to set the remote tcp port of this stream", NULL, NULL);
+    RegisterOption("log-file", 'l', OPTION_FLAG_WITH_ARG,  "FILE",
+                   "log file path for debug, default is no log", NULL, NULL);   
+    RegisterOption("log-size", 'L', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,  
+                   "SIZE",
+                   "log file max size in bytes", NULL, NULL);   
+    RegisterOption("log-rotate", 'r', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "log rotate number, 0 means no rotating, default is 0", NULL, NULL);  
+    RegisterOption("log-level", 0, OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "log level, compatible with syslog's log level number. "
+                   "By default, it's LOG_INFO(6)", NULL, NULL);  
+    RegisterOption("queue-size", 'q', OPTION_FLAG_WITH_ARG | OPTION_FLAG_LONG,
+                   "NUM",
+                   "the size of the message queue for Subscriber, 0 means no limit."
+                   "Default is an internal value determined when compiling", NULL, NULL);  
+     
+    RegisterOption("url", 'u', OPTION_FLAG_REQUIRED | OPTION_FLAG_WITH_ARG,
+                   "URL", 
+                   "the url of the dest file which the sender send to", NULL, NULL);  
+
+    RegisterOption("format", 'f', OPTION_FLAG_WITH_ARG,
+                   "NAME", 
+                   "the dest file format, if this option is absent, "
+                   "the sender would guess the format", NULL, NULL);       
+}
     
 void ArgParser::Clear()
 {

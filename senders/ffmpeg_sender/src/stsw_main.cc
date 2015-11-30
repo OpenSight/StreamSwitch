@@ -86,11 +86,11 @@ void ParseArgv(int argc, char *argv[],
         option_help = parser->GetOptionsHelp();
         fprintf(stderr, 
         "a StreamSwitch stream sender based on the ffmpeg muxing functions, "
-        "which can read the media frames from some StreamSwitch source, and "
-        "writes to a ffmpeg muxing context. \n"
-        "It by now only performs the muxing to a dest file, "
-        "does not include transcoding or any filter, "
-        "and only support a live StreamSwitch stream\n"
+        "which reads the media frames from some StreamSwitch source, and "
+        "writes them to a ffmpeg muxing context. \n"
+        "It only performs the muxing, "
+        "does not includes transcoding nor any filter, "
+        "and only support read from a live stream\n"
         "Usange: %s [options]\n"
         "\n"
         "Option list:\n"
