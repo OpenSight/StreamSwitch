@@ -52,3 +52,14 @@ class PortStatusChangeEvent(StreamSwitchEvent):
     def __init__(self, info, port):
         super(PortStatusChangeEvent, self).__init__(info)
         self.port = port
+
+
+class SenderStateChangeEvent(StreamSwitchEvent):
+    """subscriber message event
+
+    When a packet is received from subscriber socket, this event
+    would be passed to the event listener after processing
+    """
+    def __init__(self, info, sender):
+        super(SenderStateChangeEvent, self).__init__(info)
+        self.sender = sender
