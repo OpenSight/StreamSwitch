@@ -55,6 +55,8 @@ am_ffmpeg_sender_OBJECTS = src/stsw_main.$(OBJEXT) \
 	src/stsw_ffmpeg_muxer_sender.$(OBJEXT) \
 	src/stsw_ffmpeg_muxer.$(OBJEXT) \
 	src/parsers/stsw_stream_mux_parser.$(OBJEXT) \
+	src/parsers/stsw_h264or5_mux_parser.$(OBJEXT) \
+	src/parsers/stsw_mpeg4_video_mux_parser.$(OBJEXT) \
 	src/parsers/dec_sps.$(OBJEXT) src/stsw_log.$(OBJEXT)
 ffmpeg_sender_OBJECTS = $(am_ffmpeg_sender_OBJECTS)
 ffmpeg_sender_DEPENDENCIES =  \
@@ -254,6 +256,10 @@ ffmpeg_sender_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_muxer.h \
     src/parsers/stsw_stream_mux_parser.cc \
     src/parsers/stsw_stream_mux_parser.h \
+    src/parsers/stsw_h264or5_mux_parser.cc \
+    src/parsers/stsw_h264or5_mux_parser.h \
+    src/parsers/stsw_mpeg4_video_mux_parser.cc \
+    src/parsers/stsw_mpeg4_video_mux_parser.h \
     src/parsers/dec_sps.cc \
     src/parsers/dec_sps.h \
     src/stsw_ffmpeg_sender_global.h \
@@ -361,6 +367,12 @@ src/parsers/$(DEPDIR)/$(am__dirstamp):
 src/parsers/stsw_stream_mux_parser.$(OBJEXT):  \
 	src/parsers/$(am__dirstamp) \
 	src/parsers/$(DEPDIR)/$(am__dirstamp)
+src/parsers/stsw_h264or5_mux_parser.$(OBJEXT):  \
+	src/parsers/$(am__dirstamp) \
+	src/parsers/$(DEPDIR)/$(am__dirstamp)
+src/parsers/stsw_mpeg4_video_mux_parser.$(OBJEXT):  \
+	src/parsers/$(am__dirstamp) \
+	src/parsers/$(DEPDIR)/$(am__dirstamp)
 src/parsers/dec_sps.$(OBJEXT): src/parsers/$(am__dirstamp) \
 	src/parsers/$(DEPDIR)/$(am__dirstamp)
 src/stsw_log.$(OBJEXT): src/$(am__dirstamp) \
@@ -372,6 +384,8 @@ ffmpeg_sender$(EXEEXT): $(ffmpeg_sender_OBJECTS) $(ffmpeg_sender_DEPENDENCIES)
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f src/parsers/dec_sps.$(OBJEXT)
+	-rm -f src/parsers/stsw_h264or5_mux_parser.$(OBJEXT)
+	-rm -f src/parsers/stsw_mpeg4_video_mux_parser.$(OBJEXT)
 	-rm -f src/parsers/stsw_stream_mux_parser.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_muxer.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_muxer_sender.$(OBJEXT)
@@ -388,6 +402,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/parsers/$(DEPDIR)/dec_sps.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/parsers/$(DEPDIR)/stsw_h264or5_mux_parser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/parsers/$(DEPDIR)/stsw_mpeg4_video_mux_parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/parsers/$(DEPDIR)/stsw_stream_mux_parser.Po@am__quote@
 
 .cc.o:

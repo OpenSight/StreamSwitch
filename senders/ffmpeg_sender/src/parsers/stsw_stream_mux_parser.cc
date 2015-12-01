@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 /**
- * stsw_stream_parser.cc
- *      StreamParser class implementation file, define methods of the StreamParser 
+ * stsw_stream_mux_parser.cc
+ *      StreamMuxParser class implementation file, define methods of the StreamMuxParser 
  * class. 
- *      StreamParser is the default parser for a ffmpeg AV stream, other 
+ *      StreamMuxParser is the default parser for a ffmpeg AV stream, other 
  * parser can inherit this class to override its methods for a specified 
  * codec. All other streams would be associated this default parser
  * 
@@ -40,6 +40,9 @@
 #include "../stsw_ffmpeg_muxer.h"
 #include "../stsw_ffmpeg_sender_global.h"
 #include "../stsw_log.h"
+
+#include "stsw_h264or5_mux_parser.h"
+#include "stsw_mpeg4_video_mux_parser.h"
 
 extern "C"{
 
@@ -308,9 +311,9 @@ struct MuxParserInfo {
 
 //FIXME this should be simplified!
 static const MuxParserInfo parser_infos[] = {
-   { AV_CODEC_ID_H264, NULL, "H264" },
-   { AV_CODEC_ID_H265, NULL, "H265" }, 
-   { AV_CODEC_ID_MPEG4, NULL, "MP4V-ES" },   
+   { AV_CODEC_ID_H264, StreamMuxParserFatcory<H264or5MuxParser>, "H264" },
+   { AV_CODEC_ID_H265, StreamMuxParserFatcory<H264or5MuxParser>, "H265" }, 
+   { AV_CODEC_ID_MPEG4, StreamMuxParserFatcory<Mpeg4VideoMuxParser>, "MP4V-ES" },   
    { AV_CODEC_ID_AAC, NULL, "MPEG4-GENERIC" },   
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
