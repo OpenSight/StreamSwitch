@@ -16,6 +16,8 @@ ffmpeg_sender_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_muxer.h \
     src/parsers/stsw_stream_mux_parser.cc \
     src/parsers/stsw_stream_mux_parser.h \
+    src/parsers/dec_sps.cc \
+    src/parsers/dec_sps.h \
     src/stsw_ffmpeg_sender_global.h \
     src/stsw_log.cc \
     src/stsw_log.h
