@@ -166,20 +166,24 @@ class ProcWatcher(object):
                         else:
                             return   # if no need to restart, make the greenlet exit at once
                     else:
-                        if watcher.age_time > 0 and (not watcher._has_aged): # if age time present, check age
+                        if watcher.age_time > 0:    # if age time present, check age
                             now = time.time()
                             if watcher._proc_start_time > now: # check time is changed
                                 watcher._proc_start_time = now
-                            if now - watcher._proc_start_time > watcher.age_time:
-                                watcher._has_aged = True
-                                watcher._popen.terminate()
-
+                            if watcher._has_aged:
+                                if now - watcher._proc_start_time > watcher.age_time + 5: # terminate no effect, kill it
+                                    watcher._popen.kill()
+                            else:
+                                if now - watcher._proc_start_time > watcher.age_time:
+                                    watcher._has_aged = True
+                                    watcher._popen.terminate()
             except Exception:
                 print("process polling greenlet receives the below Exception when running, ignored")
                 traceback.print_exc()
                 pass
             del watcher
             sleep(sleep_time)      # next time to check
+
 
     @staticmethod
     def _terminate_run(popen, wait_timeout):

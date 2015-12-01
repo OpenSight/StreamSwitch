@@ -261,7 +261,7 @@ _sender_map = weakref.WeakValueDictionary()
 
 
 def register_sender_type(sender_type, sender_factory):
-    if sender_type is None or len(source_type) == 0:
+    if sender_type is None or len(sender_type) == 0:
         raise StreamSwitchError("sender_type invalid", 400)
     if is_str(sender_factory):
         try:
