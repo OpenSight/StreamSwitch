@@ -180,10 +180,11 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
             c->extradata_size = sub_metadata.extra_data.size();
             c->extradata = (uint8_t *)av_mallocz(c->extradata_size);
             memcpy(c->extradata, sub_metadata.extra_data.data(), c->extradata_size);
-/*            
+#if 0          
                   printf("%s:%d\n", 
                    __FILE__, __LINE__); 
             c->debug = ~0;
+#endif
             ret = avcodec_open2(c, NULL, NULL);
             if(ret){
                 STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
@@ -191,7 +192,7 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
                 return FFMPEG_SENDER_ERR_GENERAL;                
             }
             avcodec_close(c);
-*/
+
             
        }
         
