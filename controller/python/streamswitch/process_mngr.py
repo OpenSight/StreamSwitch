@@ -172,11 +172,17 @@ class ProcWatcher(object):
                                 watcher._proc_start_time = now
                             if watcher._has_aged:
                                 if now - watcher._proc_start_time > watcher.age_time + 5: # terminate no effect, kill it
-                                    watcher._popen.kill()
+                                    try:
+                                        watcher._popen.kill()
+                                    except OSError:
+                                        pass
                             else:
                                 if now - watcher._proc_start_time > watcher.age_time:
                                     watcher._has_aged = True
-                                    watcher._popen.terminate()
+                                    try:
+                                        watcher._popen.terminate()
+                                    except OSError:
+                                        pass
             except Exception:
                 print("process polling greenlet receives the below Exception when running, ignored")
                 traceback.print_exc()
