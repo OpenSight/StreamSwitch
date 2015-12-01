@@ -76,7 +76,7 @@ protected:
     FFmpegMuxer *muxer_;
     AVFormatContext *fmt_ctx_;
     AVStream * stream_;
-    std::string extra_data_;
+    bool gop_started_;
 
 
 };

@@ -186,16 +186,20 @@ error_out1:
 
 void FFmpegMuxerSender::Uninit()
 {
+
     if(is_started_){
         Stop();
     }
     error_code_ = 0;
     //init_ts_.tv_nsec = init_ts_.tv_sec = 0;
     dest_url_.clear();
-    
+/*    
+                    printf("%s:%d\n", 
+                   __FILE__, __LINE__);   
+*/ 
     //close muxer
     muxer_->Close();
-    
+
     //Uninit source
     sink_->Uninit(); 
     
@@ -266,8 +270,9 @@ void FFmpegMuxerSender::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &fr
         //if there is already some error, ignore the receiving frame
         return;
     }
-    
+  
     //send the frame to muxer
+#if 1    
     ret = muxer_->WritePacket(frame_info, frame_data, frame_size);
     if(ret){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
@@ -275,6 +280,7 @@ void FFmpegMuxerSender::OnLiveMediaFrame(const stream_switch::MediaFrameInfo &fr
                    ret, dest_url_.c_str());   
         error_code_ = ret;
     }
+#endif    
                                              
 }
     

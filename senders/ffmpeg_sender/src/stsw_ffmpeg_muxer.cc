@@ -78,7 +78,6 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
-   
     ret = av_dict_parse_string(&format_opts, 
                                ffmpeg_options_str.c_str(),
                                "=", ",", 0);
@@ -130,8 +129,13 @@ int FFmpegMuxer::Open(const std::string &dest_url,
         }
         stream_mux_parsers_.push_back(parser);          
     }
+#define DUMP_AVFORMAT
+#ifdef DUMP_AVFORMAT
+    STDERR_LOG(stream_switch::LOG_LEVEL_INFO,  
+            "FFmpegMuxer::Open(): avformat context is dumped below\n");    
+    av_dump_format(fmt_ctx_, 0, dest_url.c_str(), 1);
+#endif  
    
-    
     // open output file
     if (!(fmt_ctx_->flags & AVFMT_NOFILE)) {
         StartIO();
@@ -147,7 +151,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
             goto err_out3;             
         }
     }    
-    
+   
     ret = avformat_write_header(fmt_ctx_, &format_opts);
     if (ret < 0) {
         STDERR_LOG(LOG_LEVEL_ERR, 
@@ -156,7 +160,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
         ret = FFMPEG_SENDER_ERR_GENERAL;
         goto err_out4;         
     }    
-    
+  
     if(format_opts != NULL){
         int no_parsed_option_num = av_dict_count(format_opts);
         if(no_parsed_option_num){
@@ -213,6 +217,7 @@ void FFmpegMuxer::Close()
     if(fmt_ctx_ == NULL){
         return;
     }    
+
     StartIO();
     //flush all parser
     {
@@ -225,11 +230,13 @@ void FFmpegMuxer::Close()
     }    
     av_write_trailer(fmt_ctx_);
     StopIO();
+ 
+    
     //close ffmpeg format context
-
     if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
         avio_closep(&fmt_ctx_->pb);  
-        
+
+         
     //uninit all parser
     {
         StreamMuxParserVector::iterator it;
@@ -241,8 +248,9 @@ void FFmpegMuxer::Close()
             (*it) = NULL;
         }
         stream_mux_parsers_.clear();                
-    }       
+    }
     avformat_free_context(fmt_ctx_);
+         
     fmt_ctx_ = NULL;
 }
 
@@ -251,7 +259,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                              size_t frame_size)
 {
     int ret = 0;
-    const stream_switch::MediaFrameInfo * frame_info_p = NULL;
+    const stream_switch::MediaFrameInfo * frame_info_p = &frame_info;
     StreamMuxParser * parser = NULL;
     
     if(fmt_ctx_ == NULL){
@@ -264,6 +272,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                 "sub_stream_index is over the number of parser\n");
         return -1;        
     }
+
     
     //get stream muxer parser
     parser = stream_mux_parsers_[frame_info.sub_stream_index];
@@ -275,6 +284,8 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
         }
+          
+        
         if(ret == 0){
             //no pkt need to write, exit
             break;
@@ -286,12 +297,12 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
             break;
         }
                 
-#define DUMP_PACKET    
+//#define DUMP_PACKET    
 #ifdef DUMP_PACKET
         {
             STDERR_LOG(stream_switch::LOG_LEVEL_DEBUG,  
                         "The following packet will be written to the output file\n");         
-                         av_pkt_dump_log2(NULL, AV_LOG_DEBUG, &opkt, 0, 
+            av_pkt_dump_log2(NULL, AV_LOG_DEBUG, &opkt, 0, 
                          fmt_ctx_->streams[opkt.stream_index]);
                          
         }

@@ -298,13 +298,16 @@ int main(int argc, char *argv[])
 */    
 exit_3:
     //uninit ffmpeg muxer sender 
-    sender->Uninit();
-    
+    sender->Uninit();    
+
 exit_2:  
 
     //uninstance
     FFmpegMuxerSender::Uninstance();  
-  
+/*    
+                  printf("%s:%d\n", 
+                   __FILE__, __LINE__); 
+*/
     //uninit logger
     UninitGlobalLogger();
 exit_1:    

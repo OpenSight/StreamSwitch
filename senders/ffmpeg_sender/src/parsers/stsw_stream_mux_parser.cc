@@ -148,8 +148,6 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
             stream->time_base = (AVRational){ 1, c->sample_rate };
             break;  
         case AVMEDIA_TYPE_VIDEO:
-
-        
             /* Resolution must be a multiple of two. */
             if(sub_metadata.media_param.video.height != 0 &&
                sub_metadata.media_param.video.width != 0){
@@ -176,11 +174,16 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
         default:
             break;   
         }
+        
         if(sub_metadata.extra_data.size() != 0){
             //make use of extra data to initialize the other field of the context
-            extra_data_ = sub_metadata.extra_data;
-            c->extradata = (uint8_t*)extra_data_.data();
-            c->extradata_size = extra_data_.size();
+            c->extradata_size = sub_metadata.extra_data.size();
+            c->extradata = (uint8_t *)av_mallocz(c->extradata_size);
+            memcpy(c->extradata, sub_metadata.extra_data.data(), c->extradata_size);
+/*            
+                  printf("%s:%d\n", 
+                   __FILE__, __LINE__); 
+            c->debug = ~0;
             ret = avcodec_open2(c, NULL, NULL);
             if(ret){
                 STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
@@ -188,7 +191,13 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
                 return FFMPEG_SENDER_ERR_GENERAL;                
             }
             avcodec_close(c);
-        }
+*/
+            
+       }
+        
+        if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+            c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;                
+        
         stream_ = stream;
        
     }else{
@@ -198,6 +207,7 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
     
     muxer_ = muxer;
     fmt_ctx_ = fmt_ctx;
+    gop_started_ = false;
 
     is_init_ = true;
     return 0;
@@ -239,6 +249,14 @@ int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
     }
     
     //write the frame to opkt, no cached mechanism
+    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
+        opkt->flags |= AV_PKT_FLAG_KEY;
+        gop_started_ = true;
+    }
+    if(!gop_started_){
+        //drop all frames before key frame
+        return 0;
+    }
     
     //calculate pts&dts
     double ts_delta = 0.0;
@@ -258,10 +276,12 @@ int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
     opkt->stream_index = stream_->index;
     if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
         opkt->flags |= AV_PKT_FLAG_KEY;
+        gop_started_ = true;
     }
     opkt->data = (uint8_t *)frame_data;
     opkt->size = frame_size;
-   
+    
+    
     return 1;
 }
 
