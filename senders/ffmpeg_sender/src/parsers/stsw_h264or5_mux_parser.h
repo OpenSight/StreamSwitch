@@ -49,9 +49,11 @@ class H264or5MuxParser:public StreamMuxParser{
   
 public:
     H264or5MuxParser();
-    virtual int Init(FFmpegMuxer * muxer, 
-                     const stream_switch::SubStreamMetadata &sub_metadata, 
-                     AVFormatContext *fmt_ctx);
+    
+    virtual int DoExtraDataInit(FFmpegMuxer * muxer, 
+                      const stream_switch::SubStreamMetadata &sub_metadata, 
+                      AVFormatContext *fmt_ctx, 
+                      AVStream * stream);
 
 
 protected:

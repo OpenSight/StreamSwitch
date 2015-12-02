@@ -15,11 +15,37 @@ typedef struct
 }
 Bitstream;
 
+
+int remove_0x03(unsigned char *src, unsigned char *dst, int size)
+{
+	int i, rbsp_pos;
+	unsigned int tmp;
+	//unsigned char *srcPtr, *dstPtr;
+
+    rbsp_pos = 0;
+	for(i=0;i<(size-2);i++)
+	{
+		tmp = (src[i]<<16)|(src[i+1]<<8)|(src[i+2]);
+		if(0x03==tmp)
+		{
+			dst[rbsp_pos] = src[i];
+			dst[rbsp_pos+1] = src[i+1];
+			i+=2;
+			rbsp_pos+=2;
+		}	
+		else
+			dst[rbsp_pos++] = src[i];
+	}
+	return rbsp_pos;
+}
+
 unsigned int get_int(void *ptr)
 {
 	unsigned char *buffer = (unsigned char *)ptr;
 	return (*buffer) | ((*(buffer + 1)) << 8)| ((*(buffer + 2)) << 16)| ((*(buffer + 3)) << 24);
 }
+
+
 
 int MPEG4_BSWAP(void *v)
 {      
@@ -124,13 +150,7 @@ unsigned int MPEG4_BitstreamPos(Bitstream * bs)
 	return((unsigned int)(8*((unsigned long)bs->tail - (unsigned long)bs->start) + bs->pos));
 }
 
-/*************************************************************************/
-/*                                                                       */
-/*                         H264 BitStream解析相关                        */
-/*								winton			                         */
-/*							  2008-1-30                                  */
-/*                                                                       */
-/*************************************************************************/
+
 
 
 typedef struct GetBitContext {
@@ -358,8 +378,6 @@ int H264_get_se_golomb(GetBitContext *gb)
 /*************************************************************************/
 /*                                                                       */
 /*                         MPEG4 Analyse function                        */
-/*								winton			                         */
-/*							  2008-1-30                                  */
 /*                                                                       */
 /*************************************************************************/
 int Mpeg4_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int*framerate)
@@ -592,8 +610,6 @@ int Mpeg4_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int*fra
 /*************************************************************************/
 /*                                                                       */
 /*                         H264 Analyse function                         */
-/*								winton			                         */
-/*							  2008-1-31                                  */
 /*                                                                       */
 /*************************************************************************/
 int H264_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* framerate)
@@ -753,16 +769,58 @@ int H264_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* fra
 
 }
 
+int H265_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* framerate)
+{
+	GetBitContext	gb;    
+	int				i, j;
+	int				tmp					= 0;
+	int				width,height,flag_a,flag_b, num_short_term_rps, maxPicOrderCntLsb;
+	int				crop_left,crop_right,crop_top,crop_bottom; 
+	unsigned char sps_nal[512];
+	int sps_size, num_negative_pics[65], num_positive_pics[65];
+
+	if(nSize>512)
+		nSize = 512;
+
+	sps_size = remove_0x03(pBuf, sps_nal, nSize);
+
+	crop_left= 0;
+	crop_right= 0 ;
+	crop_top= 0;
+	crop_bottom=0;
+
+	H264_init_get_bits(&gb, sps_nal+5, sps_size-5);
+
+	H264_skip_bits(&gb,8+8+32+4+32+20);
+	H264_get_ue_golomb(&gb);
+    H264_get_ue_golomb(&gb);
+
+	width = H264_get_ue_golomb(&gb);
+	height = H264_get_ue_golomb(&gb);
+
+	flag_b=H264_get_one_bit(&gb);
+
+	if(flag_b)
+	{
+		crop_left=H264_get_ue_golomb(&gb);
+		crop_right=H264_get_ue_golomb(&gb);
+		crop_top=H264_get_ue_golomb(&gb);
+		crop_bottom=H264_get_ue_golomb(&gb);
+	}
+
+	*nWidth= width- 2 * (crop_left + crop_right );
+	*nHeight  = height - 2 * (crop_top +crop_bottom); 
+
+	return 2;
+}
 /********************************************************************
 	Function Name   :	Stream_Analyse
-	Input Param     :	unsigned char* pBuf	：buf地址
-						int nSize	：大小						
-	Output Param    :	int* nWidth	：宽
-						int* nHeight：高
+	Input Param     :	unsigned char* pBuf	拢潞buf碌脴脰路
+						int nSize	拢潞麓贸脨隆						
+	Output Param    :	int* nWidth	拢潞驴铆
+						int* nHeight拢潞赂脽
 	Return          :	-1:failed	0:mpeg4		1:h264
-	Description     :	码流分析函数
-	Modified Date   :   2008-1-31   09:04
-	Modified By     :   Winton	
+	Description     :	脗毛脕梅路脰脦枚潞炉脢媒
 *********************************************************************/
 int Stream_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* framerate)
 {
@@ -791,9 +849,9 @@ int Stream_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* f
 			)
 		{
 			unsigned char naltype = *(pBuf+i+3);
-			//!取低5位才是nal type , rfc3984规定
+			//!脠隆碌脥5脦禄虏脜脢脟nal type , rfc3984鹿忙露篓
 			naltype = naltype & 0x1f;
-			if ( naltype == 7 ) //!sps 内才能分析出信息
+			if ( naltype == 7 ) //!sps 脛脷虏脜脛脺路脰脦枚鲁枚脨脜脧垄
 			{
 				ret = H264_Analyse(pBuf+i, nSize-i, nWidth,nHeight,framerate);
 				if(ret >= 0)
@@ -808,6 +866,51 @@ int Stream_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* f
 
 	return -1;
 }
+
+int Stream_Analyse_265(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* framerate)
+{
+	int i = 0;
+	int ret ;	
+
+	if ((!pBuf)||(!nWidth)||(!nHeight))
+	{
+		return -1;
+	}
+	
+	while (i < (nSize-4))
+	{
+		//ADI h264
+		if( (*(pBuf+i) == 0x00)&&(*(pBuf+i+1) == 0x00)&&(*(pBuf+i+2) == 0x01)
+			)
+		{
+			unsigned char naltype = *(pBuf+i+3);
+			
+			naltype = (naltype & 0x7e)>>1;
+			if ( naltype == 33 ) 
+			{
+				ret = H265_Analyse(pBuf+i, nSize-i, nWidth,nHeight,framerate);
+				if(ret >= 0)
+				{
+					return ret;
+				}
+			}
+		}
+
+		i++;
+	}
+
+	return -1;
+}
+
+
+int decsps_265(unsigned char* pBuf, unsigned int nSize, unsigned int* width, unsigned int* height)
+{
+	int rate;
+	int iret = Stream_Analyse_265(pBuf, nSize,(int*)width,(int*)height,&rate);
+	
+	return iret>0 ? 0 : -1;
+}
+
 
 int decsps(unsigned char* pBuf, unsigned int nSize, unsigned int* width, unsigned int* height)
 {

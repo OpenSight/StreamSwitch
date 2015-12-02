@@ -48,19 +48,13 @@ extern "C"{
 
 
 
-int Mpeg4VideoMuxParser::Init(FFmpegMuxer * muxer, 
+int Mpeg4VideoMuxParser::DoExtraDataInit(FFmpegMuxer * muxer, 
                           const stream_switch::SubStreamMetadata &sub_metadata, 
-                          AVFormatContext *fmt_ctx)
+                          AVFormatContext *fmt_ctx, 
+                          AVStream * stream)
 {   
     using namespace stream_switch; 
     int ret = 0;
-    if(is_init_){
-        return 0;
-    }
-    ret = StreamMuxParser::Init(muxer, sub_metadata, fmt_ctx);
-    if(ret){
-        return ret;
-    }
 
     // get width/height from sps
     if(sub_metadata.extra_data.size() != 0){
@@ -71,12 +65,12 @@ int Mpeg4VideoMuxParser::Init(FFmpegMuxer * muxer,
                       &width, &height);
         if(ret==0 && width !=0 && height !=0){
                 //successful decode sps
-            AVCodecContext *c = stream_->codec;
+            AVCodecContext *c = stream->codec;
             c->width    = width;
             c->height   = height; 
         }
     }       
 
-    return 0;
+    return StreamMuxParser::DoExtraDataInit(muxer, sub_metadata, fmt_ctx, stream);
     
 }

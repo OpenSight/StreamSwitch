@@ -49,9 +49,10 @@ class Mpeg4VideoMuxParser:public StreamMuxParser{
   
 public:
 
-    virtual int Init(FFmpegMuxer * muxer, 
+    virtual int DoExtraDataInit(FFmpegMuxer * muxer, 
                      const stream_switch::SubStreamMetadata &sub_metadata, 
-                     AVFormatContext *fmt_ctx);
+                     AVFormatContext *fmt_ctx, 
+                     AVStream * stream);
 
 
 

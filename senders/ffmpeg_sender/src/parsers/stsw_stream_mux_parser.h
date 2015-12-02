@@ -71,6 +71,11 @@ public:
 
 
 protected:
+
+    virtual int DoExtraDataInit(FFmpegMuxer * muxer, 
+                            const stream_switch::SubStreamMetadata &sub_metadata, 
+                            AVFormatContext *fmt_ctx, 
+                            AVStream * stream);
     
     bool is_init_;
     FFmpegMuxer *muxer_;

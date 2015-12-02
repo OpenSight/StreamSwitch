@@ -177,28 +177,18 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
         default:
             break;   
         }
-        
-        if(sub_metadata.extra_data.size() != 0){
-            //make use of extra data to initialize the other field of the context
+
+        if(sub_metadata.extra_data.size() != 0){    
             c->extradata_size = sub_metadata.extra_data.size();
             c->extradata = (uint8_t *)av_mallocz(c->extradata_size);
-            memcpy(c->extradata, sub_metadata.extra_data.data(), c->extradata_size);
-#if 0          
-                  printf("%s:%d\n", 
-                   __FILE__, __LINE__); 
-            c->debug = ~0;
-#endif
-            ret = avcodec_open2(c, NULL, NULL);
-            if(ret){
-                STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
-                    avcodec_get_name(codec_id), av_err2str(ret));
-                return FFMPEG_SENDER_ERR_GENERAL;                
-            }
-            avcodec_close(c);
-
-            
-       }
-        
+            memcpy(c->extradata, sub_metadata.extra_data.data(), c->extradata_size);                               
+        }      
+ 
+        ret = DoExtraDataInit(muxer, sub_metadata, fmt_ctx, stream);
+        if(ret){
+            return ret;
+        }        
+      
         if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
             c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;                
         
@@ -231,6 +221,27 @@ void StreamMuxParser::Uninit()
     
     return;
 }
+
+int StreamMuxParser::DoExtraDataInit(FFmpegMuxer * muxer, 
+                             const stream_switch::SubStreamMetadata &sub_metadata, 
+                             AVFormatContext *fmt_ctx, 
+                             AVStream * stream)
+{
+    using namespace stream_switch; 
+    AVCodecContext *c = stream->codec;
+    int ret = 0;
+    if(sub_metadata.extra_data.size() != 0){    
+        ret = avcodec_open2(c, NULL, NULL);
+        if(ret){
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
+                    avcodec_get_name(c->codec_id), av_err2str(ret));
+            return FFMPEG_SENDER_ERR_GENERAL;                
+        }
+        avcodec_close(c);                                
+    }
+    return 0;    
+}
+
 int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info, 
                            const char * frame_data,
                            size_t frame_size,

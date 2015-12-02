@@ -52,19 +52,16 @@ H264or5MuxParser::H264or5MuxParser()
 
 }
 
-int H264or5MuxParser::Init(FFmpegMuxer * muxer, 
+int H264or5MuxParser::DoExtraDataInit(FFmpegMuxer * muxer, 
                           const stream_switch::SubStreamMetadata &sub_metadata, 
-                          AVFormatContext *fmt_ctx)
+                          AVFormatContext *fmt_ctx, 
+                          AVStream * stream)
 {   
     using namespace stream_switch; 
+    AVCodecContext *c = stream->codec;
     int ret = 0;
-    if(is_init_){
-        return 0;
-    }
-    ret = StreamMuxParser::Init(muxer, sub_metadata, fmt_ctx);
-    if(ret){
-        return ret;
-    }
+
+
     if(strcasecmp(sub_metadata.codec_name.c_str(), "H264") == 0){
          // get width/height from sps
         if(sub_metadata.extra_data.size() != 0){
@@ -75,19 +72,32 @@ int H264or5MuxParser::Init(FFmpegMuxer * muxer,
                          &width, &height);
             if(ret==0 && width !=0 && height !=0){
                 //successful decode sps
-                AVCodecContext *c = stream_->codec;
                 c->width    = width;
                 c->height   = height; 
             }
         }       
         h_number_ = 264;
     }else if(strcasecmp(sub_metadata.codec_name.c_str(), "H265") == 0){
+         // get width/height from sps
+        if(sub_metadata.extra_data.size() != 0){
+            unsigned int width = 0;
+            unsigned int height = 0;
+            ret = decsps_265((unsigned char *)sub_metadata.extra_data.data(), 
+                         sub_metadata.extra_data.size(), 
+                         &width, &height);
+            if(ret==0 && width !=0 && height !=0){
+                //successful decode sps
+                c->width    = width;
+                c->height   = height; 
+            }
+        }           
         h_number_ = 265;
     }else{
         STDERR_LOG(LOG_LEVEL_ERR, "Could not support codec:%s\n",
                     sub_metadata.codec_name.c_str());        
         return -1; 
     }
-    return 0;
+ 
+    return StreamMuxParser::DoExtraDataInit(muxer, sub_metadata, fmt_ctx, stream);
     
 }
