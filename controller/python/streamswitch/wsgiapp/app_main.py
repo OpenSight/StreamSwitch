@@ -25,13 +25,14 @@ def set_services(config):
     from .daos.stream_conf_dao import StreamConfDao
     from .daos.alchemy_dao_context_mngr import AlchemyDaoContextMngr
     from .services.port_service import PortService
-    from .. import stream_mngr, port_mngr
+    from .services.process_watcher_service import ProcessWatcherService
+    from .. import stream_mngr, port_mngr, process_mngr
     from pyramid.events import ApplicationCreated
     from sqlalchemy import engine_from_config, dialects
 
     settings = config.get_settings()
 
-
+    # create port service
     port_conf_file = settings.get("port_conf_file",
                                   "/etc/streamswitch/ports.yaml")
     port_dao = PortDao(port_conf_file)
@@ -44,10 +45,11 @@ def set_services(config):
     # patch the sqlite dialect to make it compatible with gevent
     dialects.registry.register("sqlite", "streamswitch.wsgiapp.utils.sqlalchemy_gevent", "SqliteDialect")
 
+
+    # create stream service
     engine = engine_from_config(settings, 'sqlalchemy.')
     dao_context_mngr = AlchemyDaoContextMngr(engine)
     stream_conf_dao = StreamConfDao(dao_context_mngr)
-
 
     stream_service = StreamService(stream_mngr=stream_mngr,
                                    stream_conf_dao=stream_conf_dao,
@@ -57,9 +59,11 @@ def set_services(config):
     config.add_subscriber(stream_service.on_application_created,
                           ApplicationCreated)
 
+    # create process watcher service
+    pw_service = ProcessWatcherService(process_mngr=process_mngr)
+    config.add_settings(process_watcher_service=pw_service)
 
-
-
+    
 
 def make_wsgi_app(global_config, **settings):
     """ This function returns a Pyramid WSGI application.

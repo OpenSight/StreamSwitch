@@ -312,7 +312,6 @@ def create_sender(sender_type, sender_name, dest_url, dest_format="", stream_nam
     except Exception:
         sender.destroy()
         raise
-
     return sender
 
 
@@ -331,53 +330,34 @@ def find_sender(sender_name):
 
 
 def _test_text_sink_stream():
-    """
-    # clear up
-    kill_all("file_live_source")
 
-    register_source_type("file_live_source", SourceProcessStream)
-    test_stream = create_stream(source_type="file_live_source",
-                                stream_name="test_file_stream",
-                                url="/dev/zero")
-    print("new test_file_stream:")
-    print(test_stream)
-    print("cmd_args: %s" % test_stream.cmd_args)
-    assert(test_stream.state == STREAM_STATE_CONNECTING)
+    # clear up
+    kill_all("text_sink")
+
+    #register_source_type("file_live_source", SourceProcessStream)
+    test_sender = create_sender(sender_type="text_sink",
+                                sender_name="test_sender",
+                                dest_url="/dev/null",
+                                dest_format="mpegts",
+                                stream_name="abc")
+    print("new test_sender:")
+    print(test_sender)
+    print("cmd_args: %s" % test_sender.cmd_args)
+    assert(test_sender.state == SENDER_STATE_OK)
 
     gevent.sleep(2)
-    print("after 2 sec, test_file_stream:")
-    print(test_stream)
-    assert(test_stream.state == STREAM_STATE_OK)
+    print("after 2 sec, test_sender:")
+    print(test_sender)
+    assert(test_sender.state == STREAM_STATE_OK)
 
-    metadata = test_stream.get_stream_metadata()
-    assert(metadata.source_protocol == "FileSystem")
-    assert(metadata.play_type == PLAY_TYPE_LIVE)
 
-    test_stream.key_frame()
-
-    statistic = test_stream.get_stream_statistic()
-    assert(statistic.ssrc != 0)
-    assert(statistic.sum_bytes > 0)
-    assert(statistic.timestamp != 0)
-    assert(metadata.ssrc == statistic.ssrc)
-
-    print("restart test_file_stream")
-    test_stream.restart()
-    assert(test_stream.state == STREAM_STATE_CONNECTING)
-    print(test_stream)
+    print("restart test_sender")
+    test_sender.restart()
+    assert(test_sender.state == STREAM_STATE_OK)
+    print(test_sender)
     gevent.sleep(0.1)
-    print("after restart 0.1 sec, test_file_stream:")
-    print(test_stream)
-    assert(test_stream.state == STREAM_STATE_CONNECTING)
-    gevent.sleep(3)
-    print("after restart 3 sec, test_file_stream:")
-    print(test_stream)
-    assert(test_stream.state == STREAM_STATE_OK)
-    new_metadata = test_stream.get_stream_metadata()
-    assert(metadata.ssrc != new_metadata.ssrc)
     test_stream.destroy()
-    unregister_source_type("file_live_source")
-    """
+
     pass
 
 
