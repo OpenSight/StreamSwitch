@@ -622,14 +622,21 @@ int H264_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* fra
 	int				mb_width,mb_height,flag_a,flag_b;
 	int				crop_left,crop_right,crop_top,crop_bottom;  
 	unsigned int    profile; 
+    unsigned char sps_nal[512];
+	int sps_size;
+    
+	if(nSize>512)
+		nSize = 512;
+    
+    sps_size = remove_0x03(pBuf, sps_nal, nSize);
 
 	crop_left= 0;
 	crop_right= 0 ;
 	crop_top= 0;
 	crop_bottom=0;
 
-	H264_init_get_bits(&gb, pBuf+4, nSize-4);
-//	H264_skip_bits(&gb,24);
+	H264_init_get_bits(&gb, sps_nal+4, sps_size-4);
+
 	profile=H264_get_bits(&gb,8);
 	H264_skip_bits(&gb,16);
 
@@ -648,13 +655,22 @@ int H264_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* fra
 			int idx=0;
 			for(idx=0;idx<8;idx++)
 			{
+				int last = 8, next = 8;
 				scal_list=H264_get_bits(&gb,1);
 				if(scal_list)
 				{
 					int j=0;
 					int t=(idx>=6?64:16);
 					for(j=0;j<t;j++)
-						H264_get_se_golomb(&gb);
+					{
+						if (next)
+							next = (last+H264_get_se_golomb(&gb)) & 0xff;
+						else
+						{
+							int zgf = 0;
+						}
+						last = next ? next : last;
+					}
 				}
 			}
 
@@ -754,11 +770,12 @@ int H264_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* fra
 		}
 
 		if(H264_get_one_bit(&gb))
-		{
-			get_bits_long(&gb,32);
-			tmp = get_bits_long(&gb,32);
-			*framerate = tmp/2;
-			
+		{	
+			int num_units_in_tick, timeScale ;
+			num_units_in_tick  = get_bits_long(&gb,32);
+			timeScale = get_bits_long(&gb,32);
+			if(num_units_in_tick)
+				*framerate = timeScale/(2*num_units_in_tick);
 		}
 		
 	}
@@ -831,7 +848,8 @@ int Stream_Analyse(unsigned char* pBuf,int nSize,int* nWidth,int* nHeight,int* f
 	{
 		return -1;
 	}
-	
+
+	*framerate = 0;
 	while (i < (nSize-4))
 	{
 		//mpeg4
