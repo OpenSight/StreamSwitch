@@ -88,12 +88,11 @@ class BaseSender(object):
             raise StreamSwitchError("Sender(%s) already exists" % sender_name, 400)
         _sender_map[self.__sender_name] = self
 
-
     def __str__(self):
-        return ('Sender %s (sender_type:%s, dest_url:%s, dest_format:%s'
-                 'stream_name:%s, stream_host:%s, stream_port:%d, log_file:%s, '
-                 'err_restart_interval:%f, age_time:%f, '
-                 'state:%s)') % \
+        return ('Sender %s (sender_type:%s, dest_url:%s, dest_format:%s,'
+                'stream_name:%s, stream_host:%s, stream_port:%d, log_file:%s, '
+                'err_restart_interval:%f, age_time:%f, '
+                'state:%s)') % \
                (self.sender_name, self.sender_type, self.dest_url, self.dest_format,
                 self.stream_name, self.stream_host, self.stream_port, self.log_file,
                 self.err_restart_interval, self.age_time,
@@ -184,14 +183,14 @@ class ProcessSender(BaseSender):
     _executable = None
 
     def __init__(self, **kwargs):
-        super(SourceProcessStream, self).__init__(**kwargs)
+        super(ProcessSender, self).__init__(**kwargs)
         self._proc_watcher = None
         self.cmd_args = self._generate_cmd_args()
         self._process_status_cb_ref = None
 
     def _generate_cmd_args(self):
         if self._executable is None or len(self._executable) == 0:
-            program_name = self.source_type
+            program_name = self.sender_type
         else:
             program_name = self._executable
 
@@ -246,7 +245,7 @@ class ProcessSender(BaseSender):
 
     def _process_status_cb(self, proc_watcher):
         if self._proc_watcher is proc_watcher:
-            if proc_watcher.process_status == PROC_START:
+            if proc_watcher.process_status == PROC_RUNNING:
                 self._set_state(SENDER_STATE_OK)
             elif proc_watcher.process_status == PROC_STOP:
                 if proc_watcher.process_return_code == 0:
@@ -329,7 +328,7 @@ def find_sender(sender_name):
     return _sender_map.get(sender_name)
 
 
-def _test_text_sink_stream():
+def _test_text_sink_sender():
 
     # clear up
     kill_all("text_sink")
@@ -348,20 +347,19 @@ def _test_text_sink_stream():
     gevent.sleep(2)
     print("after 2 sec, test_sender:")
     print(test_sender)
-    assert(test_sender.state == STREAM_STATE_OK)
-
+    assert(test_sender.state == SENDER_STATE_OK)
 
     print("restart test_sender")
     test_sender.restart()
-    assert(test_sender.state == STREAM_STATE_OK)
+    assert(test_sender.state == SENDER_STATE_OK)
     print(test_sender)
     gevent.sleep(0.1)
-    test_stream.destroy()
+    test_sender.destroy()
 
     pass
 
 
-def _test_base_stream():
+def _test_base_sender():
 
     register_sender_type("base_sender", BaseSender)
     print("Sender type list:")
@@ -371,7 +369,7 @@ def _test_base_stream():
                                 sender_name="test_sender",
                                 dest_url="/test_sender",
                                 stream_name="test_stream")
-    assert(test_sender == find_stream("test_sender"))
+    assert(test_sender == find_sender("test_sender"))
     assert(len(list_senders()) == 1)
     print("new test_sender:")
     print(test_sender)

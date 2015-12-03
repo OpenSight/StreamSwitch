@@ -39,7 +39,7 @@ def get_ports(request):
     return pw_service.get_process_watcher_list()
 
 
-@get_view(route_name='port')
+@get_view(route_name='watcher')
 def get_port(request):
     wid = int(request.matchdict['wid'])
     pw_service = get_process_watcher_service_from_request(request)

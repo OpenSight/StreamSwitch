@@ -118,7 +118,7 @@ Linux, but not focus on the storage management, and also does not provides softw
 OpenLMI is a very similar project to StorLever, and it has been included in the RHEL 7, which also provides APIs for 
 administrators to remotely manage, configure, monitor Linux system. But we don't think it's on the right way, 
 OpenLMI is based on the technology so called "WBEM" to implement its scalability (extensibility). 
-WBEM is a very complex technology architecture initiated by some big enterprise like Microsoft、Compaq, Cisco at 1990s 
+WBEM is a very complex technology architecture initiated by some big enterprise like Microsoft,Compaq, Cisco at 1990s 
 to support enterprise distributed computing environment. 
 It is consist of many components and many protocol, flexible and considerate, but difficult to understand, 
 difficult to deploy, difficult to develop. The network datagram is also difficult to read by human. 
