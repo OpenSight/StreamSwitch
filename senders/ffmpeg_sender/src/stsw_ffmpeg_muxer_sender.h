@@ -28,7 +28,7 @@
  * media data from a StreamSwitch stream and send it to the ffmpeg muxing congtext. 
  * only support live stream by now
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-11-20
 **/ 
 

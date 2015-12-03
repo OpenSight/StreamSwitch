@@ -302,7 +302,7 @@ static GString *sdp_session_descr(RTSP_Client * rtsp, const Url *url)
 
 
     //r_close(resource);
-    //jamken: don't close resource, just buffer it in the rtsp client
+    //Jmkn: don't close resource, just buffer it in the rtsp client
     if(rtsp->cached_resource != NULL){
         r_close(rtsp->cached_resource); //close the previous cached resource if existed
         rtsp->cached_resource = NULL;

@@ -25,7 +25,7 @@
  *      Mpeg4OutputSink class header file, declare all the interface of 
  *  Mpeg4OutputSink 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-29
 **/ 
 

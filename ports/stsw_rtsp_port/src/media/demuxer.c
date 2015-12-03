@@ -159,7 +159,7 @@ Track *add_track(Resource *r, TrackInfo *info, MediaProperties *prop_hints)
 
         //t->properties.media_type = t->parser->info->media_type;
         break;
-    /* Jamken: rtsp port use fork() model, so that it's impossible to share 
+    /* Jmkn: rtsp port use fork() model, so that it's impossible to share 
      * producer queue
      */ 
 #if 0

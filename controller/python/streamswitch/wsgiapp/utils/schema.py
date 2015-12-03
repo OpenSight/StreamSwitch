@@ -393,7 +393,7 @@ class Schema(object):
                                   self._error)
             raise SchemaError('%s(%r) should evaluate to True' % (f, data), e)
         if s == data:
-            return s # Jamken: Make sure the return data is absolute the specific value in case of fix value schema
+            return s # Jmkn: Make sure the return data is absolute the specific value in case of fix value schema
         else:
             raise SchemaError('%r does not match %r' % (s, data), e)
 

@@ -27,7 +27,7 @@
  * FFmpegArgParser. FFmpegArgParser is the an arg parser for ffmpeg_source
  * application
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-16
 **/ 
 

@@ -311,14 +311,14 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
             return RTSP_HeaderFieldNotValidforResource;
         }
         
-        /* Jamken: because the client give a valid Range hader, 
+        /* Jmkn: because the client give a valid Range hader, 
          * we need to seek the resource before read */
         range->seek = TRUE; 
 
     }
 
     if(!session->resource->info->seekable){
-        /* Jamken: For a non-seekable stream,  no end time is given, 
+        /* Jmkn: For a non-seekable stream,  no end time is given, 
          * begin time is fix to 0
          */        
         range->begin_time = 0;
@@ -329,7 +329,7 @@ static RTSP_ResponseCode parse_range_header(RTSP_Request *req)
             g_slice_free(RTSP_Range, range);
             return RTSP_InvalidRange;
         }else if(range->end_time < 0 ){
-            /* Jamken: if no end_time but this is replay stream, 
+            /* Jmkn: if no end_time but this is replay stream, 
              * give a default end time of the resource
              */
             range->end_time = session->resource->info->duration;
@@ -412,7 +412,7 @@ static RTSP_ResponseCode parse_scale_header(RTSP_Request *req)
             return RTSP_NotImplemented;
         }
         
-        /* Jamken: for live stream, scale must be 1 */
+        /* Jmkn: for live stream, scale must be 1 */
         if(session->resource->info->media_source == MS_live && 
            scaleValue != 1.0){
               return RTSP_NotImplemented; 

@@ -24,7 +24,7 @@
  * stsw_rotate_logger.cc
  *      RotateLogger class implementation file, define all methods of RotateLogger.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-12-8
 **/ 
 

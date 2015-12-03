@@ -25,7 +25,7 @@
  *      MediaOutputSink class header file, declare all the interface of 
  *  MediaOutputSink 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-3
 **/ 
 

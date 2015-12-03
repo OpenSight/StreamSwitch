@@ -113,7 +113,7 @@ static void check_if_any_rtp_session_timedout(gpointer element,
     time_t *last_packet_send_time = (time_t *)user_data;
     time_t now = time(NULL);
     
-    /* Jamken: get the last packet send time in all the session*/
+    /* Jmkn: get the last packet send time in all the session*/
     if( last_packet_send_time != NULL &&
         (session->last_packet_send_time > *last_packet_send_time)){
         *last_packet_send_time = session->last_packet_send_time;

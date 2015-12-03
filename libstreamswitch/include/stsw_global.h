@@ -24,7 +24,7 @@
  * stsw_global.h
  *      global functions header file, declare all global functions for stream switch.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-1-3
 **/ 
 

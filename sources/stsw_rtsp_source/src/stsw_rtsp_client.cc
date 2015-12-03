@@ -25,7 +25,7 @@
  *      LiveRtspClient class implementation file, defines all the method of 
  * LiveRtspClient
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 
@@ -412,7 +412,7 @@ void LiveRtspClient::ContinueAfterDESCRIBE(RTSPClient* client, int resultCode, c
             }
         }
         
-        //jamken:no desired port
+        //Jmkn:no desired port
 /*
         if (desiredPortNum != 0) {
             subsession->setClientPortNum(desiredPortNum);

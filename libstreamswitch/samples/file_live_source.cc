@@ -27,7 +27,7 @@
  * to the beginning to continue.
  *      When receive a terminal signal, the source would exit
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-1-17
 **/ 
 

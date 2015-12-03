@@ -25,7 +25,7 @@
  *      FFmpegMuxer class implementation file, define its methods
  *      FFmpegMuxer is a media file muxer based on ffmpeg libavformat  
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-11-25
 **/ 
 

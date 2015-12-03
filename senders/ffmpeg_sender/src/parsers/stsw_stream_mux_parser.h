@@ -29,7 +29,7 @@
  * parser can inherit this class to override its methods for a specified 
  * codec. All other streams would be associated this default mux parser
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-15
 **/ 
 

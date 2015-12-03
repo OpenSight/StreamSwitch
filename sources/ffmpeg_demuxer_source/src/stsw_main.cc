@@ -24,7 +24,7 @@
  * stsw_main.cc
  *      main entry file for ffmpeg_source
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-16
 **/ 
 

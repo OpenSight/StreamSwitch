@@ -24,7 +24,7 @@
  * rotate_logger_test.cc
  *      a sample to test the functionality of rotate logger
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-2-13
 **/ 
 

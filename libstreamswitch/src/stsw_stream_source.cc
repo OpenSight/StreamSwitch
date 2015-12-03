@@ -24,7 +24,7 @@
  * stsw_stream_source.cc
  *      StreamSource class implementation file, define all methods of StreamSource.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-11-8
 **/ 
 

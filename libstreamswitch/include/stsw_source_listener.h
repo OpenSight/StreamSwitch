@@ -24,7 +24,7 @@
  * stsw_source_listener.h
  *      Define the source listener interface 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-11-8
 **/ 
 

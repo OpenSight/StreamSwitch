@@ -25,7 +25,7 @@
  *      PtsSessionNormalizer & PtsSubsessionNormalizer class implementation file, 
  * define all the methods of the both class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 

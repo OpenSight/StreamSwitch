@@ -25,7 +25,7 @@
  * url.h
  *      the header file of UrlParser class. 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-6-23
 **/ 
 

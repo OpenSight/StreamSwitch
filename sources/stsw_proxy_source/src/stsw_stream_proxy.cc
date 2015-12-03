@@ -26,7 +26,7 @@
  *      the implementation of StreamProxySource class, includes 
  * all the definition of its methods.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-6-23
 **/ 
 

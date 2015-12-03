@@ -25,7 +25,7 @@
  *      MediaOutputSink class implementation file, 
  * contains all the methods and logic of the MediaOutputSink class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 

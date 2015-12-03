@@ -24,7 +24,7 @@
  * stsw_main.cc
  *      main entry file for ffmpeg_sender
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-11-20
 **/ 
 

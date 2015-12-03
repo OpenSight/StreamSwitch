@@ -25,7 +25,7 @@
  *      Mpeg4OutputSink class implementation file, 
  * contains all the methods and logic of the Mpeg4OutputSink class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 

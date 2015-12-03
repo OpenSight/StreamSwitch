@@ -24,7 +24,7 @@
  * stsw_rotate_logger.h
  *      RotateLogger class header file, declare all interfaces of RotateLogger.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-12-8
 **/ 
 

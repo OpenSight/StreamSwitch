@@ -70,7 +70,7 @@ void rtsp_do_pause(RTSP_Client *rtsp)
     RTSP_Range *range = g_queue_peek_head(rtsp_sess->play_requests) ; 
 
     if(rtsp_sess->resource->info->seekable){
-        /* Jamken: if seekable, store the last position */
+        /* Jmkn: if seekable, store the last position */
         range->begin_time = rtsp_session_last_timestamp(rtsp_sess); /* next 1ms to continue */ 
         range->seek = FALSE;
     }

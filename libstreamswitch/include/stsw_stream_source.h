@@ -24,7 +24,7 @@
  * stsw_stream_source.h
  *      StreamSource class header file, declare all interfaces of StreamSource.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-11-8
 **/ 
 

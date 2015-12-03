@@ -25,7 +25,7 @@
  * stsw_log.cc
  *      the implementation of log module
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-6-23
 **/ 
 

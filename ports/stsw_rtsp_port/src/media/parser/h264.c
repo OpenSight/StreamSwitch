@@ -400,7 +400,7 @@ static void h264_send_nal(Track *tr, uint8_t *data, size_t len)
 
 
     }else if ( tr->packetTotalNum % scale == 0  ){
-        /* Jamken: send a empty nal to feed the player, 
+        /* Jmkn: send a empty nal to feed the player, 
           VLC need get a frame to continue */
                     uint8_t  fakeNal[] = {0x09, 0x30};
                     size_t fakeNalLen = sizeof(fakeNal);

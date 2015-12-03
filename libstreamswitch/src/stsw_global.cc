@@ -24,7 +24,7 @@
  * stsw_global.cc
  *      stream switch core lib global function implementation.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-1-3
 **/ 
 

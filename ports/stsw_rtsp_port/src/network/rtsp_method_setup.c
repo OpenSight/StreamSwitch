@@ -238,7 +238,7 @@ static RTSP_ResponseCode unicast_transport(RTSP_Client *rtsp,
         return RTSP_InternalServerError;
     }
 */
-    /*Jamken: Find a RTP&RTCP port pair available in system */
+    /*Jmkn: Find a RTP&RTCP port pair available in system */
     sock_pair[0] = sock_pair[1] = NULL;
     if(get_sock_pair(sock_pair)){
         fnc_log(FNC_LOG_ERR,"Fail to get UDP port pair for RTP session");

@@ -175,7 +175,7 @@ gboolean interleaved_setup_transport(RTSP_Client *rtsp, RTP_transport *transport
     transport->rtp_sock = sock_pair[0][0];
     intlvd->rtp.local = sock_pair[0][1];
     
-    /* Jamken: Not necessary to increase the buffer for socketpair, 
+    /* Jmkn: Not necessary to increase the buffer for socketpair, 
      * because we send a 1.4 Kbytes packet each time
      */
 /*

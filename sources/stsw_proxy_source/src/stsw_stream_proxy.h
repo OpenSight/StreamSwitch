@@ -25,7 +25,7 @@
  * stsw_stream_proxy.h
  *      the header file of StreamProxySource class. 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-6-23
 **/ 
 

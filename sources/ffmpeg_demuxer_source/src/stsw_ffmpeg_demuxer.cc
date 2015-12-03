@@ -25,7 +25,7 @@
  *      FfmpegDemuxer class implementation file, define its methods
  *      FFmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-23
 **/ 
 

@@ -25,7 +25,7 @@
  *      H264or5OutputSink class header file, declare all the interface of 
  *  H264or5OutputSink 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-29
 **/ 
 

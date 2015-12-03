@@ -24,7 +24,7 @@
  * stsw_main.cc
  *      stsw_proxy_source program main entry file
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-7-8
 **/ 
 

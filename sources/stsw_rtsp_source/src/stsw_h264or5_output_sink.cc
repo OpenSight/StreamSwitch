@@ -25,7 +25,7 @@
  *      H264or5OutputSink class implementation file, 
  * contains all the methods and logic of the H264or5OutputSink class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 

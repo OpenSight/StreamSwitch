@@ -27,7 +27,7 @@
  *      H264or5Parser is the child class of StreamParser, whichs overrides some 
  * of the parent's methods for h264 or h265, like update metadata for h264/h265
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-15
 **/ 
 

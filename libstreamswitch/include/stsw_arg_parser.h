@@ -25,7 +25,7 @@
  * stsw_arg_parser.h
  *      ArgParser class header file, declare all interfaces of ArgParser.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-12-26
 **/ 
 

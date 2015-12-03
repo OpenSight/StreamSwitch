@@ -567,7 +567,7 @@ static inline uint64_t pts2PSTimpstamp(Track *tr,
     clock_rate = tr->properties.clock_rate;
     double playback_time;
     
-    //jamken: use the pts of the frame directly to generate 
+    //Jmkn: use the pts of the frame directly to generate 
     //PES timestamp, don't scale
 #if 0
     if(tr != NULL && 

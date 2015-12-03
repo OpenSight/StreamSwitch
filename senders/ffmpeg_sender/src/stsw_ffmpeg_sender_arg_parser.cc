@@ -27,7 +27,7 @@
  * extends the ArgParser to parse the ffmpeg options which start by 
  * "--ffmpeg-". 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-17
 **/ 
 

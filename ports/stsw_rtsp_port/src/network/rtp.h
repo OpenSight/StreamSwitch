@@ -140,7 +140,7 @@ typedef struct RTP_session {
      * rtp_session_free), so that we don't have reading threads to go
      * around during seeks.
      */
-     /* Jamken: this thread pool is moved to rtsp session */
+     /* Jmkn: this thread pool is moved to rtsp session */
      //GThreadPool *fill_pool;
 
     /**

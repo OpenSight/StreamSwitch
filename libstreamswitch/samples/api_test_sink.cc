@@ -24,7 +24,7 @@
  * api_test_sink.cc
  *      a sink sample which is used to test the core library api
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-2-11
 **/ 
 

@@ -25,7 +25,7 @@
  *      LiveRtspClient class header file, Declare all the interface of 
  * LiveRtspClient
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 

@@ -186,7 +186,7 @@ Resource *r_open(struct feng *srv, const char *inner_path)
                             NULL);
 	//struct stat filestat;
 
-    /* Jamken: don't check if mrl is a file */
+    /* Jmkn: don't check if mrl is a file */
 #if 0
 	if (stat(mrl, &filestat) == -1 ) {
 		switch(errno) {
@@ -424,7 +424,7 @@ void r_pause(Resource *resource)
         resource->demuxer->pause(resource);
     }
     
-    //Jamken: After pause ,there may be some packet buffered 
+    //Jmkn: After pause ,there may be some packet buffered 
     // in the track's producer queue. For replay resource, 
     // it's OK because of these packet's time is irrelavant with 
     // the play range. But for live resource, these packet's time 

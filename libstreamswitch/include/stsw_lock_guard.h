@@ -21,7 +21,7 @@
  * stsw_lock_guard.h
  *      a auto lock guard implementation
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-11-25
 **/ 
 

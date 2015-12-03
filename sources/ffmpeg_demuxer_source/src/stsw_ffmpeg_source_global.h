@@ -25,7 +25,7 @@
  *      The header file includes some global definitions and declarations
  * used by other parts of ffmpeg_demuxer_source
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-22
 **/ 
 

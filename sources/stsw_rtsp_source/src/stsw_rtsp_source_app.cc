@@ -25,7 +25,7 @@
  *      RtspSourceApp class implementation file, 
  * contains all the methods and logic of the RtspSourceApp class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-5-6
 **/ 
 

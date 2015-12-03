@@ -28,7 +28,7 @@
  * media data through ffmpeg libavformat library with demuxing. 
  * only support live stream by now
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-18
 **/ 
 #include "stsw_ffmpeg_demuxer_source.h"

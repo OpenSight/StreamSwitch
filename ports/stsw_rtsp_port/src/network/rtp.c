@@ -164,7 +164,7 @@ void rtp_session_fill_cb( gpointer session_p,
                 buffered_ms);
 #endif
         if(rtsp_s->started == 0){
-            /* jamken: rtsp session has been pause */
+            /* Jmkn: rtsp session has been pause */
             break;
         }
 
@@ -284,7 +284,7 @@ static void rtp_session_resume(gpointer session_gen, gpointer range_gen) {
 
 
     /* Create the new thread pool for the read requests */
-    /* Jamken: fill_pool has been moved to rtsp session */
+    /* Jmkn: fill_pool has been moved to rtsp session */
 /*
     session->fill_pool = g_thread_pool_new(rtp_session_fill_cb, session,
                                            1, true, NULL);
@@ -329,7 +329,7 @@ static void rtp_session_pause(gpointer session_gen,
 
     /* We should assert its presence, we cannot pause a non-running
      * session! */
-    /* Jamken: fill_pool has been moved to rtsp session */
+    /* Jmkn: fill_pool has been moved to rtsp session */
 /*     
     if (session->fill_pool)
         rtp_fill_pool_free(session);
@@ -565,7 +565,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
         gboolean marker  = buffer->marker;
         
 
-        /* Jamken: no rate control for live stream */
+        /* Jmkn: no rate control for live stream */
         
         /* avoid send the packet too quickly */
         if (session->track->properties.media_source != MS_live &&
@@ -602,7 +602,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
                                  session->range->begin_time) ) ;
 */
                     if (session->track->properties.media_source == MS_live){
-                        /* Jamken: for live stream ,deliver as soon as possible */
+                        /* Jmkn: for live stream ,deliver as soon as possible */
 
                         next_time += 0.001; 
                     } else {
@@ -615,7 +615,7 @@ static void rtp_write_cb(struct ev_loop *loop, ev_periodic *w,
                 }
             } else {
                 /* no more packets in the queue */ 
-                /* Jamken: if this packet is end of a frame, 
+                /* Jmkn: if this packet is end of a frame, 
                  * just wait for a frame duration
                  * if this packet is not end of a frame, next packet should be 
                  * of the same frame, just delay a short time 

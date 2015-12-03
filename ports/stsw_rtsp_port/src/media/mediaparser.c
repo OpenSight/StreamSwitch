@@ -79,7 +79,7 @@ MediaParser *mparser_find(const char *encoding_name)
             return media_parsers[i];
         }
     }
-    /* Jamken: if no find, use the default simple parser */
+    /* Jmkn: if no find, use the default simple parser */
 
     fnc_log(FNC_LOG_DEBUG, "[MT] Media Parser for %s not found, use simple parser\n",
             encoding_name);

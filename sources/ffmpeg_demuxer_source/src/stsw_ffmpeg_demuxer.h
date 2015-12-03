@@ -26,7 +26,7 @@
  * class. 
  *      FFmpegDemuxer is a media file demuxer based on ffmpeg libavformat 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-10-15
 **/ 
 

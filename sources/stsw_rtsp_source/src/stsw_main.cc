@@ -24,7 +24,7 @@
  * stsw_main.cc
  *      the main source file of stsw_rtsp_soure program
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-29
 **/ 
 

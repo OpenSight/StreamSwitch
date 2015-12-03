@@ -27,7 +27,7 @@
  *      Mpeg4VideoMuxParser is sub class of StreamMuxParser, which is reponsible to 
  * handle mpeg4 video codec
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-12-1
 **/ 
 

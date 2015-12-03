@@ -25,7 +25,7 @@
  * stsw_log.h
  *      the header file of the log module 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-6-24
 **/ 
 

@@ -25,7 +25,7 @@
  *      RtspSourceApp class header file, declare all the interface of 
  *  RtspSourceApp 
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-5-6
 **/ 
 

@@ -24,7 +24,7 @@
  * stsw_stream_sink.h
  *      StreamSink class header file, declare all interfaces of StreamSink.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-12-5
 **/ 
 

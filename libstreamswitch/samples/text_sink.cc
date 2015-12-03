@@ -24,7 +24,7 @@
  * text_sink.cc
  *      a sink sample implementation to output every frames to a text file
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-1-22
 **/ 
 

@@ -27,7 +27,7 @@
  *      H264or5MuxParser is sub class of StreamMuxParser, which is reponsible to 
  * handle the h264 or h265 codec
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-12-1
 **/ 
 

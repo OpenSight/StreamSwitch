@@ -24,7 +24,7 @@
  * stsw_stream_receiver.cc
  *      StreamSink class implementation file, define all methods of StreamSink.
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2014-12-5
 **/ 
 
@@ -768,7 +768,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg,
     // check ssrc
     if(stream_meta_.ssrc != frame_info.ssrc){
         //ssrc mismatch, just ignore this frame
-        if(frame_info.ssrc != last_frame_ssrc_){ //Jamken: avoid repeatly callback the same error
+        if(frame_info.ssrc != last_frame_ssrc_){ //Jmkn: avoid repeatly callback the same error
             last_frame_ssrc_ = frame_info.ssrc;
             SinkListener *plistener = listener();
     
@@ -778,7 +778,7 @@ int StreamSink::MediaFrameHandler(const ProtoCommonPacket &msg,
                 plistener->OnMetadataMismatch(frame_info.ssrc);
             }
         }else{
-            //Jamken: this error has already callback.
+            //Jmkn: this error has already callback.
             pthread_mutex_unlock(&lock()); 
         }
         

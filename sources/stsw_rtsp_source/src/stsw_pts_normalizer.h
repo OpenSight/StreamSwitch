@@ -25,7 +25,7 @@
  *      PtsSessionNormalizer & PtsSubsessionNormalizer class header file, 
  * Declare all the interface of the both class
  * 
- * author: jamken
+ * author: OpenSight Team
  * date: 2015-4-1
 **/ 
 
