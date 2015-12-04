@@ -82,12 +82,12 @@ def make_wsgi_app(global_config, **settings):
     # from pyramid.authentication import SessionAuthenticationPolicy
     # from pyramid.authorization import ACLAuthorizationPolicy
 
-    storlever_session_factory = UnencryptedCookieSessionFactoryConfig('streamswitch201509')
+    streamswitch_session_factory = UnencryptedCookieSessionFactoryConfig('streamswitch201509')
     # storlever_authn_policy = SessionAuthenticationPolicy()
     # storlever_authz_policy = ACLAuthorizationPolicy()
 
 
-    config = Configurator(session_factory=storlever_session_factory,
+    config = Configurator(session_factory=streamswitch_session_factory,
                           # root_factory=AclRootFactory,
                           # authentication_policy=storlever_authn_policy,
                           # authorization_policy=storlever_authz_policy,
