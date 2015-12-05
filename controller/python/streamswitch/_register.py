@@ -4,6 +4,8 @@ from .sources.rtsp_source import RTSP_SOURCE_PROGRAM_NAME, \
     RTSP_SOURCE_TYPE_NAME, RtspSourceStream
 from .sources.file_live_source import FILE_LIVE_SOURCE_PROGRAM_NAME, \
     FILE_LIVE_SOURCE_TYPE_NAME, FileLiveSourceStream
+from .sources.ffmpeg_source import FFMPEG_SOURCE_PROGRAM_NAME, \
+    FFMPEG_SOURCE_TYPE_NAME, FFmpegSourceStream
 
 from .senders import TEXT_SINK_SENDER_TYPE, FFMPEG_SENDER_TYPE
 
@@ -19,6 +21,8 @@ def _register_builtin_source_type():
         register_source_type(RTSP_SOURCE_TYPE_NAME, RtspSourceStream)
     if find_executable(FILE_LIVE_SOURCE_PROGRAM_NAME):
         register_source_type(FILE_LIVE_SOURCE_TYPE_NAME, FileLiveSourceStream)
+    if find_executable(FFMPEG_SOURCE_PROGRAM_NAME):
+        register_source_type(FFMPEG_SOURCE_TYPE_NAME, FFmpegSourceStream)
 
 def _register_builtin_sender_type():
     if find_executable(TEXT_SINK_SENDER_TYPE):
