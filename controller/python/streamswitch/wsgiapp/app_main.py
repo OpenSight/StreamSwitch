@@ -21,12 +21,14 @@ def set_services(config):
     """ constructs every service used in this WSGI application """
 
     from .services.stream_service import StreamService
+    from .services.sender_service import SenderService
     from .daos.port_dao import PortDao
     from .daos.stream_conf_dao import StreamConfDao
+    from .daos.sender_conf_dao import SenderConfDao
     from .daos.alchemy_dao_context_mngr import AlchemyDaoContextMngr
     from .services.port_service import PortService
     from .services.process_watcher_service import ProcessWatcherService
-    from .. import stream_mngr, port_mngr, process_mngr
+    from .. import stream_mngr, port_mngr, process_mngr, sender_mngr
     from pyramid.events import ApplicationCreated
     from sqlalchemy import engine_from_config, dialects
 
@@ -46,9 +48,11 @@ def set_services(config):
     dialects.registry.register("sqlite", "streamswitch.wsgiapp.utils.sqlalchemy_gevent", "SqliteDialect")
 
 
-    # create stream service
+    # db engine and context
     engine = engine_from_config(settings, 'sqlalchemy.')
     dao_context_mngr = AlchemyDaoContextMngr(engine)
+
+    # create stream service
     stream_conf_dao = StreamConfDao(dao_context_mngr)
 
     stream_service = StreamService(stream_mngr=stream_mngr,
@@ -57,6 +61,19 @@ def set_services(config):
     # stream_service = StreamService(stream_mngr=stream_mngr)
     config.add_settings(stream_service=stream_service)
     config.add_subscriber(stream_service.on_application_created,
+                          ApplicationCreated)
+
+
+
+    # create sender service
+    sender_conf_dao = SenderConfDao(dao_context_mngr)
+
+    sender_service = SenderService(sender_mngr=sender_mngr,
+                                   sender_conf_dao=sender_conf_dao,
+                                   dao_context_mngr=dao_context_mngr)
+
+    config.add_settings(sender_service=sender_service)
+    config.add_subscriber(sender_service.on_application_created,
                           ApplicationCreated)
 
     # create process watcher service

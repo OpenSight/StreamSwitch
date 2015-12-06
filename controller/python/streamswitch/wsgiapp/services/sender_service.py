@@ -20,7 +20,7 @@ from ..models import SenderConf
 
 
 
-class StreamService(object):
+class SenderService(object):
 
     def __init__(self, sender_mngr=None, sender_conf_dao=None, dao_context_mngr=None):
         self._sender_mngr = sender_mngr
@@ -82,15 +82,16 @@ class StreamService(object):
             if sender is None:
                 raise StreamSwitchError(
                     "Sender (%s) Not Found" % sender_name, 404)
+            self._sender_conf_dao.del_sender_conf(sender_name)
             del self._sender_map[sender_name]
             try:
                 self._sender_list.remove(sender)
             except ValueError:
                 pass
 
-            stream.destroy()   # may wait
+            sender.destroy()   # may wait
 
-            self._sender_conf_dao.del_sender_conf(sender_name)
+
 
     def new_sender(self, sender_configs):
         with self._dao_context_mngr.context():
