@@ -30,7 +30,7 @@
  * date: 2015-11-25
 **/ 
 
- 
+  
 #include "stsw_ffmpeg_muxer.h"
 #include "stsw_log.h"
 #include "stsw_ffmpeg_sender_global.h"
