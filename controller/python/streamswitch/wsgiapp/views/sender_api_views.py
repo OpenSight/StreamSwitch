@@ -49,11 +49,11 @@ def get_sender_list(request):
 
 new_sender_schema = Schema({
     "sender_name": StrRe(r"^\S+$"),   # not empty
-    "stream_type": StrRe(r"^\S+$"),   # not empty
+    "sender_type": StrRe(r"^\S+$"),   # not empty
     "dest_url": StrRe(r"^\S+$"),   # not empty
-    Optional("dest_format"): Default(StrRe(r"^\S*$"), default=""),
-    Optional("stream_name"): Default(StrRe(r"^\S*$"), default=""),
-    Optional("stream_host"): Default(StrRe(r"^\S*$"), default=""),
+    Optional("dest_format"): StrRe(r"^\S*$"),
+    Optional("stream_name"): StrRe(r"^\S*$"),
+    Optional("stream_host"): StrRe(r"^\S*$"),
     Optional("stream_port"): IntVal(0, 65535),
     Optional("log_file"): StrRe(r"^\S+$"),
     Optional("log_size"): IntVal(1024, 100*1024*1024),  # 1K ~ 100M

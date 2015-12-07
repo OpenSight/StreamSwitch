@@ -46,7 +46,7 @@ class SenderService(object):
         supported_sender_types = self._sender_mngr.list_sender_types()
         for sender_conf in sender_conf_list:
             if sender_conf.sender_type in supported_sender_types:
-                sender = self._sender_mngr.create_stream(
+                sender = self._sender_mngr.create_sender(
                     sender_type=sender_conf.sender_type,
                     sender_name=sender_conf.sender_name,
                     dest_url=sender_conf.dest_url,
@@ -100,7 +100,7 @@ class SenderService(object):
             self._sender_conf_dao.add_sender_conf(sender_conf)
 
             sender = \
-                self._sender_mngr.create_sender(**stream_configs)
+                self._sender_mngr.create_sender(**sender_configs)
             self._sender_map[sender_conf.sender_name] = sender
             self._sender_list.append(sender)
 

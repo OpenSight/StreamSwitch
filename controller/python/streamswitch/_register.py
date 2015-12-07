@@ -8,6 +8,8 @@ from .sources.ffmpeg_source import FFMPEG_SOURCE_PROGRAM_NAME, \
     FFMPEG_SOURCE_TYPE_NAME, FFmpegSourceStream
 
 from .senders import TEXT_SINK_SENDER_TYPE, FFMPEG_SENDER_TYPE
+from .senders.native_ffmpeg_sender import NATIVE_FFMPEG_PROGRAM_NAME, \
+    NATIVE_FFMPEG_SENDER_TYPE_NAME, NativeFFmpegSender
 
 from .stream_mngr import register_source_type
 from .sender_mngr import register_sender_type, ProcessSender
@@ -29,6 +31,8 @@ def _register_builtin_sender_type():
         register_sender_type(TEXT_SINK_SENDER_TYPE, ProcessSender)
     if find_executable(FFMPEG_SENDER_TYPE):
         register_sender_type(FFMPEG_SENDER_TYPE, ProcessSender)
+    if find_executable(NATIVE_FFMPEG_PROGRAM_NAME):
+        register_sender_type(NATIVE_FFMPEG_SENDER_TYPE_NAME, NativeFFmpegSender)
 
 _register_builtin_source_type()
 _register_builtin_sender_type()
