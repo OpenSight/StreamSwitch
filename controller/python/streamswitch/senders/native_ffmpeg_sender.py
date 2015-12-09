@@ -22,7 +22,7 @@ class NativeFFmpegSender(ProcessSender):
     def __init__(self, stream_name="", **kwargs):
         if stream_name == "":
             raise StreamSwitchError("stream_name cannot be empty for native_ffmpeg", 400)
-        super(FFmpegSourceStream, self).__init__(stream_name=stream_name,
+        super(NativeFFmpegSender, self).__init__(stream_name=stream_name,
                                                  **kwargs)
 
     def _generate_cmd_args(self):
@@ -42,6 +42,7 @@ class NativeFFmpegSender(ProcessSender):
             if self.stream_port != 0:
                 rtsp_port = self.stream_port
             input_url = "rtsp://%s:%d/stsw/stream/%s" % (host_addr, rtsp_port, self.stream_name)
+            cmd_args.extend(["-rtsp_transport", "tcp"])
         else:
             raise StreamSwitchError(
                 "port_type(%s) cannot be supported for native_ffmpeg" % port_type,
