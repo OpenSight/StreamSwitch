@@ -185,7 +185,12 @@ static gboolean command_environment(feng *srv, int argc, char **argv)
         parser.OptionValue("log-file", "errlog.log").c_str());
     
     srv->srvconf.log_type = FNC_LOG_OUT;
-    std::string log_type = parser.OptionValue("log-type", "stderr");
+    std::string log_type;
+    if(parser.CheckOption("log-file")){
+        log_type = parser.OptionValue("log-type", "file");
+    }else{
+        log_type = parser.OptionValue("log-type", "stderr");
+    }     
     if(log_type == "stderr"){
         srv->srvconf.log_type = FNC_LOG_OUT;
     }else if(log_type == "file"){
