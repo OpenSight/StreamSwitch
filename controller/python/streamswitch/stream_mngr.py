@@ -307,6 +307,9 @@ class BaseStream(object):
             self.state = STREAM_STATE_ERR
             self.update_time = time.time()
 
+        _stream_map.pop(self.__stream_name, None)  # force remove the stream from stream map
+
+
     def get_stream_metadata(self, timeout=5.0):
         if self._has_destroy:
             raise StreamSwitchError("stream already destroy", 503)
