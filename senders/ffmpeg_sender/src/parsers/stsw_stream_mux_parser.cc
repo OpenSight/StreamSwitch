@@ -63,6 +63,7 @@ StreamMuxParser::~StreamMuxParser()
     
 }
 int StreamMuxParser::Init(FFmpegMuxer * muxer, 
+                          const std::string &codec_name, 
                           const stream_switch::SubStreamMetadata &sub_metadata, 
                           AVFormatContext *fmt_ctx)
 {   
@@ -71,6 +72,14 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
     if(is_init_){
         return 0;
     }
+    
+    if(codec_name != sub_metadata.codec_name){
+        STDERR_LOG(LOG_LEVEL_ERR, 
+            "This parser does not transcoding from codec %s to %s\n", 
+            sub_metadata.codec_name.c_str(), codec_name.c_str());             
+        return FFMPEG_SENDER_ERR_NOT_SUPPORT;        
+    }
+    
     //setup stream
     if((sub_metadata.media_type == SUB_STREAM_MEIDA_TYPE_VIDEO || 
         sub_metadata.media_type == SUB_STREAM_MEIDA_TYPE_AUDIO) && 
@@ -82,10 +91,10 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
         int i;
         enum AVCodecID codec_id = AV_CODEC_ID_NONE;
         
-        codec_id = CodecIdFromName(sub_metadata.codec_name);
+        codec_id = CodecIdFromName(codec_name);
         if(codec_id == AV_CODEC_ID_NONE){
             STDERR_LOG(LOG_LEVEL_ERR, "codec %s not support\n", 
-                   sub_metadata.codec_name.c_str());             
+                   codec_name.c_str());             
             return FFMPEG_SENDER_ERR_NOT_SUPPORT;
         }
         /* find the encoder, 
@@ -202,6 +211,7 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
     muxer_ = muxer;
     fmt_ctx_ = fmt_ctx;
     gop_started_ = false;
+    codec_name_ = codec_name;
 
     is_init_ = true;
     return 0;

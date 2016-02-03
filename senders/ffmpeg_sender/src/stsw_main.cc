@@ -192,6 +192,7 @@ int main(int argc, char *argv[])
         parser.ffmpeg_options(), 
         parser.OptionValue("stream-name", ""), 
         parser.OptionValue("host", ""), (int)strtol(parser.OptionValue("port", "0").c_str(), NULL, 0), 
+        parser.OptionValue("acodec", ""),
         strtoul(parser.OptionValue("io_timeout", "10000").c_str(), NULL, 0), 
         sub_queue_size, 
         (uint32_t)strtoul(parser.OptionValue("debug-flags", "0").c_str(), NULL, 0));
@@ -269,14 +270,15 @@ int main(int argc, char *argv[])
         if(isGlobalInterrupt()){
             STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 
                       "Receive Terminate Signal, exit normally\n");  
-            ret = 0;         
+            ret = 0;       
+/* 
             {
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
                 printf("signal catchtime is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);
             }
-               
+*/           
             break;
         }
         {
@@ -314,14 +316,14 @@ exit_1:
     
     //streamswitch library uninit
     GlobalUninit();
-
+/*
     {
                 struct timeval tv;
         gettimeofday(&tv, NULL);
             printf("End time is %lld.%06d\n", 
                    (long long)tv.tv_sec, (int)tv.tv_usec);    
     }
- 
+ */
     return ret;
 }
 

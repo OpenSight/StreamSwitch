@@ -62,6 +62,7 @@ public:
              const std::string &format,
              const std::string &ffmpeg_options_str, 
              const stream_switch::StreamMetadata &metadata, 
+             const std::string &acodec, 
              unsigned long io_timeout);
     virtual void Close();
     virtual int WritePacket(const stream_switch::MediaFrameInfo &frame_info, 

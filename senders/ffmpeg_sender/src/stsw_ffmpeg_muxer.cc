@@ -68,6 +68,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
                       const std::string &format,
                       const std::string &ffmpeg_options_str, 
                       const stream_switch::StreamMetadata &metadata, 
+                      const std::string &acodec, 
                       unsigned long io_timeout)
 {
     using namespace stream_switch; 
@@ -117,13 +118,21 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     //setup the parsers
     for(meta_it=metadata.sub_streams.begin();
         meta_it!=metadata.sub_streams.end();
-        meta_it++){  
+        meta_it++){
+
+        std::string codec_name;
+        if(meta_it->media_type == SUB_STREAM_MEIDA_TYPE_AUDIO && 
+           acodec.size() != 0){
+            codec_name = acodec;           
+        }else{
+            codec_name = meta_it->codec_name;
+        } 
         StreamMuxParser *parser = NewStreamMuxParser(meta_it->codec_name);
-        ret = parser->Init(this, (*meta_it), fmt_ctx_);
+        ret = parser->Init(this, codec_name, (*meta_it), fmt_ctx_);
         if(ret){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
                 "Parser for codec (name:%s) init failed\n", 
-                meta_it->codec_name.c_str()); 
+                codec_name.c_str()); 
             delete parser;
             ret = FFMPEG_SENDER_ERR_GENERAL;
             goto err_out3;

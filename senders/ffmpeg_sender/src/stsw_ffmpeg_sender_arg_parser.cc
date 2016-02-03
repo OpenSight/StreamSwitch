@@ -80,6 +80,13 @@ void FFmpegSenderArgParser::RegisterSenderOptions()
                    "and pass them to ffmpeg muxing context and io context. "
                    "The option name would be extracted from the string after \"ffmpeg-\", the value would be set to VALUE." ,
                    NULL, NULL);
+    RegisterOption("acodec", 0, 
+                   OPTION_FLAG_WITH_ARG, "CODEC_NAME",
+                   "force using the parser of CODEC_NAME codec for the audio substream. "
+                   "The parser of CODEC_NAME codec should support transcoding, "
+                   "otherwise, the program would return error if the original codec differ "
+                   "from CODEC_NAME",
+                   NULL, NULL);                   
     RegisterOption("debug-flags", 'd', 
                     OPTION_FLAG_LONG | OPTION_FLAG_WITH_ARG,  "FLAG", 
                     "debug flag for stream_switch core library. "

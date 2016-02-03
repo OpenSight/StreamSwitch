@@ -58,6 +58,7 @@ public:
     StreamMuxParser();
     virtual ~StreamMuxParser();
     virtual int Init(FFmpegMuxer * muxer, 
+                     const std::string &codec_name, 
                      const stream_switch::SubStreamMetadata &sub_metadata, 
                      AVFormatContext *fmt_ctx);
     virtual void Uninit();
@@ -82,6 +83,7 @@ protected:
     AVFormatContext *fmt_ctx_;
     AVStream * stream_;
     bool gop_started_;
+    std::string codec_name_;
 
 
 };

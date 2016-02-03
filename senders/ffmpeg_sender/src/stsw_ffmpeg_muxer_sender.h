@@ -80,9 +80,11 @@ public:
              const std::string &ffmpeg_options_str,
              const std::string &stream_name, 
              const std::string &source_ip, int source_tcp_port, 
+             const std::string &acodec, 
              unsigned long io_timeout,
              //uint32_t muxer_retry_count, 
              //uint32_t muxer_retry_interval, 
+             
              uint32_t sub_queue_size,              
              uint32_t sink_debug_flags);    
     void Uninit();
