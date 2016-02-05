@@ -299,10 +299,7 @@ int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
     opkt->pts = opkt->dts = 
         (int64_t)(ts_delta * stream_->time_base.den / stream_->time_base.num);
     opkt->stream_index = stream_->index;
-    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
-        opkt->flags |= AV_PKT_FLAG_KEY;
-        gop_started_ = true;
-    }
+
     opkt->data = (uint8_t *)frame_data;
     opkt->size = frame_size;
     

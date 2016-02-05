@@ -319,7 +319,77 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                                       base_timestamp, opkt);
     }   
     
-    return -1;
+    int ret = 0;
+    const int output_frame_size = out_codec_context_->frame_size;
+    
+    if(frame_info != NULL){
+        int error;        
+        AVPacket input_pkt = { 0 };
+        av_init_packet(&input_pkt);
+        int data_present = 0;
+        uint8_t **converted_input_samples = NULL;
+        
+        //1. get AVPacket from frame_info
+        ret = StreamMuxParser::Parse(frame_info, frame_data, frame_size, 
+                                     base_timestamp, &input_pkt);
+        if(ret <= 0){
+            return ret;
+        }
+        
+        //1. decode packet
+        /**
+         * Decode the audio frame stored in the temporary packet.
+         * The input audio stream decoder is used to do this.
+         */
+        if ((error = avcodec_decode_audio4(in_codec_context_, input_frame_,
+                                           &data_present, &input_pkt)) < 0) {
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not decode frame (error '%s')\n",
+                       get_error_text(error)); 
+            av_free_packet(&input_packet);
+            return error;
+        }
+        
+        
+        if (data_present) {
+            /** Initialize the temporary storage for the converted input samples. */
+            if (init_converted_samples(&converted_input_samples, output_codec_context,
+                                       input_frame->nb_samples)){
+                                           
+            }
+                
+
+        /**
+         * Convert the input samples to the desired output sample format.
+         * This requires a temporary storage provided by converted_input_samples.
+         */
+        if (convert_samples((const uint8_t**)input_frame->extended_data, converted_input_samples,
+                            input_frame->nb_samples, resampler_context))
+            goto cleanup;
+
+        /** Add the converted input samples to the FIFO buffer for later processing. */
+        if (add_samples_to_fifo(fifo, converted_input_samples,
+                                input_frame->nb_samples))
+            goto cleanup;
+        ret = 0;
+    
+        //2. resample
+        
+        //3. check pts consistent and flush
+        
+        //4. write to fifo
+        
+    }
+    
+    ret = 0;
+    while (av_audio_fifo_size(fifo_) >= output_frame_size) {  
+        //5. get frame from fifo
+        
+        //6. encode frame 
+    }
+    
+    
+    
+    return ret;
                           
 }
 
