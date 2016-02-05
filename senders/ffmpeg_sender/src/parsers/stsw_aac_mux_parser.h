@@ -38,6 +38,17 @@
 #include <time.h>
 #include <stream_switch.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+#include <libavutil/audio_fifo.h>
+#ifdef __cplusplus
+}
+#endif
 #include "stsw_stream_mux_parser.h"
 
 
@@ -49,9 +60,44 @@ class AacMuxParser:public StreamMuxParser{
   
 public:
     AacMuxParser();
+    virtual ~AacMuxParser();
     
+    virtual int Init(FFmpegMuxer * muxer, 
+                     const std::string &codec_name, 
+                     const stream_switch::SubStreamMetadata &sub_metadata, 
+                     AVFormatContext *fmt_ctx);
+    virtual void Uninit();
+    virtual void Flush();    
+    
+    virtual int Parse(const stream_switch::MediaFrameInfo *frame_info, 
+                      const char * frame_data,
+                      size_t frame_size,
+                      struct timeval *base_timestamp,
+                      AVPacket *opkt);
 
 
+protected:
+    virtual int InitInputContext(const stream_switch::SubStreamMetadata &sub_metadata);
+    virtual int InitOutputContext(FFmpegMuxer * muxer, 
+                                  const std::string &codec_name, 
+                                  AVFormatContext *fmt_ctx);  
+    virtual int InitResampler();
+    virtual int InitAudioFifo();
+
+    virtual int EncodeAudioFrame(AVFrame *frame, int *data_present);  
+    
+    
+    virtual int ReadAudioFifo(void ** data, int nb_samples, int64_t *pts); 
+    virtual int WriteAudioFifo(void ** data, int nb_samples, int64_t pts);
+   
+    bool transcoding_;
+    AVCodecContext *in_codec_context_;
+    AVCodecContext *out_codec_context_;   
+    SwrContext *resample_context_; 
+    AVAudioFifo *fifo_;
+    int64_t fifo_pts_;
+    AVFrame *input_frame_;
+    AVFrame *output_frame_;    
 };
 
 

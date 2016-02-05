@@ -47,7 +47,7 @@ extern "C"{
 }
 
 class StreamMuxParser;
-
+class AacMuxParser;
 
 typedef std::vector<StreamMuxParser *> StreamMuxParserVector;
 
@@ -76,6 +76,7 @@ public:
    
 protected:
     friend class StreamMuxParser;
+    friend class AacMuxParser;
     
     static int StaticIOInterruptCB(void* user_data);
     int IOInterruptCB();    

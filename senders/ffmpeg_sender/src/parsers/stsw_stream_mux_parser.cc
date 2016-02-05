@@ -50,7 +50,7 @@ extern "C"{
 #include <libavcodec/avcodec.h>      
 }
 
-static enum AVCodecID CodecIdFromName(std::string codec_name);
+enum AVCodecID CodecIdFromName(std::string codec_name);
 
 
 StreamMuxParser::StreamMuxParser()
@@ -75,7 +75,7 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
     
     if(codec_name != sub_metadata.codec_name){
         STDERR_LOG(LOG_LEVEL_ERR, 
-            "This parser does not transcoding from codec %s to %s\n", 
+            "This parser does not support transcoding from codec %s to %s\n", 
             sub_metadata.codec_name.c_str(), codec_name.c_str());             
         return FFMPEG_SENDER_ERR_NOT_SUPPORT;        
     }
@@ -127,7 +127,7 @@ int StreamMuxParser::Init(FFmpegMuxer * muxer,
         case AVMEDIA_TYPE_AUDIO:
             c->sample_fmt  = codec->sample_fmts ?
                 codec->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
-            c->bit_rate    = 64000;
+            //c->bit_rate    = 0;
             if(sub_metadata.media_param.audio.samples_per_second != 0){
                 c->sample_rate = 
                     sub_metadata.media_param.audio.samples_per_second;
@@ -343,7 +343,7 @@ static const MuxParserInfo parser_infos[] = {
 };
 
 
-static enum AVCodecID CodecIdFromName(std::string codec_name)
+enum AVCodecID CodecIdFromName(std::string codec_name)
 {
     const MuxParserInfo *parser_info = parser_infos;
     while (parser_info->codec_id != AV_CODEC_ID_NONE) {

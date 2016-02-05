@@ -37,11 +37,13 @@ enum FFmpegSenderErrCode{
     FFMPEG_SENDER_ERR_OK = 0, 
     FFMPEG_SENDER_ERR_GENERAL = -1, // general error
     FFMPEG_SENDER_ERR_TIMEOUT = -2, // timout
+    
 
     FFMPEG_SENDER_ERR_IO = -64,   // IO operation fail
     FFMPEG_SENDER_ERR_INTER_FRAME_GAP = -65,  // over max inter frame gap
     FFMPEG_SENDER_ERR_EOF = -66,  // stream finish      
     FFMPEG_SENDER_ERR_NOT_SUPPORT = -67,  // codec not support     
+    FFMPEG_SENDER_ERR_CODEC = -68,  // encode/decode error             
 };
 
 
