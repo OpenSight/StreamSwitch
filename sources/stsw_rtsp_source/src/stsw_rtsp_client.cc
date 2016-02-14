@@ -283,7 +283,6 @@ void LiveRtspClient::AfterGettingFrame(int32_t sub_stream_index,
         //metadata not ready, just drop the frame
         return;
     }
-    
     gettimeofday(&last_frame_time_, NULL);
     
     if(timestamp.tv_sec <= (last_frame_time_.tv_sec - 10) ||
@@ -800,8 +799,7 @@ void LiveRtspClient::ContinueAfterPLAY(RTSPClient* client, int resultCode, char*
     gettimeofday(&my_client->last_frame_time_, NULL);
     CheckInterFrameGaps(my_client); // start check the frame
   
-
-    
+  
     
 }
 
@@ -1162,7 +1160,8 @@ void LiveRtspClient::HandleError(RtspClientErrCode err_code,
         const char * err_info)
 {
     //When encounter an error, shutdown this client
-    Shutdown();
+    //jamken: not shutdown because of segment fault when handling frame
+    //Shutdown();
     
     if(listener_ != NULL){
         listener_->OnError(err_code, err_info);
