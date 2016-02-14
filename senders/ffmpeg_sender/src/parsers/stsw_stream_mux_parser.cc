@@ -43,6 +43,8 @@
 
 #include "stsw_h264or5_mux_parser.h"
 #include "stsw_mpeg4_video_mux_parser.h"
+#include "stsw_aac_mux_parser.h"
+
 
 extern "C"{
 
@@ -296,6 +298,8 @@ int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
             ts_delta = 0.0;
         }            
     }
+    
+    
     opkt->pts = opkt->dts = 
         (int64_t)(ts_delta * stream_->time_base.den / stream_->time_base.num);
     opkt->stream_index = stream_->index;
@@ -332,7 +336,7 @@ static const MuxParserInfo parser_infos[] = {
    { AV_CODEC_ID_H264, StreamMuxParserFatcory<H264or5MuxParser>, "H264" },
    { AV_CODEC_ID_H265, StreamMuxParserFatcory<H264or5MuxParser>, "H265" }, 
    { AV_CODEC_ID_MPEG4, StreamMuxParserFatcory<Mpeg4VideoMuxParser>, "MP4V-ES" },   
-   { AV_CODEC_ID_AAC, NULL, "MPEG4-GENERIC" },   
+   { AV_CODEC_ID_AAC, StreamMuxParserFatcory<AacMuxParser>, "AAC" },   
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},

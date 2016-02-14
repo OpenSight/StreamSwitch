@@ -83,12 +83,20 @@ protected:
                                   AVFormatContext *fmt_ctx);  
     virtual int InitResampler();
     virtual int InitAudioFifo();
+    
+    virtual int InitInputPacket(const stream_switch::MediaFrameInfo *frame_info, 
+                                const char * frame_data,
+                                size_t frame_size,
+                                struct timeval *base_timestamp,
+                                AVPacket *input_pkt);   
 
     virtual int EncodeAudioFrame(AVFrame *frame, int *data_present);  
     
+    virtual int FlushInternal();
     
     virtual int ReadAudioFifo(void ** data, int nb_samples, int64_t *pts); 
     virtual int WriteAudioFifo(void ** data, int nb_samples, int64_t pts);
+    virtual bool CheckAudioFifoPts(int64_t pts, int64_t sample_rate);
    
     bool transcoding_;
     AVCodecContext *in_codec_context_;

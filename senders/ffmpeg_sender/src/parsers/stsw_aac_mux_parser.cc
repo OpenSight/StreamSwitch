@@ -93,11 +93,52 @@ static int InitOutputFrame(AVFrame *frame,
 
     return 0;
 }
+/**
+ * Initialize a temporary storage for the specified number of audio samples.
+ * The conversion requires temporary storage due to the different format.
+ * The number of audio samples to be allocated is specified in frame_size.
+ */
+static int init_converted_samples(uint8_t ***converted_input_samples,
+                                  AVCodecContext *output_codec_context,
+                                  int frame_size)
+{
+    using namespace stream_switch; 
+    int error;
+
+    /**
+     * Allocate as many pointers as there are audio channels.
+     * Each pointer will later point to the audio samples of the corresponding
+     * channels (although it may be NULL for interleaved formats).
+     */
+    if (!(*converted_input_samples = (uint8_t **)calloc(output_codec_context->channels,
+                                            sizeof(**converted_input_samples)))) {
+        STDERR_LOG(LOG_LEVEL_ERR, "Could not allocate converted input sample pointers\n");
+        return AVERROR(ENOMEM);
+    }
+
+    /**
+     * Allocate memory for the samples of all channels in one consecutive
+     * block for convenience.
+     */
+    if ((error = av_samples_alloc(*converted_input_samples, NULL,
+                                  output_codec_context->channels,
+                                  frame_size,
+                                  output_codec_context->sample_fmt, 0)) < 0) {
+        STDERR_LOG(LOG_LEVEL_ERR, 
+                "Could not allocate converted input samples (error '%s')\n",
+                av_err2str(error));
+        av_freep(&(*converted_input_samples)[0]);
+        free(*converted_input_samples);
+        return error;
+    }
+    return 0;
+}
 
 
 
 
-
+/////////////////////////////////////////////////////////////
+//AacMuxParser methods
 
 
 AacMuxParser::AacMuxParser()
@@ -181,7 +222,7 @@ int AacMuxParser::Init(FFmpegMuxer * muxer,
     char buf[256];
     avcodec_string(buf, sizeof(buf), in_codec_context_, 0);    
     STDERR_LOG(stream_switch::LOG_LEVEL_INFO,  
-            "AacMuxParser::Init(): Transcoding from the codec contexst (%s) to %s\n",
+            "AacMuxParser::Init(): Transcoding from the codec context (%s) to %s\n",
             buf, codec_name.c_str());    
 #endif    
     
@@ -202,6 +243,8 @@ error_4:
     }
 
 error_3:
+    stream_ = NULL;
+    
     if(out_codec_context_ != NULL){
         avcodec_close(out_codec_context_);
         out_codec_context_ = NULL;
@@ -259,53 +302,11 @@ void AacMuxParser::Uninit()
 }
 void AacMuxParser::Flush()
 {
-    using namespace stream_switch; 
-    int ret = 0;
     if(!transcoding_){
         StreamMuxParser::Flush();
         return;
     }
-    while (av_audio_fifo_size(fifo_) > 0){
-        /** Temporary storage of the output samples of the frame written to the file. */
-        AVFrame *output_frame = av_frame_alloc();
-        /**
-         * Use the maximum number of possible samples per frame.
-         * If there is less than the maximum possible frame size in the FIFO
-         * buffer use this number. Otherwise, use the maximum possible frame size
-         */
-        const int frame_size = FFMIN(av_audio_fifo_size(fifo_),
-                                     out_codec_context_->frame_size);
-
-        /** Initialize temporary storage for one output frame. */
-        ret = InitOutputFrame(output_frame, out_codec_context_, frame_size);
-        if (ret){
-            av_frame_free(&output_frame); 
-            return;
-        }
-
-        /**
-         * Read as many samples from the FIFO buffer as required to fill the frame.
-         * The samples are stored in the frame temporarily.
-         */
-        if (ReadAudioFifo((void **)output_frame->data, frame_size, &(output_frame->pts)) < frame_size) {
-            STDERR_LOG(LOG_LEVEL_ERR, "Could not read data from FIFO\n"); 
-            av_frame_free(&output_frame);
-            return;
-        }
-
-        /** Encode one frame worth of audio samples. */
-        if (EncodeAudioFrame(output_frame, NULL)) {
-            av_frame_free(&output_frame);
-            return;
-        }
-        
-        av_frame_free(&output_frame);  
-    }
-    
-    /* flush the encoder */
-    EncodeAudioFrame(NULL, NULL);
-
-    return;
+    FlushInternal();
 }
     
 int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info, 
@@ -314,6 +315,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                       struct timeval *base_timestamp,
                       AVPacket *opkt)
 {
+    using namespace stream_switch; 
     if(!transcoding_){
         return StreamMuxParser::Parse(frame_info, frame_data, frame_size, 
                                       base_timestamp, opkt);
@@ -327,16 +329,26 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
         AVPacket input_pkt = { 0 };
         av_init_packet(&input_pkt);
         int data_present = 0;
-        uint8_t **converted_input_samples = NULL;
+        
+        //printf("get here %d\n", __LINE__);
+        
+/*       
+        printf("ts before parse: %lld.%d, size: %d\n", 
+               (long long)frame_info->timestamp.tv_sec, 
+               (long)frame_info->timestamp.tv_usec, 
+               (int)frame_size);
+*/        
         
         //1. get AVPacket from frame_info
-        ret = StreamMuxParser::Parse(frame_info, frame_data, frame_size, 
-                                     base_timestamp, &input_pkt);
-        if(ret <= 0){
+        ret = InitInputPacket(frame_info, frame_data, frame_size, 
+                              base_timestamp, &input_pkt);
+        if(ret){            
             return ret;
         }
+//        printf("PTS after parse: %lld, size: %d\n", (long long)input_pkt.pts, (int)input_pkt.size);
+//        printf("get here %d\n", __LINE__);
         
-        //1. decode packet
+        //2. decode packet
         /**
          * Decode the audio frame stored in the temporary packet.
          * The input audio stream decoder is used to do this.
@@ -344,52 +356,130 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
         if ((error = avcodec_decode_audio4(in_codec_context_, input_frame_,
                                            &data_present, &input_pkt)) < 0) {
             STDERR_LOG(LOG_LEVEL_ERR, "Could not decode frame (error '%s')\n",
-                       get_error_text(error)); 
-            av_free_packet(&input_packet);
-            return error;
+                       av_err2str(error)); 
+            av_free_packet(&input_pkt);
+            return FFMPEG_SENDER_ERR_CODEC;
         }
+        av_free_packet(&input_pkt);
         
+//        printf("get here %d\n", __LINE__);
         
         if (data_present) {
-            /** Initialize the temporary storage for the converted input samples. */
-            if (init_converted_samples(&converted_input_samples, output_codec_context,
-                                       input_frame->nb_samples)){
-                                           
+//            printf("get here %d\n", __LINE__);
+            uint8_t **converted_input_samples = NULL;
+            
+            //3. check pts consistent and flush
+            int64_t pts = 0;
+            if(input_frame_->pts != AV_NOPTS_VALUE){
+                pts = input_frame_->pts;
+            }else if(input_frame_->pkt_pts != AV_NOPTS_VALUE){
+                pts = input_frame_->pkt_pts;
+            }else if(input_frame_->pkt_dts != AV_NOPTS_VALUE){
+                pts = input_frame_->pkt_dts;
             }
-                
+            /*
+            printf("Frame pts/size: %lld/%d, fifo pts/size: %lld/%d\n", 
+                   (long long)pts, 
+                   (int)input_frame_->nb_samples,
+                   (long long)fifo_pts_,
+                   (int)av_audio_fifo_size(fifo_));
+            */
+            if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
+                STDERR_LOG(LOG_LEVEL_ERR, "Audio fifo pts inconsistent, Flush Fifo\n");
+                ret = FlushInternal();
+                if(ret){
+                    STDERR_LOG(LOG_LEVEL_ERR, "Flush audio fifo failed\n");
+                    return ret;                    
+                }
+            }            
+            
+            //4. resample
+            
+            /** Initialize the temporary storage for the converted input samples. */
+            if (init_converted_samples(&converted_input_samples, out_codec_context_,
+                                       input_frame_->nb_samples)){
+                return FFMPEG_SENDER_ERR_GENERAL;                                           
+            }
+            
+            /** Convert the samples using the resampler. */
+            if ((error = swr_convert(resample_context_,
+                                     converted_input_samples, 
+                                     input_frame_->nb_samples,
+                                     (const uint8_t**)input_frame_->extended_data, 
+                                     input_frame_->nb_samples)) < 0) {
+                if (converted_input_samples) {
+                    av_freep(&converted_input_samples[0]);
+                    free(converted_input_samples);
+                }
+                STDERR_LOG(LOG_LEVEL_ERR, "Could not convert input samples (error '%s')\n",
+                        av_err2str(error));
+                return FFMPEG_SENDER_ERR_CODEC;  
+            }                
+            
+            //5. write to fifo
+            if(WriteAudioFifo((void **)converted_input_samples, input_frame_->nb_samples, 
+                              pts) < input_frame_->nb_samples){
+                if (converted_input_samples) {
+                    av_freep(&converted_input_samples[0]);
+                    free(converted_input_samples);
+                }
+                STDERR_LOG(LOG_LEVEL_ERR, "Could not write data to FIFO\n");
+                return FFMPEG_SENDER_ERR_GENERAL;                                    
+            }
 
-        /**
-         * Convert the input samples to the desired output sample format.
-         * This requires a temporary storage provided by converted_input_samples.
-         */
-        if (convert_samples((const uint8_t**)input_frame->extended_data, converted_input_samples,
-                            input_frame->nb_samples, resampler_context))
-            goto cleanup;
-
-        /** Add the converted input samples to the FIFO buffer for later processing. */
-        if (add_samples_to_fifo(fifo, converted_input_samples,
-                                input_frame->nb_samples))
-            goto cleanup;
-        ret = 0;
+        
+            if (converted_input_samples) {
+                av_freep(&converted_input_samples[0]);
+                free(converted_input_samples);
+            } 
+        }//if (data_present) 
+        
+    }//if(frame_info != NULL)
     
-        //2. resample
-        
-        //3. check pts consistent and flush
-        
-        //4. write to fifo
-        
-    }
-    
-    ret = 0;
+//    printf("get here %d\n", __LINE__);
     while (av_audio_fifo_size(fifo_) >= output_frame_size) {  
-        //5. get frame from fifo
         
-        //6. encode frame 
+//        printf("get here %d\n", __LINE__);
+        int data_present = 0;
+        int error;  
+        
+        //5. get frame from fifo
+        if (ReadAudioFifo((void **)output_frame_->data, 
+                          output_frame_size, 
+                          &(output_frame_->pts)) < output_frame_size) {
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not read data from FIFO\n"); 
+            return FFMPEG_SENDER_ERR_GENERAL;
+        }        
+        
+        //6. encode frame         
+   
+        /**
+        * Encode the audio frame and store it in the output packet.
+        * The output audio stream encoder is used to do this.
+        */
+        if ((error = avcodec_encode_audio2(out_codec_context_, opkt,
+                                           output_frame_, &data_present)) < 0) {
+            av_free_packet(opkt);
+            STDERR_LOG(LOG_LEVEL_ERR, 
+                "Could not encode frame (error '%s')\n", 
+                av_err2str(error));             
+            return FFMPEG_SENDER_ERR_CODEC; 
+        }
+        
+        if (data_present) {
+             /* return the packet to caller  */   
+             //printf("get here %d\n", __LINE__);
+             /* prepare packet for muxing */
+             opkt->stream_index = stream_->index;
+             av_packet_rescale_ts(opkt,
+                                  out_codec_context_->time_base,
+                                  stream_->time_base);            
+             return 1;
+        }
+        
     }
-    
-    
-    
-    return ret;
+            
+    return 0; //no packet to output 
                           
 }
 
@@ -504,7 +594,8 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
     out_codec_context_->channels       = in_codec_context_->channels;
     out_codec_context_->channel_layout = av_get_default_channel_layout(in_codec_context_->channels);
     out_codec_context_->sample_rate    = in_codec_context_->sample_rate;
-    out_codec_context_->sample_fmt     = codec->sample_fmts[0];
+    out_codec_context_->sample_fmt     = (codec->sample_fmts)?
+                                         codec->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
 
     /** Allow the use of the experimental AAC encoder */
     out_codec_context_->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
@@ -512,6 +603,7 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
     /** Set the sample rate for the container. */
     stream->time_base.den = in_codec_context_->sample_rate;
     stream->time_base.num = 1;
+    
 
     /**
      * Some container formats (like MP4) require global headers to be present
@@ -523,11 +615,19 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
     /** Open the encoder for the audio stream to use it later. */
     ret = avcodec_open2(out_codec_context_, codec, NULL);
     if(ret < 0){
+        out_codec_context_ = NULL;
         STDERR_LOG(LOG_LEVEL_ERR, "Could not open output code (%s) context: %s\n",
-                avcodec_get_name(codec_id), av_err2str(ret));
+                avcodec_get_name(codec_id), av_err2str(ret));        
         return FFMPEG_SENDER_ERR_GENERAL;                
     } 
     
+    stream_ = stream;
+
+/*    
+        printf("aac time_base num/den: %d/%d\n", 
+           stream_->time_base.num, 
+           stream_->time_base.den);    
+*/    
     return 0;
                                         
 }
@@ -578,6 +678,106 @@ int AacMuxParser::InitAudioFifo()
     return 0;    
 }
 
+int AacMuxParser::InitInputPacket(const stream_switch::MediaFrameInfo *frame_info, 
+                                  const char * frame_data,
+                                  size_t frame_size,
+                                  struct timeval *base_timestamp,
+                                  AVPacket *input_pkt)
+{
+
+    int ret = 0;
+    
+    if(!is_init_){
+        return FFMPEG_SENDER_ERR_GENERAL;
+    }    
+    
+    if(in_codec_context_ == NULL){        
+        return FFMPEG_SENDER_ERR_GENERAL;
+    }
+    if(frame_info == NULL){
+        return FFMPEG_SENDER_ERR_GENERAL;
+    } 
+
+   
+    //write the frame to input_pkt, no cached mechanism
+    if(frame_info->frame_type == stream_switch::MEDIA_FRAME_TYPE_KEY_FRAME){
+        input_pkt->flags |= AV_PKT_FLAG_KEY;
+    }
+    
+    //calculate pts&dts
+    double ts_delta = 0.0;
+    if(base_timestamp->tv_sec == 0 && base_timestamp->tv_usec == 0){
+        (*base_timestamp) =  frame_info->timestamp;
+        ts_delta = 0.0;
+    }else{
+        ts_delta = 
+            (double) (frame_info->timestamp.tv_sec - base_timestamp->tv_sec) + 
+            (((double)(frame_info->timestamp.tv_usec - base_timestamp->tv_usec)) / 1000000.0);
+        if(ts_delta < 0.0){
+            ts_delta = 0.0;
+        }            
+    }
+        
+    input_pkt->pts = input_pkt->dts = 
+        (int64_t)(ts_delta * in_codec_context_->time_base.den / in_codec_context_->time_base.num);
+    input_pkt->data = (uint8_t *)frame_data;
+    input_pkt->size = frame_size;    
+    
+    return 0;
+                                      
+}
+
+
+int AacMuxParser::FlushInternal()
+{
+    using namespace stream_switch; 
+    int ret = 0;
+    while (av_audio_fifo_size(fifo_) > 0){
+        /** Temporary storage of the output samples of the frame written to the file. */
+        AVFrame *output_frame = av_frame_alloc();
+        /**
+         * Use the maximum number of possible samples per frame.
+         * If there is less than the maximum possible frame size in the FIFO
+         * buffer use this number. Otherwise, use the maximum possible frame size
+         */
+        const int frame_size = FFMIN(av_audio_fifo_size(fifo_),
+                                     out_codec_context_->frame_size);
+
+        /** Initialize temporary storage for one output frame. */
+        ret = InitOutputFrame(output_frame, out_codec_context_, frame_size);
+        if (ret){
+            av_frame_free(&output_frame); 
+            return ret;
+        }
+
+        /**
+         * Read as many samples from the FIFO buffer as required to fill the frame.
+         * The samples are stored in the frame temporarily.
+         */
+        if (ReadAudioFifo((void **)output_frame->data, frame_size, &(output_frame->pts)) < frame_size) {
+            STDERR_LOG(LOG_LEVEL_ERR, "Could not read data from FIFO\n"); 
+            av_frame_free(&output_frame);
+            return -1;
+        }
+
+        /** Encode one frame worth of audio samples. */
+        if (ret = EncodeAudioFrame(output_frame, NULL)) {
+            av_frame_free(&output_frame);
+            return ret;
+        }
+        
+        av_frame_free(&output_frame);  
+    }
+
+    /* flush the encoder */    
+    int data_present = 0;
+    do{
+        EncodeAudioFrame(NULL, &data_present);    
+    }while(data_present != 0);
+
+    return 0;    
+}
+
 int AacMuxParser::ReadAudioFifo(void ** data, int nb_samples, int64_t *pts)
 {
     int samples_read;
@@ -597,12 +797,21 @@ int AacMuxParser::WriteAudioFifo(void ** data, int nb_samples, int64_t pts)
     // update the fifo pts
     if (org_fifo_size == 0){
         fifo_pts_ = pts;
-    }else{
-        fifo_pts_ += samples_write;
     }
     return samples_write;
 }
-
+bool AacMuxParser::CheckAudioFifoPts(int64_t pts, int64_t sample_rate)
+{
+    if(av_audio_fifo_size(fifo_) == 0){
+        return false;
+    }else{
+        int64_t last_pts = fifo_pts_ + av_audio_fifo_size(fifo_);
+        int64_t delta_pts = (pts>=last_pts)?(pts - last_pts):(last_pts - pts);
+        
+        return (delta_pts * 1000 / sample_rate) > 300; //offset over 300ms
+    }
+    
+}
 
 /** Encode one frame worth of audio to the output file. */
 int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
@@ -610,14 +819,14 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
 {
     using namespace stream_switch; 
     /** Packet used for temporary storage. */
-    AVPacket output_packet = { 0 };;
+    AVPacket output_packet = { 0 };
     int error;
     int tmp_data_present = 0;
     
     if (data_present == NULL){
         data_present = &tmp_data_present;
     }
-    
+    //printf("get here %d\n", __LINE__);
 
     av_init_packet(&output_packet);
     /** Set the packet data and size so that it is recognized as being empty. */
@@ -639,6 +848,12 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
 
     /** Write one audio frame from the temporary packet to the output file. */
     if (*data_present) {
+        //printf("get here %d\n", __LINE__);
+        //printf("packet pts/size: %lld/%ld\n", output_packet.pts, output_packet.size);
+        output_packet.stream_index = stream_->index;
+        av_packet_rescale_ts(&output_packet,
+                             out_codec_context_->time_base,
+                             stream_->time_base);           
         muxer_->StartIO();
         error = av_interleaved_write_frame(fmt_ctx_, &output_packet);
         muxer_->StopIO();

@@ -127,7 +127,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
         }else{
             codec_name = meta_it->codec_name;
         } 
-        StreamMuxParser *parser = NewStreamMuxParser(meta_it->codec_name);
+        StreamMuxParser *parser = NewStreamMuxParser(codec_name);
         ret = parser->Init(this, codec_name, (*meta_it), fmt_ctx_);
         if(ret){
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
@@ -290,6 +290,8 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
     for (;;) {
         AVPacket opkt = { 0 };
         av_init_packet(&opkt);
+        opkt.data = NULL;
+        opkt.size = 0;        
         int ret = parser->Parse(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
