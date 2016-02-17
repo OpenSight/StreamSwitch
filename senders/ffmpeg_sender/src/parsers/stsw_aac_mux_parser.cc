@@ -385,7 +385,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                    (int)av_audio_fifo_size(fifo_));
             */
             if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
-                STDERR_LOG(LOG_LEVEL_ERR, "Audio fifo pts inconsistent, Flush Fifo\n");
+                STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, Flush Fifo\n");
                 ret = FlushInternal();
                 if(ret){
                     STDERR_LOG(LOG_LEVEL_ERR, "Flush audio fifo failed\n");
