@@ -96,6 +96,7 @@ protected:
     
     virtual int ReadAudioFifo(void ** data, int nb_samples, int64_t *pts); 
     virtual int WriteAudioFifo(void ** data, int nb_samples, int64_t pts);
+    virtual void CleanupAudioFifo();    
     virtual bool CheckAudioFifoPts(int64_t pts, int64_t sample_rate);
    
     bool transcoding_;

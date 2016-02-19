@@ -214,6 +214,7 @@ int AacMuxParser::Init(FFmpegMuxer * muxer,
     fmt_ctx_ = fmt_ctx;
     gop_started_ = false;
     codec_name_ = codec_name;
+    fifo_pts_ = 0;
 
     is_init_ = true; 
     
@@ -277,6 +278,7 @@ void AacMuxParser::Uninit()
     stream_ = NULL;
     fmt_ctx_ = NULL;
     transcoding_ = false;
+    fifo_pts_ = 0;
     
     av_frame_unref(output_frame_);
     
@@ -345,7 +347,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
         if(ret){            
             return ret;
         }
-//        printf("PTS after parse: %lld, size: %d\n", (long long)input_pkt.pts, (int)input_pkt.size);
+//       printf("PTS after parse: %lld, size: %d\n", (long long)input_pkt.pts, (int)input_pkt.size);
 //        printf("get here %d\n", __LINE__);
         
         //2. decode packet
@@ -377,20 +379,17 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
             }else if(input_frame_->pkt_dts != AV_NOPTS_VALUE){
                 pts = input_frame_->pkt_dts;
             }
-            /*
+            
+/*
             printf("Frame pts/size: %lld/%d, fifo pts/size: %lld/%d\n", 
                    (long long)pts, 
                    (int)input_frame_->nb_samples,
                    (long long)fifo_pts_,
                    (int)av_audio_fifo_size(fifo_));
-            */
+*/           
             if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
-                STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, Flush Fifo\n");
-                ret = FlushInternal();
-                if(ret){
-                    STDERR_LOG(LOG_LEVEL_ERR, "Flush audio fifo failed\n");
-                    return ret;                    
-                }
+                STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, cleanup Fifo\n");
+                CleanupAudioFifo();
             }            
             
             //4. resample
@@ -450,7 +449,11 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
             STDERR_LOG(LOG_LEVEL_ERR, "Could not read data from FIFO\n"); 
             return FFMPEG_SENDER_ERR_GENERAL;
         }        
-        
+/*
+            printf("output Frame pts/size: %lld/%d\n", 
+                   (long long)output_frame_->pts, 
+                   (int)output_frame_size);
+*/        
         //6. encode frame         
    
         /**
@@ -470,6 +473,11 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
              /* return the packet to caller  */   
              //printf("get here %d\n", __LINE__);
              /* prepare packet for muxing */
+/*             
+            printf("output packet pts/duration: %lld/%d\n", 
+                   (long long)opkt->pts, 
+                   (int)opkt->duration);      
+*/       
              opkt->stream_index = stream_->index;
              av_packet_rescale_ts(opkt,
                                   out_codec_context_->time_base,
@@ -800,6 +808,13 @@ int AacMuxParser::WriteAudioFifo(void ** data, int nb_samples, int64_t pts)
     }
     return samples_write;
 }
+
+void AacMuxParser::CleanupAudioFifo()
+{
+    av_audio_fifo_reset(fifo_);
+    fifo_pts_ = 0;
+}
+
 bool AacMuxParser::CheckAudioFifoPts(int64_t pts, int64_t sample_rate)
 {
     if(av_audio_fifo_size(fifo_) == 0){
