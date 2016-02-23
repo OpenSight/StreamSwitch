@@ -106,6 +106,7 @@ public:
 			       Boolean streamUsingTCP = True, Boolean enableRtspKeepAlive = True, 
                    char const* singleMedium = NULL, 
                    char const* userName = NULL, char const* passwd = NULL, 
+                   Boolean usingLocalTs = False, 
                    LiveRtspClientListener * listener = NULL, 
                    int verbosityLevel = 0);
 
@@ -113,6 +114,7 @@ public:
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
                    char const* userName, char const* passwd,  
+                   Boolean usingLocalTs, 
                    LiveRtspClientListener * listener, 
                    int verbosityLevel);
                    

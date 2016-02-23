@@ -43,9 +43,10 @@
 
 // PtsSessionNormalizer:
 
-PtsSessionNormalizer::PtsSessionNormalizer(UsageEnvironment& env)
-  : Medium(env),
+PtsSessionNormalizer::PtsSessionNormalizer(UsageEnvironment& env, Boolean usingLocalTs)
+  : Medium(env), fUsingLocalTs(usingLocalTs), 
     fSubsessionNormalizers(NULL), fMasterSSNormalizer(NULL) {
+        
 }
 
 PtsSessionNormalizer::~PtsSessionNormalizer() {
@@ -65,7 +66,13 @@ PtsSessionNormalizer::createNewPtsSubsessionNormalizer(FramedSource* inputSource
 void PtsSessionNormalizer::normalizePresentationTime(PtsSubsessionNormalizer* ssNormalizer,
 								  struct timeval const& fromPT, struct timeval * toPT) {
     Boolean const hasBeenSynced = ssNormalizer->fRTPSource->hasBeenSynchronizedUsingRTCP();
-
+    
+    if(fUsingLocalTs){
+        //Just using the local timestamp from system, no transform
+        gettimeofday(toPT, NULL);
+        return;
+    }
+    
     if (!hasBeenSynced) {
         // If "fromPT" has not yet been RTCP-synchronized, then it was generated 
         // by our own receiving code, and thus

@@ -79,6 +79,7 @@ LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rt
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
                    char const* userName, char const* passwd, 
+                   Boolean usingLocalTs, 
                    LiveRtspClientListener * listener, 
                    int verbosityLevel)
 {
@@ -87,7 +88,7 @@ LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rt
     }
 
     return new LiveRtspClient(env, rtspURL, streamUsingTCP, enableRtspKeepAlive, 
-                             singleMedium, userName, passwd, listener,
+                             singleMedium, userName, passwd, usingLocalTs, listener,
                              verbosityLevel);
 }
                               
@@ -96,7 +97,8 @@ LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL,
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
                    char const* singleMedium, 
                    char const* userName, char const* passwd,  
-                   LiveRtspClientListener * listener, 
+                   Boolean usingLocalTs, 
+                   LiveRtspClientListener * listener,                    
                    int verbosityLevel)
 :RTSPClient(env, rtspURL, verbosityLevel, "stsw_rtsp_client", 0, -1), 
 listener_(listener), 
@@ -109,7 +111,7 @@ session_timer_task_(NULL),
 inter_frame_gap_check_timer_task_(NULL), 
 rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
-pts_session_normalizer_(new PtsSessionNormalizer(env)),
+pts_session_normalizer_(new PtsSessionNormalizer(env, usingLocalTs)),
 made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL), 
 org_verbosity_level(verbosityLevel)
 

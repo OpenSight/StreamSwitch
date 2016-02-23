@@ -84,7 +84,7 @@ private:
 
 class PtsSessionNormalizer: public Medium {
 public:
-    PtsSessionNormalizer(UsageEnvironment& env);
+    PtsSessionNormalizer(UsageEnvironment& env, Boolean usingLocalTs);
     virtual ~PtsSessionNormalizer();
 
     PtsSubsessionNormalizer* createNewPtsSubsessionNormalizer(
@@ -102,6 +102,8 @@ private:
   
     // used for subsessions that have been RTCP-synced, prefer vedio
     PtsSubsessionNormalizer* fMasterSSNormalizer; 
+    
+    Boolean fUsingLocalTs;
 
     struct timeval fPTAdjustment; // Added to (RTCP-synced) subsession presentation times to 'normalize' them with wall-clock time.
 };

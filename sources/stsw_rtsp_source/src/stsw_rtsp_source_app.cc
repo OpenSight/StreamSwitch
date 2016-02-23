@@ -73,6 +73,7 @@ int RtspSourceApp::Init(int argc, char ** argv)
     std::string rtsp_url;
     Boolean streamUsingTCP = True;
     Boolean enableRtspKeepAlive = True; 
+    Boolean usingLocalTs = False; 
     char const* singleMedium = NULL;
     char const* userName = NULL, * passwd = NULL;
     stream_switch::ArgParser parser;
@@ -159,6 +160,10 @@ int RtspSourceApp::Init(int argc, char ** argv)
     if(parser.CheckOption("rtsp-verbose")){
         verbosityLevel = 1;
     }    
+
+    if(parser.CheckOption("use-local-ts")){
+        usingLocalTs = True;
+    }  
     
 /*    
     rtsp_client_ = LiveRtspClient::CreateNew(
@@ -167,7 +172,8 @@ int RtspSourceApp::Init(int argc, char ** argv)
 */
     rtsp_client_ = LiveRtspClient::CreateNew(
         *env_, rtsp_url.c_str(),  streamUsingTCP, enableRtspKeepAlive, 
-        singleMedium,  userName, passwd, (LiveRtspClientListener *)this, 
+        singleMedium,  userName, passwd, usingLocalTs, 
+        (LiveRtspClientListener *)this, 
         verbosityLevel);        
     if(rtsp_client_ == NULL){
         STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
@@ -343,6 +349,11 @@ void RtspSourceApp::ParseArgv(int argc, char *argv[],
                     "debug flag for stream_switch core library. "
                     "Default is 0, means no debug dump" , 
                     NULL, NULL);  
+
+    parser->RegisterOption("use-local-ts", 0,  0, NULL, 
+                   "use the local timestamp for each frame, instead of using rtp timestamp."
+                   "Because for some rtsp server, the timestamp is of error", NULL, NULL);  
+                   
   
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
