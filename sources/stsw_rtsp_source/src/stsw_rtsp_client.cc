@@ -1132,6 +1132,16 @@ void LiveRtspClient::SetupMetaFromSession()
                 sub_metadata.media_param.audio.samples_per_second = 
                     subsession->rtpTimestampFrequency();                
             }
+            if(strcmp(codecName, "MPEG4-GENERIC") == 0){ //aac
+                sub_metadata.codec_name = "aac";
+                unsigned configSize = 0;
+                unsigned char* config = 
+                    parseGeneralConfigStr(subsession->fmtp_config(), configSize);
+                if(configSize != 0 && config != NULL){
+                    sub_metadata.extra_data.assign(
+                        (const char *)config, (size_t)configSize);
+                } 
+            }
             
         }else if(strcmp(mediaName, "text") == 0){
             sub_metadata.media_type = 
