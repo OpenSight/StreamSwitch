@@ -87,9 +87,18 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
        (presentationTime.tv_sec == last_pts_.tv_sec &&
         presentationTime.tv_usec < last_pts_.tv_usec)){
 
-        // for h264/h265 stream, consider B frame situation 
-        // presentation time is not required to monotone increasing
+        envir() << "A media frame with invalid timestamp from " 
+                << "Stream index:\"" << sub_stream_index_ << "\" ("
+                << subsession_->mediumName() << "/" << subsession_->codecName() ;
+        char uSecsStr[6+1]; // used to output the 'microseconds' part of the presentation time
+        sprintf(uSecsStr, "%06u", (unsigned)presentationTime.tv_usec);
+        envir() << " PTS: " << (int)presentationTime.tv_sec << "." << uSecsStr;
+        if (subsession_->rtpSource() != NULL && !subsession_->rtpSource()->hasBeenSynchronizedUsingRTCP()) {
+            envir() << "!"; // mark the debugging output to indicate that this presentation time is not RTCP-synchronized
+        }
+        envir() <<")\n";
         
+        return;       
     }else{
         //update the last pts
         last_pts_.tv_sec = presentationTime.tv_sec;
