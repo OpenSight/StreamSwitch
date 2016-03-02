@@ -46,7 +46,7 @@ static int aac_init(Track *track)
 
     sdp_value = g_strdup_printf("streamtype=5;profile-level-id=1;"
                                 "mode=AAC-hbr;sizeLength=13;indexLength=3;"
-                                "indexDeltaLength=3; config=%s;", config);
+                                "indexDeltaLength=3;config=%s", config);
     g_free(config);
 
     track_add_sdp_field(track, fmtp, sdp_value);
