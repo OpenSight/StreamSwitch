@@ -1133,7 +1133,7 @@ void LiveRtspClient::SetupMetaFromSession()
                     subsession->rtpTimestampFrequency();                
             }
             if(strcmp(codecName, "MPEG4-GENERIC") == 0){ //aac
-                sub_metadata.codec_name = "aac";
+                sub_metadata.codec_name = "AAC";
                 unsigned configSize = 0;
                 unsigned char* config = 
                     parseGeneralConfigStr(subsession->fmtp_config(), configSize);

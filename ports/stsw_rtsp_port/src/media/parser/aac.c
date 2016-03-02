@@ -29,7 +29,7 @@
 #include "fnc_log.h"
 
 static const MediaParserInfo info = {
-    "MPEG4-GENERIC",
+    "AAC",
     MP_audio
 };
 
@@ -39,6 +39,7 @@ static int aac_init(Track *track)
 {
     char *config;
     char *sdp_value;
+    unsigned channel = 1;
 
     if ( (config = extradata2config(&track->properties)) == NULL )
         return ERR_PARSE;
@@ -49,9 +50,14 @@ static int aac_init(Track *track)
     g_free(config);
 
     track_add_sdp_field(track, fmtp, sdp_value);
+    
+    if(track->properties.audio_channels != 0){
+        channel = track->properties.audio_channels;
+    }
 
-    sdp_value = g_strdup_printf ("mpeg4-generic/%d",
-                                 track->properties.clock_rate);
+    sdp_value = g_strdup_printf ("mpeg4-generic/%d/%u",
+                                 track->properties.clock_rate,
+                                 channel);
     track_add_sdp_field(track, rtpmap, sdp_value);
 
     return ERR_NOERROR;

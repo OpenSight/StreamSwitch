@@ -168,7 +168,7 @@ int AacMuxParser::Init(FFmpegMuxer * muxer,
     
     if(strcasecmp(codec_name.c_str(),sub_metadata.codec_name.c_str()) == 0){
         transcoding_ = false;    
-        return StreamMuxParser::Init(muxer, codec_name, sub_metadata, fmt_ctx_);        
+        return StreamMuxParser::Init(muxer, codec_name, sub_metadata, fmt_ctx);        
     }    
         
     //need transcoding
