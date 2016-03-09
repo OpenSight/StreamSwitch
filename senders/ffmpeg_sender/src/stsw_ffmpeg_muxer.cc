@@ -292,7 +292,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         av_init_packet(&opkt);
         opkt.data = NULL;
         opkt.size = 0;        
-        int ret = parser->Parse(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
+        ret = parser->Parse(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
         }
@@ -328,10 +328,11 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                 "Failed to write pkt to the output file:%s\n", 
                 av_err2str(ret));   
             ret = FFMPEG_SENDER_ERR_IO;            
-            break;            
+            break;  
         }
         frame_num_++;
-    }    
+    }  
+
     return ret;
 }
 

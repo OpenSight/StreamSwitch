@@ -100,11 +100,14 @@ public:
                                   size_t frame_size);    
     
     virtual void OnMetadataMismatch(uint32_t mismatch_ssrc);  
- 
+    
+     void CheckFrameLost();
        
 protected: 
     FFmpegMuxerSender();
     static FFmpegMuxerSender * s_instance;
+
+
 
     stream_switch::StreamSink *sink_; 
     FFmpegMuxer * muxer_; 
@@ -116,6 +119,8 @@ protected:
 
     std::string dest_url_;
     //std::string ffmpeg_options_str_;   
+    
+    stream_switch::MediaStatisticInfo last_stat_;
 };
     
 

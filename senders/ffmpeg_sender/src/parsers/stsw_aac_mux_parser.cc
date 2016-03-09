@@ -598,7 +598,6 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
     stream->id = stream->index;
     out_codec_context_ = stream->codec;            
     
-
     out_codec_context_->channels       = in_codec_context_->channels;
     out_codec_context_->channel_layout = av_get_default_channel_layout(in_codec_context_->channels);
     out_codec_context_->sample_rate    = in_codec_context_->sample_rate;
@@ -619,7 +618,8 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
      */
     if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
         out_codec_context_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;  
-
+    
+    
     /** Open the encoder for the audio stream to use it later. */
     ret = avcodec_open2(out_codec_context_, codec, NULL);
     if(ret < 0){

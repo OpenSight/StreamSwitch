@@ -57,7 +57,7 @@ extern "C"{
 ///////////////////////////////////////////////////////////////
 //macro
 
-
+#define FRAME_LOST_CHECK_INTERVAL  1
 
 
 
@@ -145,6 +145,7 @@ int main(int argc, char *argv[])
     struct timespec start_ts;  
     struct timespec last_frame_ts;    
     uint32_t last_frame_num = 0;
+    struct timespec lost_check_ts;
     
     GlobalInit();
     
@@ -217,7 +218,7 @@ int main(int argc, char *argv[])
     //from here, sender has started successful
     
     clock_gettime(CLOCK_MONOTONIC, &start_ts);  
-    cur_ts = last_frame_ts = start_ts;
+    cur_ts = last_frame_ts = lost_check_ts = start_ts;
     
     //heartbeat check
     while(1){        
@@ -266,6 +267,15 @@ int main(int argc, char *argv[])
             }
             break;
         }
+        
+        // check frame lost         
+        if(cur_ts.tv_sec - lost_check_ts.tv_sec >= 
+            FRAME_LOST_CHECK_INTERVAL){
+            sender->CheckFrameLost();
+            lost_check_ts = cur_ts;
+        }
+        
+        
         // check signal
         if(isGlobalInterrupt()){
             STDERR_LOG(stream_switch::LOG_LEVEL_INFO, 

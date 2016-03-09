@@ -55,6 +55,7 @@ FFmpegMuxerSender::FFmpegMuxerSender()
     // create demuxer object for this input type
     muxer_ = new FFmpegMuxer();
     sink_ = new stream_switch::StreamSink();
+    last_stat_.ssrc = 0;
 }
 
 
@@ -175,6 +176,7 @@ int FFmpegMuxerSender::Init(const std::string &dest_url,
     
     dest_url_ = dest_url;
     error_code_ = 0;
+    last_stat_.ssrc = 0;
     return 0;
 
 error_out2:
@@ -290,3 +292,26 @@ void FFmpegMuxerSender::OnMetadataMismatch(uint32_t mismatch_ssrc)
 {
     error_code_ = FFMPEG_SENDER_ERR_EOF;
 }
+
+void FFmpegMuxerSender::CheckFrameLost()
+{
+    stream_switch::MediaStatisticInfo new_stat;
+    sink_->ReceiverStatistic(&new_stat);
+    if(new_stat.ssrc == last_stat_.ssrc){
+        stream_switch::SubStreamMediaStatisticVector::iterator ita, itb;
+        for(ita = new_stat.sub_streams.begin(), itb= last_stat_.sub_streams.begin(); 
+            ita != new_stat.sub_streams.end() && itb != last_stat_.sub_streams.end();
+            ita++, itb++){
+            if(ita->lost_frames > itb->lost_frames){
+                char * stream_type;
+                STDERR_LOG(stream_switch::LOG_LEVEL_WARNING, 
+                           "%llu frames losts for stream %u(%s), because of slow IO\n", 
+                           (unsigned long long)ita->lost_frames - itb->lost_frames, 
+                           (unsigned)ita->sub_stream_index, 
+                           stream_switch::media_type_name[ita->media_type]);                   
+            }
+        }    
+    }
+    last_stat_ = new_stat;
+}
+
