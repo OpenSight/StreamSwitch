@@ -38,8 +38,8 @@
 #define STSW_PUBLISH_INFO_CHANNEL "info"
 
 
-#define STSW_PUBLISH_SOCKET_HWM  60
-#define STSW_SUBSCRIBE_SOCKET_HWM  120
+#define STSW_PUBLISH_SOCKET_HWM  100
+#define STSW_SUBSCRIBE_SOCKET_HWM  250
 #define STSW_PUBLISH_SOCKET_LINGER  100    
 
 #define STSW_CLIENT_LEASE  15  //client heartbeat lease, in sec
@@ -120,6 +120,14 @@ enum SourceStreamState {
 enum StreamPlayType{
     STREAM_PLAY_TYPE_LIVE = 0,
     STREAM_PLAY_TYPE_REPLAY = 1,    
+};
+
+static const char * media_type_name[] = 
+{
+    "video",
+    "audio",
+    "text",
+    "private"
 };
 
 enum SubStreamMediaType{
