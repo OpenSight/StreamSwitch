@@ -14,6 +14,10 @@ ffmpeg_sender_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_muxer_sender.h \
     src/stsw_ffmpeg_muxer.cc \
     src/stsw_ffmpeg_muxer.h \
+    src/stsw_cached_segment.c \
+    src/stsw_cached_segment.h \
+    src/seg_writers/cseg_dummy_writer.c \
+    src/seg_writers/cseg_file_writer.c \
     src/parsers/stsw_stream_mux_parser.cc \
     src/parsers/stsw_stream_mux_parser.h \
     src/parsers/stsw_h264or5_mux_parser.cc \

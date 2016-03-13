@@ -44,7 +44,8 @@
 
 extern "C"{
 
-//#include <libavutil/avutil.h>    
+#include <libavutil/avstring.h>    
+#include <libavutil/opt.h>  
 #include <libavformat/avformat.h>      
 }
 
@@ -291,7 +292,10 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         AVPacket opkt = { 0 };
         av_init_packet(&opkt);
         opkt.data = NULL;
-        opkt.size = 0;        
+        opkt.size = 0; 
+        struct timeval org_base_timestamp; 
+        
+        
         ret = parser->Parse(frame_info_p, frame_data, frame_size, &base_timestamp_, &opkt);
         if (frame_info_p != NULL) {
             frame_info_p = NULL;
@@ -318,7 +322,18 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                          fmt_ctx_->streams[opkt.stream_index]);
                          
         }
-#endif             
+#endif          
+        if(frame_num_ == 0 && base_timestamp_.tv_sec > 0){
+            //first packet write
+            if(fmt_ctx_->oformat != NULL && 
+                av_match_name("cseg", fmt_ctx_->oformat->name) != 0){
+                double start_ts = (double)base_timestamp_.tv_sec + 
+                                  (double)base_timestamp_.tv_usec / 1000000.0;
+                if (fmt_ctx_->oformat->priv_class && fmt_ctx_->priv_data){
+                    av_opt_set_double(fmt_ctx_->priv_data, "start_ts", start_ts, 0);                    
+                }
+            }
+        }
         StartIO();
         ret = av_interleaved_write_frame(fmt_ctx_, &opkt);
         StopIO();
