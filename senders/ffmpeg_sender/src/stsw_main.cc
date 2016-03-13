@@ -45,6 +45,7 @@ extern "C"{
 #include "stsw_ffmpeg_sender_arg_parser.h"
 #include "stsw_log.h"
 #include "stsw_ffmpeg_muxer_sender.h"
+#include "stsw_cached_segment.h"
 
 ///////////////////////////////////////////////////////////////
 //Type
@@ -182,7 +183,8 @@ int main(int argc, char *argv[])
     /* register all formats and codecs */
     av_register_all();
     avformat_network_init(); 
-       
+    
+    register_cseg();
     //
     //init sender
     

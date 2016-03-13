@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 #include "libavutil/fifo.h"
-
+#include "libavutil/log.h"
 #include "libavformat/avformat.h"
 
 struct CachedSegmentContext;
@@ -91,7 +91,7 @@ typedef enum CachedSegmentFlags {
 
 
 struct CachedSegmentContext {
-    const AVClass *class;  // Class for private options.
+    const AVClass *context_class;  // Class for private options.
     
     char *filename;
     char *format_options_str;   //mpegts options string
@@ -124,7 +124,7 @@ struct CachedSegmentContext {
     double duration;      // current segment duration computed so far, in seconds
     int64_t start_pos;    // current segment starting position
 
-    int persist_enabled;   //enabled the segments persistence    
+    volatile int persist_enabled;   //enabled the segments persistence    
     double pre_recoding_time;   // at least pre_recoding_time should be kept in cached
                                 // when segment persistence is disabbled, 
     
@@ -145,6 +145,8 @@ struct CachedSegmentContext {
 extern AVOutputFormat ff_cached_segment_muxer;
 
 void register_segment_writer(CachedSegmentWriter * writer);
+
+void register_cseg(void);
 
 #ifdef __cplusplus
 }

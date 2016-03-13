@@ -52,7 +52,7 @@ static int dummy_init(CachedSegmentContext *cseg)
 
 static int dummy_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
 {
-    fprintf(stderr, "Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) is written\n", 
+    fprintf(stderr, "Segment(size:%d, start_ts:%.3f, duration:%.3f, pos:%lld, sequence:%lld) is written\n", 
            segment->size, 
            segment->start_ts, segment->duration, 
            segment->pos, segment->sequence); 

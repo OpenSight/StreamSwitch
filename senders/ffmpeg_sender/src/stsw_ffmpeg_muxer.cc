@@ -76,6 +76,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     int ret = 0;
     AVDictionary *format_opts = NULL;
     const char * format_name = NULL;
+    
     SubStreamMetadataVector::const_iterator meta_it;
     
     
@@ -146,9 +147,9 @@ int FFmpegMuxer::Open(const std::string &dest_url,
             "FFmpegMuxer::Open(): avformat context is dumped below\n");    
     av_dump_format(fmt_ctx_, 0, dest_url.c_str(), 1);
 #endif  
-   
     // open output file
-    if (!(fmt_ctx_->flags & AVFMT_NOFILE)) {
+    if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE)) {
+        
         StartIO();
         ret = avio_open2(&(fmt_ctx_->pb), dest_url.c_str(), AVIO_FLAG_WRITE, 
                          &(fmt_ctx_->interrupt_callback), &format_opts);
@@ -326,13 +327,19 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         if(frame_num_ == 0 && base_timestamp_.tv_sec > 0){
             //first packet write
             if(fmt_ctx_->oformat != NULL && 
-                av_match_name("cseg", fmt_ctx_->oformat->name) != 0){
-                double start_ts = (double)base_timestamp_.tv_sec + 
-                                  (double)base_timestamp_.tv_usec / 1000000.0;
-                if (fmt_ctx_->oformat->priv_class && fmt_ctx_->priv_data){
-                    av_opt_set_double(fmt_ctx_->priv_data, "start_ts", start_ts, 0);                    
-                }
-            }
+               av_match_name("cseg", fmt_ctx_->oformat->name) != 0 &&
+               fmt_ctx_->oformat->priv_class != NULL && 
+               fmt_ctx_->priv_data != NULL){
+                   
+                double start_ts = -1;                    
+                av_opt_get_double(fmt_ctx_->priv_data, "start_ts", 0, &start_ts);
+                if(start_ts <= 0.0){
+                    start_ts = (double)base_timestamp_.tv_sec + 
+                                (double)base_timestamp_.tv_usec / 1000000.0;
+                    av_opt_set_double(fmt_ctx_->priv_data, "start_ts", start_ts, 0); 
+                }//if(fmt_ctx_->oformat != NULL && 
+                
+            }//if(fmt_ctx_->oformat != NULL && 
         }
         StartIO();
         ret = av_interleaved_write_frame(fmt_ctx_, &opkt);

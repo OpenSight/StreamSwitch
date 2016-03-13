@@ -295,7 +295,8 @@ int StreamMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
             (double) (frame_info->timestamp.tv_sec - base_timestamp->tv_sec) + 
             (((double)(frame_info->timestamp.tv_usec - base_timestamp->tv_usec)) / 1000000.0);
         if(ts_delta < 0.0){
-            ts_delta = 0.0;
+            
+            return 0; //drop all frames before base
         }            
     }
     

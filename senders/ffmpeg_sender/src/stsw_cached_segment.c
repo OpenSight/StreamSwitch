@@ -45,6 +45,8 @@
 #define SEGMENT_IO_BUFFER_SIZE 32768
 #define MAX_URL_SIZE 4096
 
+#define MIN(a,b) ((a) > (b) ? (b) : (a))
+
 //////////////////////////
 //segment operation
 
@@ -58,6 +60,11 @@ CachedSegment * cached_segment_alloc(uint32_t max_size)
     s->duration = 0.0;
     s->buffer = av_malloc(max_size);
     s->size = 0;
+/*    
+    av_log(NULL, AV_LOG_WARNING, 
+           "new segment(size:%d) allocated\n",
+           max_size);
+*/
     return s;    
 }
 void cached_segment_free(CachedSegment * segment)
@@ -198,6 +205,9 @@ static int consumer_should_wait(CachedSegmentContext *cseg)
         keep_seg_num = 0;
     }else{
         keep_seg_num = (uint32_t) ceil(cseg->pre_recoding_time / cseg->time);
+        
+        //cannot keep the whole cached list
+        keep_seg_num = MIN(keep_seg_num, cseg->max_nb_segments - 1);
     }
     return cseg->cached_list.seg_num <= keep_seg_num;
 }
@@ -249,20 +259,7 @@ static int append_cur_segment(AVFormatContext *s,
     
     
     pthread_mutex_lock(&cseg->mutex);
-    if(cseg->flags & CSEG_FLAG_NONBLOCK){
-        while(cseg->cached_list.seg_num >= cseg->max_nb_segments){
-            CachedSegment * oldest_segment;
-            oldest_segment = get_segment_list(&(cseg->cached_list));
-            av_log(s, AV_LOG_WARNING, 
-                   "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
-                   "has been dropped because of slow writer\n", 
-                   oldest_segment->size, 
-                   oldest_segment->start_ts, oldest_segment->duration, 
-                   oldest_segment->pos, oldest_segment->sequence); 
-            cached_segment_reset(oldest_segment);
-            put_segment_list(&(cseg->free_list), oldest_segment);
-        }        
-    }else{
+    if(!(cseg->flags & CSEG_FLAG_NONBLOCK)){
         while(cseg->cached_list.seg_num >= cseg->max_nb_segments){
             pthread_mutex_unlock(&cseg->mutex);            
             if (ff_check_interrupt(&s->interrupt_callback)){ 
@@ -275,12 +272,33 @@ static int append_cur_segment(AVFormatContext *s,
             av_usleep(10000); //wait for 10ms
             pthread_mutex_lock(&cseg->mutex);
         }  
-    }//if(cseg->flags & CSEG_FLAG_NONBLOCK){  
+    }//if(!(cseg->flags & CSEG_FLAG_NONBLOCK)){
+        
     
-    put_segment_list(&(cseg->cached_list), segment);    
-    
-    if(!consumer_should_wait(cseg)){
-        pthread_cond_signal(&cseg->not_empty); //wakeup comsumer
+    if(cseg->cached_list.seg_num >= cseg->max_nb_segments){ 
+        av_log(s, AV_LOG_WARNING, 
+               "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
+               "is dropped because of slow writer\n", 
+                segment->size, 
+                segment->start_ts, segment->duration, 
+                segment->pos, segment->sequence); 
+        cached_segment_reset(segment);
+        put_segment_list(&(cseg->free_list), segment);         
+    }else{
+        put_segment_list(&(cseg->cached_list), segment);    
+/*
+        av_log(s, AV_LOG_DEBUG, 
+                "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
+                "is added to cached list(len:%d)\n", 
+                segment->size, 
+                segment->start_ts, segment->duration, 
+                segment->pos, segment->sequence, 
+                cseg->cached_list.seg_num); 
+*/
+        
+        if(!consumer_should_wait(cseg)){
+            pthread_cond_signal(&cseg->not_empty); //wakeup comsumer
+        }
     }
     
     pthread_mutex_unlock(&cseg->mutex);
@@ -596,7 +614,7 @@ int ff_write_chained(AVFormatContext *dst, int dst_stream, AVPacket *pkt,
         local_pkt.duration = av_rescale_q(pkt->duration,
                                           src->streams[pkt->stream_index]->time_base,
                                           dst->streams[dst_stream]->time_base);
-
+  
     if (interleave) ret = av_interleaved_write_frame(dst, &local_pkt);
     else            ret = av_write_frame(dst, &local_pkt);
     pkt->buf = local_pkt.buf;
@@ -661,7 +679,10 @@ static int cseg_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (can_split && av_compare_ts(pkt->pts - cseg->start_pts, st->time_base,
                                    end_pts, AV_TIME_BASE_Q) >= 0) {
         av_write_frame(oc, NULL); /* Flush any buffered data */
-
+/*        
+        printf("pts:%lld, start_pts:%lld, end_pts:%lld, split_end_pts:%lld\n",
+               (long long)pkt->pts, (long long)cseg->start_pts, (long long)cseg->end_pts, (long long)end_pts);
+*/
         if (oc->pb) {
             double seg_start_ts;
             int64_t cur_segment_size = 0;
@@ -730,8 +751,7 @@ static int cseg_write_trailer(struct AVFormatContext *s)
                                cseg->start_pos, 
                                cseg->sequence++); // lose the control of av_free cseg->cur_segment            
         }
-
-    }
+    }//if (oc->pb) {
           
     if(cseg->consumer_thread_id != 0){
         void * res;
@@ -782,7 +802,7 @@ static int cseg_write_trailer(struct AVFormatContext *s)
 static const AVOption options[] = {
     {"start_number",  "set first number in the sequence",        OFFSET(start_sequence),AV_OPT_TYPE_INT64,  {.i64 = 0},     0, INT64_MAX, E},
     {"cseg_time",      "set segment length in seconds",           OFFSET(time),    AV_OPT_TYPE_DOUBLE,  {.dbl = 10},     0, FLT_MAX, E},
-    {"cseg_list_size", "set maximum number of playlist entries",  OFFSET(max_nb_segments),    AV_OPT_TYPE_INT,    {.i64 = 3},     0, INT_MAX, E},
+    {"cseg_list_size", "set maximum number of playlist entries",  OFFSET(max_nb_segments),    AV_OPT_TYPE_INT,    {.i64 = 3},     1, INT_MAX, E},
     {"cseg_ts_options","set hls mpegts list of options for the container format used for hls", OFFSET(format_options_str), AV_OPT_TYPE_STRING, {.str = NULL},  0, 0,    E},
     {"cseg_seg_size",  "set maximum segment size in bytes",        OFFSET(max_seg_size),AV_OPT_TYPE_INT,  {.i64 = 10485760},     0, INT_MAX, E},
     {"persist_enabled", "enable the segment persistence, or segment would be discard", OFFSET(persist_enabled), AV_OPT_TYPE_INT, {.i64 = 1 }, 0, 1, E },
@@ -805,7 +825,7 @@ static const AVClass cseg_class = {
 
 
 AVOutputFormat ff_cached_segment_muxer = {
-    .name           = "cached_segment,cseg",
+    .name           = "cseg",
     .long_name      = "OpenSight cached segment muxer",
     .priv_data_size = sizeof(CachedSegmentContext),
     .audio_codec    = AV_CODEC_ID_AAC,
@@ -816,3 +836,15 @@ AVOutputFormat ff_cached_segment_muxer = {
     .write_trailer  = cseg_write_trailer,
     .priv_class     = &cseg_class,
 };
+
+extern CachedSegmentWriter cseg_file_writer;
+extern CachedSegmentWriter cseg_dummy_writer;
+
+void register_cseg(void)
+{
+    
+    register_segment_writer(&cseg_file_writer);
+    register_segment_writer(&cseg_dummy_writer);
+    av_register_output_format(&ff_cached_segment_muxer);
+
+}

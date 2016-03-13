@@ -344,7 +344,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
         //1. get AVPacket from frame_info
         ret = InitInputPacket(frame_info, frame_data, frame_size, 
                               base_timestamp, &input_pkt);
-        if(ret){            
+        if(ret <= 0){            
             return ret;
         }
 //       printf("PTS after parse: %lld, size: %d\n", (long long)input_pkt.pts, (int)input_pkt.size);
@@ -386,7 +386,12 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                    (int)input_frame_->nb_samples,
                    (long long)fifo_pts_,
                    (int)av_audio_fifo_size(fifo_));
-*/           
+*/          
+            if(pts <= fifo_pts_){
+                //this audio packet pts is too early, which would destroy pts monotonically increasing
+                return 0;
+            }
+            
             if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
                 STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, cleanup Fifo\n");
                 CleanupAudioFifo();
@@ -722,7 +727,8 @@ int AacMuxParser::InitInputPacket(const stream_switch::MediaFrameInfo *frame_inf
             (double) (frame_info->timestamp.tv_sec - base_timestamp->tv_sec) + 
             (((double)(frame_info->timestamp.tv_usec - base_timestamp->tv_usec)) / 1000000.0);
         if(ts_delta < 0.0){
-            ts_delta = 0.0;
+            //ts_delta = 0.0;
+            return 0; //drop frames before base
         }            
     }
         
@@ -731,7 +737,7 @@ int AacMuxParser::InitInputPacket(const stream_switch::MediaFrameInfo *frame_inf
     input_pkt->data = (uint8_t *)frame_data;
     input_pkt->size = frame_size;    
     
-    return 0;
+    return 1;
                                       
 }
 
