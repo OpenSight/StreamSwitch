@@ -53,12 +53,12 @@
 CachedSegment * cached_segment_alloc(uint32_t max_size)
 {
     CachedSegment * s;
-    s = av_mallocz(sizeof(CachedSegment));
+    s = av_mallocz(sizeof(CachedSegment) + max_size);
     s->next = NULL;
     s->buffer_max_size = max_size;
     s->start_ts = 0.0;
     s->duration = 0.0;
-    s->buffer = av_malloc(max_size);
+    //s->buffer = av_malloc(max_size);
     s->size = 0;
 /*    
     av_log(NULL, AV_LOG_WARNING, 
@@ -69,7 +69,7 @@ CachedSegment * cached_segment_alloc(uint32_t max_size)
 }
 void cached_segment_free(CachedSegment * segment)
 {
-    av_free(segment->buffer);
+    //av_free(segment->buffer);
     av_free(segment);
 }
 
@@ -105,7 +105,7 @@ void init_segment_list(CachedSegmentList * seg_list)
 
 void put_segment_list(CachedSegmentList *seg_list, CachedSegment * segment)
 {
-    
+    segment->next = NULL;    
     if(seg_list->first == NULL){
         seg_list->first = segment;
     }else{
