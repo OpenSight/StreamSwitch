@@ -39,7 +39,7 @@ struct CachedSegmentContext;
 typedef struct CachedSegmentContext CachedSegmentContext;
 
 typedef struct CachedSegment {
-    uint8_t *buffer;
+    //uint8_t *buffer;
     int size;
     double start_ts; /* start timestamp, in seconds */
     double duration; /* in seconds */
@@ -47,6 +47,7 @@ typedef struct CachedSegment {
     int buffer_max_size;   
     int64_t sequence;
     struct CachedSegment *next;
+    uint8_t buffer[0];
 } CachedSegment;
 
 
