@@ -594,7 +594,7 @@ fail:
 }
 
 
-int ff_write_chained(AVFormatContext *dst, int dst_stream, AVPacket *pkt,
+static int cseg_ff_write_chained(AVFormatContext *dst, int dst_stream, AVPacket *pkt,
                      AVFormatContext *src, int interleave)
 {
     AVPacket local_pkt;
@@ -714,7 +714,7 @@ static int cseg_write_packet(AVFormatContext *s, AVPacket *pkt)
             return ret;
     }//if (can_split && av_compare_ts(pkt->pts - cseg->start_pts, st->time_base,
 
-    ret = ff_write_chained(oc, stream_index, pkt, s, 0);
+    ret = cseg_ff_write_chained(oc, stream_index, pkt, s, 0);
 
     return ret;
 }
