@@ -286,15 +286,15 @@ static int append_cur_segment(AVFormatContext *s,
         put_segment_list(&(cseg->free_list), segment);         
     }else{
         put_segment_list(&(cseg->cached_list), segment);    
-/*
-        av_log(s, AV_LOG_DEBUG, 
+
+        av_log(s, AV_LOG_WARNING, 
                 "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
                 "is added to cached list(len:%d)\n", 
                 segment->size, 
                 segment->start_ts, segment->duration, 
                 segment->pos, segment->sequence, 
                 cseg->cached_list.seg_num); 
-*/
+
         
         if(!consumer_should_wait(cseg)){
             pthread_cond_signal(&cseg->not_empty); //wakeup comsumer

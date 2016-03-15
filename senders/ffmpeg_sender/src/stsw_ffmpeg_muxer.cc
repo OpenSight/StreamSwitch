@@ -388,6 +388,9 @@ int FFmpegMuxer::IOInterruptCB()
         uint64_t io_dur = (cur_ts.tv_sec - io_start_ts_.tv_sec) * 1000 +
               (cur_ts.tv_nsec - io_start_ts_.tv_nsec) / 1000000;       
         if(io_dur >= (uint64_t)io_timeout_){
+            STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
+                           "IO timeout for %llu milliseconds\n", 
+                           (unsigned long long)io_dur);              
             return 1;
         }
     }

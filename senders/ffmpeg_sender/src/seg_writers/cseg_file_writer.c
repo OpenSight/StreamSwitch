@@ -60,6 +60,7 @@ static int file_write_segment(CachedSegmentContext *cseg, CachedSegment *segment
     int ret;
     uint8_t *buf;
     
+    printf("file_write_segment is calle\n");
     
     av_strlcpy(base_name, cseg->filename, MAX_FILE_NAME);
 

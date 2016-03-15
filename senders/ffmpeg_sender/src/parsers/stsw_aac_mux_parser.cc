@@ -387,14 +387,20 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                    (long long)fifo_pts_,
                    (int)av_audio_fifo_size(fifo_));
 */          
-            if(pts <= fifo_pts_){
-                //this audio packet pts is too early, which would destroy pts monotonically increasing
-                return 0;
-            }
+
             
             if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
-                STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, cleanup Fifo\n");
-                CleanupAudioFifo();
+                if(fifo_pts_ != 0 && pts < fifo_pts_){
+                    //this audio packet pts is too early, which would destroy pts monotonically increasing
+                    STDERR_LOG(LOG_LEVEL_WARNING, 
+                        "Audio packet->pts(%lld) is earier than fifo_pts(%lld), drop\n",
+                        (long long)pts, (long long)fifo_pts_);
+                    return 0;
+                }else{
+                    //audio pts is acceptable, reset the fifo
+                    STDERR_LOG(LOG_LEVEL_WARNING, "Audio fifo pts inconsistent, cleanup Fifo\n");
+                    CleanupAudioFifo();                    
+                }
             }            
             
             //4. resample
@@ -478,11 +484,11 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
              /* return the packet to caller  */   
              //printf("get here %d\n", __LINE__);
              /* prepare packet for muxing */
-/*             
+/*        
             printf("output packet pts/duration: %lld/%d\n", 
                    (long long)opkt->pts, 
                    (int)opkt->duration);      
-*/       
+*/ 
              opkt->stream_index = stream_->index;
              av_packet_rescale_ts(opkt,
                                   out_codec_context_->time_base,
@@ -870,7 +876,8 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
     /** Write one audio frame from the temporary packet to the output file. */
     if (*data_present) {
         //printf("get here %d\n", __LINE__);
-        //printf("packet pts/size: %lld/%ld\n", output_packet.pts, output_packet.size);
+        printf("packet pts/duration/size: %lld/%ld\n", 
+               output_packet.pts, output_packet.duration, output_packet.size);
         output_packet.stream_index = stream_->index;
         av_packet_rescale_ts(&output_packet,
                              out_codec_context_->time_base,
