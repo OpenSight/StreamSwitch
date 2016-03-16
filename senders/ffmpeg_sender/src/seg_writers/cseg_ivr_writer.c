@@ -29,7 +29,7 @@
 #include <pthread.h>
 #include <math.h>
 #include <stdio.h>
-
+#include <curl/curl.h>
 
 #include "libavutil/avstring.h"
 #include "libavutil/opt.h"
@@ -84,7 +84,7 @@ static int hex_encode(char * dest, const char * src)
     return d-dest;    
 }
 
-#define  IVR_OP_FIELD_KEY  "OP"
+#define  IVR_OP_FIELD_KEY  "op"
 #define  IVR_NAME_FIELD_KEY  "name"
 #define  IVR_URI_FIELD_KEY  "uri"
 #define  IVR_SIZE_FIELD_KEY  "size"
@@ -98,24 +98,28 @@ static int http_post(char * ivr_rest_uri,
                      int32_t io_timeout,  //in milli-seconds 
                      char * post_content_type, 
                      char * post_data, int post_len,
-                     char * result_buf, int max_buf_size)
+                     char * result_buf, int max_buf_size,
+                     char * err_buf, int err_buf_size)
 {
     return 0;
 }
 
 static int http_put(char * ivr_rest_uri, 
-                     int32_t io_timeout,  //in milli-seconds 
-                     char * content_type, 
-                     char * buf, int buf_size)
+                    int32_t io_timeout,  //in milli-seconds 
+                    char * content_type, 
+                    char * buf, int buf_size,
+                    char * err_buf, int err_buf_size)
 {
     return 0;
 }
 
 
-static int create_file(char * ivr_rest_uri,
+static int create_file(char * ivr_rest_uri, 
+                       int32_t io_timeout, 
                        CachedSegment *segment, 
                        char * filename, int filename_size,
-                       char * file_uri, int file_uri_size)
+                       char * file_uri, int file_uri_size,
+                       char * err_buf, int err_buf_size)
 {
     uint8_t checksum[16];
     char checksum_b64[32];
@@ -144,26 +148,29 @@ static int create_file(char * ivr_rest_uri,
     
     //issue HTTP request
     ret = http_post(ivr_rest_uri, 
+                    io_timeout,
                     "application/x-www-form-urlencoded", 
                     post_data_str, strlen(post_data_str), 
-                    http_response_json, MAX_HTTP_RESULT_SIZE);
-    if(ret < 0){
-        
+                    http_response_json, MAX_HTTP_RESULT_SIZE, 
+                    err_buf, err_buf_size);
+    if(ret < 0)
+        goto fail;       
     }
-    
-    
     
     //parse the result
     json_root = cJSON_Parse(http_response_json);
     if(json_root== NULL){
-        
+        ret = AVERROR(EINVAL);
+        snprintf(err_buf, err_buf_size - 1, "Json parse error %s", http_response_json);
+        err_buf[err_buf_size - 1] = 0;
+        goto fail;
     }
     json_name = cJSON_GetObjectItem(json_root, IVR_NAME_FIELD_KEY);
-    if(json_name){
+    if(json_name && json_name->type == cJSON_String && json_name->valuestring){
         av_strlcpy(filename, json_name->valuestring, filename_size);
     }
     json_uri = cJSON_GetObjectItem(json_root, IVR_DURATION_FIELD_KEY);
-    if(json_uri){
+    if(json_uri && json_uri->type == cJSON_String && json_uri->valuestring){
         av_strlcpy(file_uri, json_uri->valuestring, file_uri_size);
     }    
     
@@ -179,21 +186,45 @@ fail:
 }
 
 static int upload_file(CachedSegment *segment, 
-                       char * file_uri)
+                       int32_t io_timeout, 
+                       char * file_uri, 
+                       char * err_buf, int err_buf_size)
 {
-    
+    return  http_put(file_uri, io_timeout, "video/mp2t",
+                   segment->buffer, segment->size,
+                   err_buf, err_buf_size);
 }
 
-static void save_file(char * ivr_rest_uri;
+static void save_file(char * ivr_rest_uri,
+                      int32_t io_timeout,
                       CachedSegment *segment, 
-                      char * filename)
+                      char * filename,
+                      char * err_buf, int err_buf_size)
 {
+    char post_data_str[512];  
     
+    //prepare post_data
+    sprintf(post_data_str, "op=save&name=%s&size=%d&start=%.6f&duration=%.6f",
+            filename,
+            segment->size,
+            segment->start_ts, 
+            segment->duration);
+    
+    //issue HTTP request
+    ret = http_post(ivr_rest_uri, 
+                    io_timeout,
+                    "application/x-www-form-urlencoded", 
+                    post_data_str, strlen(post_data_str), 
+                    http_response_json, MAX_HTTP_RESULT_SIZE, 
+                    err_buf, err_buf_size); 
+    return ret;
 }
 
 static int ivr_init(CachedSegmentContext *cseg)
 {
-    //nothing to init
+    //init curl lib
+    curl_global_init(CURL_GLOBAL_ALL);
+    
     return 0;
 }
 
@@ -202,7 +233,7 @@ static int ivr_init(CachedSegmentContext *cseg)
 #define MAX_URI_LEN 1024
 static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
 {
-    char *ivr_rest_uri = NULL;
+    char ivr_rest_uri[MAX_URI_LEN] = "http";
     char file_uri[MAX_URI_LEN];
     char filename[MAX_FILE_NAME];
     char ext_name[32] = "";
@@ -211,46 +242,53 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
     int ret = 0;
     uint8_t *buf;
 
-    
-    av_strlcpy(base_name, cseg->filename, MAX_FILE_NAME);
+    if(strlen(cseg->filename) > (MAX_URI_LEN - 5)){
+        ret = AVERROR(EINVAL);
+        sprintf(cseg->consumer_err_str, "filename is too long");
+        consumer_err_str
+    }
+
     p = strchr(cseg->filename, ':');  
     if(p){
-        ivr_rest_uri = av_asprintf("http:%s", p + 1);
+        av_strlcat(ivr_rest_uri, p, MAX_URI_LEN)
     }else{
         ret = AVERROR(EINVAL);
+        sprintf(cseg->consumer_err_str, "filename malformat");
         goto fail;
     }
     
     //get URI of the file for segment
     ret = create_file(ivr_rest_uri, segment, 
                       filename, MAX_FILE_NAME,
-                      file_uri, MAX_URI_LEN);
+                      file_uri, MAX_URI_LEN,
+                      cseg->consumer_err_str, 1024);
     if(ret){
         goto fail;
     }
     
     //upload segment to the file URI
-    ret = upload_file(segment, file_uri);                      
+    ret = upload_file(segment, file_uri,
+                      cseg->consumer_err_str, 1024);                      
     if(ret){
         goto fail;
     }    
     
     //save the file info to IVR db
-    ret = save_file(ivr_rest_uri, segment, filename);
+    ret = save_file(ivr_rest_uri, segment, filename,
+                    cseg->consumer_err_str, 1024);
     if(ret){
         goto fail;
     }    
 
 
 fail:
-    av_free(ivr_rest_uri);
-    
+   
     return ret;
 }
 
 static void ivr_uninit(CachedSegmentContext *cseg)
 {
-   
+    curl_global_cleanup();
 }
 CachedSegmentWriter cseg_file_writer = {
     .name           = "ivr_writer",
