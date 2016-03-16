@@ -40,14 +40,142 @@
     
 #include "../stsw_cached_segment.h"
 
+
+/* Converts a hex character to its integer value */
+char from_hex(char ch) {
+  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+}
+
+/* Converts an integer value to its hex character*/
+char to_hex(char code) {
+  static char hex[] = "0123456789abcdef";
+  return hex[code & 15];
+}
+
+
+static int url_encode(char *dest, const char *src) {
+    /* urlencode all non-alphanumeric characters in the C-string 'src'
+       store result in the C-string 'dest'
+       return the length of the url encoded C-string
+    */
+    char *d;
+    int i;
+    for(i=0, d=dest; src[i]; i++) {
+        if(isalnum(src[i]) || src[i] == '-' || src[i] == '_' ||
+           src[i] == '.' || src[i] == '~') {
+               *(d++) = src[i];
+           }
+        else {
+            sprintf(d, "%%%02X", src[i]);
+            d += 3;
+        }
+    }   
+    *d = 0;
+    return d-dest;
+}
+
+static int hex_encode(char * dest, const char * src)
+{
+    int i;
+    for(i=0, d=dest; src[i]; i++, d += 2){
+        sprintf(d, "%02hhX", src[i]);
+    }
+    *d = 0;
+    return d-dest;    
+}
+
+#define  IVR_OP_FIELD_KEY  "OP"
+#define  IVR_NAME_FIELD_KEY  "name"
+#define  IVR_URI_FIELD_KEY  "uri"
+#define  IVR_SIZE_FIELD_KEY  "size"
+#define  IVR_CHECKSUM_FIELD_KEY "checksum"
+#define  IVR_START_TIME_FIELD_KEY "start"
+#define  IVR_DURATION_FIELD_KEY "duration"
+
+#define MAX_HTTP_RESULT_SIZE  8192
+
+static int http_post(char * ivr_rest_uri, 
+                     int32_t io_timeout,  //in milli-seconds 
+                     char * post_content_type, 
+                     char * post_data, int post_len,
+                     char * result_buf, int max_buf_size)
+{
+    return 0;
+}
+
+static int http_put(char * ivr_rest_uri, 
+                     int32_t io_timeout,  //in milli-seconds 
+                     char * content_type, 
+                     char * buf, int buf_size)
+{
+    return 0;
+}
+
+
 static int create_file(char * ivr_rest_uri,
                        CachedSegment *segment, 
-                       char * filename, filename_size,
-                       char * file_uri, file_uri_size)
+                       char * filename, int filename_size,
+                       char * file_uri, int file_uri_size)
 {
     uint8_t checksum[16];
-    av_md5_sum(checksum, segment->buffer, segment->size);
+    char checksum_b64[32];
+    char checksum_b64_escape[128];
+    char post_data_str[256];
+    char * http_response_json = av_mallocz(MAX_HTTP_RESULT_SIZE);
+    cJSON * json_root = NULL;
+    cJSON * json_name = NULL;
+    cJSON * json_uri = NULL;    
+    int ret;
     
+    if(filename_size){
+        filename[0] = 0;
+    }
+    if(file_uri_size){
+        file_uri[0] = 0;
+    }    
+    
+    //prepare post_data
+    av_md5_sum(checksum, segment->buffer, segment->size);
+    av_base64_encode(checksum_b64, 32, checksum, 16);
+    url_encode(checksum_b64_escape, checksum_b64);
+    sprintf(post_data_str, "op=create&size=%d&checksum=%s",
+            segment->size, 
+            checksum_b64_escape);
+    
+    //issue HTTP request
+    ret = http_post(ivr_rest_uri, 
+                    "application/x-www-form-urlencoded", 
+                    post_data_str, strlen(post_data_str), 
+                    http_response_json, MAX_HTTP_RESULT_SIZE);
+    if(ret < 0){
+        
+    }
+    
+    
+    
+    //parse the result
+    json_root = cJSON_Parse(http_response_json);
+    if(json_root== NULL){
+        
+    }
+    json_name = cJSON_GetObjectItem(json_root, IVR_NAME_FIELD_KEY);
+    if(json_name){
+        av_strlcpy(filename, json_name->valuestring, filename_size);
+    }
+    json_uri = cJSON_GetObjectItem(json_root, IVR_DURATION_FIELD_KEY);
+    if(json_uri){
+        av_strlcpy(file_uri, json_uri->valuestring, file_uri_size);
+    }    
+    
+fail:    
+    if(json_root){
+        cJSON_Delete(json_root); 
+        json_root = NULL;
+    }
+    av_free(http_response_json);  
+
+    
+    return 0;
 }
 
 static int upload_file(CachedSegment *segment, 
