@@ -644,7 +644,9 @@ static int cseg_write_packet(AVFormatContext *s, AVPacket *pkt)
     if(cseg->consumer_exit_code){
         //consumer error
         av_log(s, AV_LOG_ERROR, 
-               "Consumer thread failed with error\n"); 
+               "Consumer Error:%s\n",
+               cseg->consumer_err_str[0] == 0?
+               "unknown":cseg->consumer_err_str); 
         return cseg->consumer_exit_code;
     }
 
