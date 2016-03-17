@@ -68,6 +68,8 @@ public:
     virtual int WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
                             const char * frame_data, 
                             size_t frame_size);
+                            
+    virtual void Flush();
     virtual uint32_t frame_num();
     
     static void GetClientInfo(const std::string &dest_url, 

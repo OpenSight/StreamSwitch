@@ -221,11 +221,8 @@ err_out1:
 
     return ret;
 }
-
-
-void FFmpegMuxer::Close()
+void FFmpegMuxer::Flush()
 {
- 
     if(fmt_ctx_ == NULL){
         return;
     }    
@@ -241,8 +238,16 @@ void FFmpegMuxer::Close()
         }             
     }    
     av_write_trailer(fmt_ctx_);
-    StopIO();
+    StopIO();    
+}
+
+void FFmpegMuxer::Close()
+{
  
+    if(fmt_ctx_ == NULL){
+        return;
+    }    
+
     
     //close ffmpeg format context
     if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))

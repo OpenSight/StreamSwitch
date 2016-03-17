@@ -194,6 +194,12 @@ void FFmpegMuxerSender::Uninit()
     if(is_started_){
         Stop();
     }
+    
+    if(error_code_ == 0){
+        //flush muxer if no error
+        muxer_->Flush();
+    }
+    
     error_code_ = 0;
     //init_ts_.tv_nsec = init_ts_.tv_sec = 0;
     dest_url_.clear();
@@ -219,6 +225,7 @@ int FFmpegMuxerSender::Start()
     if(is_started_){
         return 0; //already start
     }
+    
     is_started_ = true;
     
     ret = sink_->Start(&err_info);
@@ -228,7 +235,7 @@ int FFmpegMuxerSender::Start()
                    ret, err_info.c_str()); 
         goto err_out1;
     }    
-    error_code_ = 0;    
+ 
     return 0;    
     
 err_out1:
