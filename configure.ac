@@ -130,6 +130,13 @@ AC_SUBST(libavformat_CFLAGS)
 AC_SUBST(libavutil_LIBS)
 AC_SUBST(libavutil_CFLAGS)
 
+# Checks for ffmpeg_sender
+if test "x$ffmpeg_sender" = xyes; then
+  PKG_CHECK_MODULES(libcurl, [libcurl >= 7.19.0])
+fi
+AC_SUBST(libcurl_LIBS)
+AC_SUBST(libcurl_CFLAGS)
+
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h])

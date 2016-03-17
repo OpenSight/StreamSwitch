@@ -54,9 +54,10 @@ am_ffmpeg_sender_OBJECTS = src/stsw_main.$(OBJEXT) \
 	src/stsw_ffmpeg_sender_arg_parser.$(OBJEXT) \
 	src/stsw_ffmpeg_muxer_sender.$(OBJEXT) \
 	src/stsw_ffmpeg_muxer.$(OBJEXT) \
-	src/stsw_cached_segment.$(OBJEXT) \
+	src/stsw_cached_segment.$(OBJEXT) src/cJSON.$(OBJEXT) \
 	src/seg_writers/cseg_dummy_writer.$(OBJEXT) \
 	src/seg_writers/cseg_file_writer.$(OBJEXT) \
+	src/seg_writers/cseg_ivr_writer.$(OBJEXT) \
 	src/parsers/stsw_stream_mux_parser.$(OBJEXT) \
 	src/parsers/stsw_h264or5_mux_parser.$(OBJEXT) \
 	src/parsers/stsw_mpeg4_video_mux_parser.$(OBJEXT) \
@@ -219,6 +220,8 @@ libavformat_CFLAGS = @libavformat_CFLAGS@
 libavformat_LIBS = @libavformat_LIBS@
 libavutil_CFLAGS = @libavutil_CFLAGS@
 libavutil_LIBS = @libavutil_LIBS@
+libcurl_CFLAGS = @libcurl_CFLAGS@
+libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
 libnetembryo_CFLAGS = @libnetembryo_CFLAGS@
@@ -249,8 +252,8 @@ zeromq_CFLAGS = @zeromq_CFLAGS@
 zeromq_LIBS = @zeromq_LIBS@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 AM_CPPFLAGS = -I$(srcdir)/../../libstreamswitch/include -D__STDC_CONSTANT_MACROS 
-AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS) $(libavformat_CFLAGS) $(libavutil_CFLAGS) 
-AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) $(libavformat_LIBS) $(libavutil_LIBS) 
+AM_CXXFLAGS = $(zeromq_CFLAGS) $(protobuf_CFLAGS) $(libavformat_CFLAGS) $(libavutil_CFLAGS) $(libcurl_CFLAGS)
+AM_LDFLAGS = $(zeromq_LIBS) $(protobuf_LIBS) $(libavformat_LIBS) $(libavutil_LIBS) $(libcurl_LIBS)
 ffmpeg_sender_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_sender_arg_parser.cc \
     src/stsw_ffmpeg_sender_arg_parser.h \
@@ -260,8 +263,11 @@ ffmpeg_sender_SOURCES = src/stsw_main.cc \
     src/stsw_ffmpeg_muxer.h \
     src/stsw_cached_segment.c \
     src/stsw_cached_segment.h \
+    src/cJSON.c \
+    src/cJSON.h \
     src/seg_writers/cseg_dummy_writer.c \
     src/seg_writers/cseg_file_writer.c \
+    src/seg_writers/cseg_ivr_writer.c \
     src/parsers/stsw_stream_mux_parser.cc \
     src/parsers/stsw_stream_mux_parser.h \
     src/parsers/stsw_h264or5_mux_parser.cc \
@@ -370,6 +376,7 @@ src/stsw_ffmpeg_muxer.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/stsw_cached_segment.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/cJSON.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/seg_writers/$(am__dirstamp):
 	@$(MKDIR_P) src/seg_writers
 	@: > src/seg_writers/$(am__dirstamp)
@@ -380,6 +387,9 @@ src/seg_writers/cseg_dummy_writer.$(OBJEXT):  \
 	src/seg_writers/$(am__dirstamp) \
 	src/seg_writers/$(DEPDIR)/$(am__dirstamp)
 src/seg_writers/cseg_file_writer.$(OBJEXT):  \
+	src/seg_writers/$(am__dirstamp) \
+	src/seg_writers/$(DEPDIR)/$(am__dirstamp)
+src/seg_writers/cseg_ivr_writer.$(OBJEXT):  \
 	src/seg_writers/$(am__dirstamp) \
 	src/seg_writers/$(DEPDIR)/$(am__dirstamp)
 src/parsers/$(am__dirstamp):
@@ -410,6 +420,7 @@ ffmpeg_sender$(EXEEXT): $(ffmpeg_sender_OBJECTS) $(ffmpeg_sender_DEPENDENCIES)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f src/cJSON.$(OBJEXT)
 	-rm -f src/parsers/dec_sps.$(OBJEXT)
 	-rm -f src/parsers/stsw_aac_mux_parser.$(OBJEXT)
 	-rm -f src/parsers/stsw_h264or5_mux_parser.$(OBJEXT)
@@ -417,6 +428,7 @@ mostlyclean-compile:
 	-rm -f src/parsers/stsw_stream_mux_parser.$(OBJEXT)
 	-rm -f src/seg_writers/cseg_dummy_writer.$(OBJEXT)
 	-rm -f src/seg_writers/cseg_file_writer.$(OBJEXT)
+	-rm -f src/seg_writers/cseg_ivr_writer.$(OBJEXT)
 	-rm -f src/stsw_cached_segment.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_muxer.$(OBJEXT)
 	-rm -f src/stsw_ffmpeg_muxer_sender.$(OBJEXT)
@@ -427,6 +439,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/cJSON.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_cached_segment.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_muxer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/stsw_ffmpeg_muxer_sender.Po@am__quote@
@@ -440,6 +453,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/parsers/$(DEPDIR)/stsw_stream_mux_parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/seg_writers/$(DEPDIR)/cseg_dummy_writer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/seg_writers/$(DEPDIR)/cseg_file_writer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/seg_writers/$(DEPDIR)/cseg_ivr_writer.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
