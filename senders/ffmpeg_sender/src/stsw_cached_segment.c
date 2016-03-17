@@ -286,15 +286,15 @@ static int append_cur_segment(AVFormatContext *s,
         put_segment_list(&(cseg->free_list), segment);         
     }else{
         put_segment_list(&(cseg->cached_list), segment);    
-
-        av_log(s, AV_LOG_WARNING, 
+/*
+        av_log(s, AV_LOG_INFO, 
                 "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
                 "is added to cached list(len:%d)\n", 
                 segment->size, 
                 segment->start_ts, segment->duration, 
                 segment->pos, segment->sequence, 
                 cseg->cached_list.seg_num); 
-
+*/
         
         if(!consumer_should_wait(cseg)){
             pthread_cond_signal(&cseg->not_empty); //wakeup comsumer
@@ -811,7 +811,7 @@ static const AVOption options[] = {
     {"start_ts",      "set start timestamp (in seconds) for the first segment", OFFSET(start_ts),    AV_OPT_TYPE_DOUBLE,  {.dbl = -1.0},     -1.0, DBL_MAX, E},
     {"pre_recoding_time", "set pre-recoding time in seconds", OFFSET(pre_recoding_time),    AV_OPT_TYPE_DOUBLE,  {.dbl = 0},     0, DBL_MAX, E},
     {"use_localtime",          "set filename expansion with strftime at segment creation", OFFSET(use_localtime), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1, E },
-    {"writer_timeout",     "set timeout (in milliseconds) of writer I/O operations", OFFSET(writer_timeout),     AV_OPT_TYPE_INT, { .i64 = -1 },         -1, INT_MAX, .flags = E },
+    {"writer_timeout",     "set timeout (in milliseconds) of writer I/O operations", OFFSET(writer_timeout),     AV_OPT_TYPE_INT, { .i64 = 30000 },         -1, INT_MAX, .flags = E },
     {"cseg_flags",     "set flags affecting cached segement working policy", OFFSET(flags), AV_OPT_TYPE_FLAGS, {.i64 = 0 }, 0, UINT_MAX, E, "flags"},
     {"nonblock",   "never blocking in the write_packet() when the cached list is full, instead, dicard the eariest segment", 0, AV_OPT_TYPE_CONST, {.i64 = CSEG_FLAG_NONBLOCK }, 0, UINT_MAX,   E, "flags"},
 
@@ -841,12 +841,14 @@ AVOutputFormat ff_cached_segment_muxer = {
 
 extern CachedSegmentWriter cseg_file_writer;
 extern CachedSegmentWriter cseg_dummy_writer;
+extern CachedSegmentWriter cseg_ivr_writer;
 
 void register_cseg(void)
 {
     
     register_segment_writer(&cseg_file_writer);
     register_segment_writer(&cseg_dummy_writer);
+    register_segment_writer(&cseg_ivr_writer);    
     av_register_output_format(&ff_cached_segment_muxer);
 
 }
