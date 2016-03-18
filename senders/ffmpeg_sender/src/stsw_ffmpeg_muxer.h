@@ -1,6 +1,6 @@
 /**
- * This file is part of libstreamswtich, which belongs to StreamSwitch
- * project. 
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
+ * project.  
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
  * 
@@ -72,6 +72,9 @@ public:
     virtual void Flush();
     virtual uint32_t frame_num();
     
+    virtual void set_persistence(bool persistence);
+    virtual bool persistence();
+    
     static void GetClientInfo(const std::string &dest_url, 
                               const std::string &format,
                               stream_switch::StreamClientInfo *client_info);
@@ -92,7 +95,10 @@ protected:
     //stream_switch::StreamMetadata metadata_;
     StreamMuxParserVector stream_mux_parsers_;
     uint32_t frame_num_;
+    bool persistence_;
 };
+
+extern volatile bool global_persistence;
 
 #endif
 
