@@ -123,7 +123,7 @@ AC_SUBST(glib_CFLAGS)
 # Checks for ffmpeg_demuxer_source & ffmpeg_sender
 if test "x$ffmpeg_demuxer_source" = xyes -o "x$ffmpeg_sender" = xyes; then
   PKG_CHECK_MODULES(libavformat, [libavformat >= 56.40.0])
-  PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.0])  
+  PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.100])  
 fi
 AC_SUBST(libavformat_LIBS)
 AC_SUBST(libavformat_CFLAGS)
@@ -132,10 +132,16 @@ AC_SUBST(libavutil_CFLAGS)
 
 # Checks for ffmpeg_sender
 if test "x$ffmpeg_sender" = xyes; then
+  PKG_CHECK_MODULES(libavcodec, [libavcodec >= 56.60.100])
+  PKG_CHECK_MODULES(libswresample, [libswresample >= 1.2.101])   
   PKG_CHECK_MODULES(libcurl, [libcurl >= 7.19.0])
 fi
 AC_SUBST(libcurl_LIBS)
 AC_SUBST(libcurl_CFLAGS)
+AC_SUBST(libavcodec_LIBS)
+AC_SUBST(libavcodec_CFLAGS)
+AC_SUBST(libswresample_LIBS)
+AC_SUBST(libswresample_CFLAGS)
 
 
 # Checks for header files.
