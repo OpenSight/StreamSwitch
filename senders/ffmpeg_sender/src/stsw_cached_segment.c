@@ -133,6 +133,7 @@ CachedSegment * get_segment_list(CachedSegmentList *seg_list)
     
 }
 
+
 void free_segment_list(CachedSegmentList *seg_list)
 {
     CachedSegment * segment = seg_list->first;
@@ -194,23 +195,6 @@ static int ff_check_interrupt(AVIOInterruptCB *cb)
     return 0;
 }
 
-//check the consumer should wait
-static int consumer_should_wait(CachedSegmentContext *cseg)
-{
-    uint32_t keep_seg_num = 0;
-    if(!cseg->consumer_active){
-        return 0;
-    }        
-    if(cseg->persist_enabled){
-        keep_seg_num = 0;
-    }else{
-        keep_seg_num = (uint32_t) ceil(cseg->pre_recoding_time / cseg->time);
-        
-        //cannot keep the whole cached list
-        keep_seg_num = MIN(keep_seg_num, cseg->max_nb_segments - 1);
-    }
-    return cseg->cached_list.seg_num <= keep_seg_num;
-}
 
 static CachedSegment * get_free_segment(CachedSegmentContext *cseg)
 {
@@ -226,6 +210,7 @@ static CachedSegment * get_free_segment(CachedSegmentContext *cseg)
     }
     return segment;
 }
+
 static void recycle_free_segment(CachedSegmentContext *cseg, CachedSegment * segment)
 {
     cached_segment_reset(segment);
@@ -256,8 +241,7 @@ static int append_cur_segment(AVFormatContext *s,
         recycle_free_segment(cseg, segment);
         return 0;
     }
-    
-    
+        
     pthread_mutex_lock(&cseg->mutex);
     if(!(cseg->flags & CSEG_FLAG_NONBLOCK)){
         while(cseg->cached_list.seg_num >= cseg->max_nb_segments){
@@ -285,7 +269,6 @@ static int append_cur_segment(AVFormatContext *s,
         cached_segment_reset(segment);
         put_segment_list(&(cseg->free_list), segment);         
     }else{
-        put_segment_list(&(cseg->cached_list), segment);    
 /*
         av_log(s, AV_LOG_INFO, 
                 "One Segment(size:%d, start_ts:%f, duration:%f, pos:%lld, sequence:%lld) "
@@ -295,15 +278,101 @@ static int append_cur_segment(AVFormatContext *s,
                 segment->pos, segment->sequence, 
                 cseg->cached_list.seg_num); 
 */
-        
-        if(!consumer_should_wait(cseg)){
-            pthread_cond_signal(&cseg->not_empty); //wakeup comsumer
-        }
+        put_segment_list(&(cseg->cached_list), segment);           
     }
+    pthread_cond_signal(&cseg->not_empty); //wakeup comsumer    
     
     pthread_mutex_unlock(&cseg->mutex);
     
     return 0;
+}
+
+static void * consumer_routine(void *arg)
+{
+    CachedSegmentContext *cseg = 
+        (CachedSegmentContext *)arg;
+    CachedSegment * segment = NULL;
+    int ret = 0;
+   
+    
+    pthread_mutex_lock(&cseg->mutex);
+    while(cseg->consumer_active){
+        int keep_seg_num = 0;         
+        
+        //try write out all segment in cached list
+        while((segment = cseg->cached_list.first) != NULL){            
+            ret = 0;
+            if(cseg->writer != NULL && cseg->writer->write_segment != NULL){   
+                pthread_mutex_unlock(&cseg->mutex);
+                //because there is only one comsumer, the first segment is safe to access without lock
+                ret = cseg->writer->write_segment(cseg, segment);
+                pthread_mutex_lock(&cseg->mutex);
+            } 
+            if(ret == 0){
+                //successful
+                
+                //remove the segment from cached list
+                segment = get_segment_list(&(cseg->cached_list));                
+                cached_segment_reset(segment);          
+                put_segment_list(&(cseg->free_list), segment);                        
+                
+            }else if(ret == 1){
+                //should keep in fifo
+                break;
+            }else if(ret < 0){
+                //error     
+                pthread_mutex_unlock(&cseg->mutex);
+                cseg->consumer_exit_code = ret;
+                pthread_exit(NULL);     
+            }
+        }// while((segment = cseg->cached_list.first) != NULL){
+        
+        //clean up the expired segments
+        keep_seg_num = MIN((uint32_t)ceil(cseg->pre_recoding_time / cseg->time), 
+                            cseg->max_nb_segments - 1);    
+        while(cseg->cached_list.seg_num > keep_seg_num){
+            //remove the segment from cached list
+            segment = get_segment_list(&(cseg->cached_list));                
+            cached_segment_reset(segment);          
+            put_segment_list(&(cseg->free_list), segment);              
+        }//while(cseg->cached_list.seg_num > keep_seg_num){
+            
+        if(cseg->consumer_active){
+            pthread_cond_wait(&(cseg->not_empty), &(cseg->mutex)); //wait for next time
+        }
+        
+    }//while(cseg->consumer_active){
+    pthread_mutex_unlock(&cseg->mutex);
+    
+    //flush all the cached segment 
+    //because cseg->consumer_active is 0 which means no producer existed now, 
+    //we don't need lock any more
+    while((segment = get_segment_list(&(cseg->cached_list))) != NULL){
+        //call writer's method
+        ret = 0;
+        if(cseg->writer != NULL && cseg->writer->write_segment != NULL){                    
+            ret = cseg->writer->write_segment(cseg, segment);
+        }
+        if(ret < 0){
+            //error     
+            cseg->consumer_exit_code = ret;
+            break;                
+        }else if(ret == 0){
+            //successful
+                
+            //put it to free cached list              
+            cached_segment_reset(segment);          
+            put_segment_list(&(cseg->free_list), segment);                     
+                
+        }else if(ret == 1){
+            //should keep in fifo
+            cached_segment_reset(segment);          
+            put_segment_list(&(cseg->free_list), segment);   
+            break;
+        } 
+    }
+    
+    return NULL;    
 }
 
 
@@ -378,63 +447,6 @@ static int cseg_start(AVFormatContext *s)
 }
 
 
-
-static void * consumer_routine(void *arg)
-{
-    CachedSegmentContext *cseg = 
-        (CachedSegmentContext *)arg;
-    CachedSegment * segment = NULL;
-    int ret = 0;
-   
-    
-    while(cseg->consumer_active){
-        pthread_mutex_lock(&cseg->mutex);
-        while(consumer_should_wait(cseg)){
-            pthread_cond_wait(&(cseg->not_empty), &(cseg->mutex));
-        }
-        if(!cseg->consumer_active){
-            pthread_mutex_unlock(&cseg->mutex);
-            break;
-        }        
-        segment = get_segment_list(&(cseg->cached_list));
-        pthread_mutex_unlock(&cseg->mutex);
-        
-        if(segment != NULL){
-            if(cseg->persist_enabled){
-                //call writer's method
-                if(cseg->writer != NULL && cseg->writer->write_segment != NULL){                    
-                    ret = cseg->writer->write_segment(cseg, segment);
-                    if(ret < 0){      
-                        //error, terminate the consumer thread
-                        recycle_free_segment(cseg, segment);
-                        cseg->consumer_exit_code = ret;
-                        pthread_exit(NULL);
-                    }
-                }
-            }
-            recycle_free_segment(cseg, segment);
-            segment = NULL;
-        }        
-    }//while(cseg->consumer_active){
-        
-    //flush all the cached segment
-    if(cseg->persist_enabled){
-        ret = 0;
-        while((segment = get_segment_list(&(cseg->cached_list))) != NULL){
-            //call writer's method
-            if(cseg->writer != NULL && cseg->writer->write_segment != NULL){                    
-                ret = cseg->writer->write_segment(cseg, segment);
-            }
-            cached_segment_reset(segment);
-            put_segment_list(&(cseg->free_list), segment);
-            if(ret < 0){
-                cseg->consumer_exit_code = ret;
-                break;
-            }
-        }
-    }    
-    return NULL;    
-}
 
 static int cseg_write_header(AVFormatContext *s)
 {
@@ -804,12 +816,11 @@ static int cseg_write_trailer(struct AVFormatContext *s)
 static const AVOption options[] = {
     {"start_number",  "set first number in the sequence",        OFFSET(start_sequence),AV_OPT_TYPE_INT64,  {.i64 = 0},     0, INT64_MAX, E},
     {"cseg_time",      "set segment length in seconds",           OFFSET(time),    AV_OPT_TYPE_DOUBLE,  {.dbl = 10},     0, FLT_MAX, E},
-    {"cseg_list_size", "set maximum number of playlist entries",  OFFSET(max_nb_segments),    AV_OPT_TYPE_INT,    {.i64 = 3},     1, INT_MAX, E},
+    {"cseg_list_size", "set maximum number of the cache list",  OFFSET(max_nb_segments),    AV_OPT_TYPE_INT,    {.i64 = 3},     1, INT_MAX, E},
     {"cseg_ts_options","set hls mpegts list of options for the container format used for hls", OFFSET(format_options_str), AV_OPT_TYPE_STRING, {.str = NULL},  0, 0,    E},
     {"cseg_seg_size",  "set maximum segment size in bytes",        OFFSET(max_seg_size),AV_OPT_TYPE_INT,  {.i64 = 10485760},     0, INT_MAX, E},
-    {"persist_enabled", "enable the segment persistence, or segment would be discard", OFFSET(persist_enabled), AV_OPT_TYPE_INT, {.i64 = 1 }, 0, 1, E },
     {"start_ts",      "set start timestamp (in seconds) for the first segment", OFFSET(start_ts),    AV_OPT_TYPE_DOUBLE,  {.dbl = -1.0},     -1.0, DBL_MAX, E},
-    {"pre_recoding_time", "set pre-recoding time in seconds", OFFSET(pre_recoding_time),    AV_OPT_TYPE_DOUBLE,  {.dbl = 0},     0, DBL_MAX, E},
+    {"cseg_cache_time", "set min cache time in seconds for writer pause", OFFSET(pre_recoding_time),    AV_OPT_TYPE_DOUBLE,  {.dbl = 0},     0, DBL_MAX, E},
     {"use_localtime",          "set filename expansion with strftime at segment creation", OFFSET(use_localtime), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1, E },
     {"writer_timeout",     "set timeout (in milliseconds) of writer I/O operations", OFFSET(writer_timeout),     AV_OPT_TYPE_INT, { .i64 = 30000 },         -1, INT_MAX, .flags = E },
     {"cseg_flags",     "set flags affecting cached segement working policy", OFFSET(flags), AV_OPT_TYPE_FLAGS, {.i64 = 0 }, 0, UINT_MAX, E, "flags"},

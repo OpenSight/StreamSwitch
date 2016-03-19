@@ -51,10 +51,8 @@ extern "C"{
 
 
 
-volatile bool global_persistence = true; //this flag is a trick for signal handling
-
 FFmpegMuxer::FFmpegMuxer()
-:fmt_ctx_(NULL), io_timeout_(0), frame_num_(0), persistence_(true)
+:fmt_ctx_(NULL), io_timeout_(0), frame_num_(0)
 {
     stream_mux_parsers_.reserve(8); //reserve for 8 streams
     stream_mux_parsers_.clear();
@@ -191,22 +189,7 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     base_timestamp_.tv_usec = 0;
     frame_num_ = 0;
     
-    //persistence setting feature is only support by "cseg" format
-    if(fmt_ctx_->oformat != NULL && 
-        av_match_name("cseg", fmt_ctx_->oformat->name) != 0 &&
-        fmt_ctx_->oformat->priv_class != NULL && 
-        fmt_ctx_->priv_data != NULL){
-        int64_t  out_val = 1;
-        av_opt_get_int(fmt_ctx_->priv_data, "persist_enabled", 0, &out_val);
-        if(out_val){
-            persistence_ = true;
-        }else{
-            persistence_ = false;
-        }
-    }
-    global_persistence = persistence_; //global persistence flag is sync with the last init muxer
-    
-    
+   
     return 0;
     
     
@@ -257,7 +240,6 @@ void FFmpegMuxer::Flush()
             (*it)->Flush();
         }             
     }    
-    av_write_trailer(fmt_ctx_);
     StopIO();    
 }
 
@@ -268,6 +250,9 @@ void FFmpegMuxer::Close()
         return;
     }    
 
+    StartIO();
+    av_write_trailer(fmt_ctx_);
+    StopIO(); 
     
     //close ffmpeg format context
     if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
@@ -310,12 +295,7 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         return -1;        
     }
     
-    //check global persistence flag
-    bool temp_persistence = global_persistence;
-    if(temp_persistence != persistence()){
-        set_persistence(temp_persistence);
-    }
-    
+   
     
     //get stream muxer parser
     parser = stream_mux_parsers_[frame_info.sub_stream_index];
@@ -394,34 +374,7 @@ uint32_t FFmpegMuxer::frame_num()
     return frame_num_;
 }
 
-void FFmpegMuxer::set_persistence(bool persistence)
-{
-    
-    persistence_ = persistence;
-    
-    if(fmt_ctx_ == NULL){
-        return;
-    }
-    
-    //persistence setting feature is only support by "cseg" format
-    if(fmt_ctx_->oformat != NULL && 
-        av_match_name("cseg", fmt_ctx_->oformat->name) != 0 &&
-        fmt_ctx_->oformat->priv_class != NULL && 
-        fmt_ctx_->priv_data != NULL){
-            
-        if(persistence){
-            av_opt_set_int(fmt_ctx_->priv_data, "persist_enabled", 1L, 0); 
-        }else{
-            av_opt_set_int(fmt_ctx_->priv_data, "persist_enabled", 0L, 0); 
-        }
-    }
-      
-}
 
-bool FFmpegMuxer::persistence()
-{
-    return persistence_;
-}
 
 void FFmpegMuxer::StartIO()
 {

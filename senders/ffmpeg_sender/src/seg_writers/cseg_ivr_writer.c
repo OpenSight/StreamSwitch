@@ -41,6 +41,7 @@
 
 #define MIN(a,b) ((a) > (b) ? (b) : (a))
 
+
 static int http_status_to_av_code(int status_code)
 {
     if(status_code == 400){
@@ -435,7 +436,7 @@ static int upload_file(CachedSegment *segment,
         return ret;
     }
     
-    if(status_code >= 400 && status_code < 600){
+    if(status_code < 200 || status_code >= 300){
         ret = http_status_to_av_code(status_code);
         snprintf(err_buf, err_buf_size - 1, "http upload file failed with status(%d)", status_code);
         err_buf[err_buf_size - 1] = 0;  
@@ -476,7 +477,7 @@ static int save_file(char * ivr_rest_uri,
     }
 
 
-    if(status_code >= 400 && status_code < 600){
+    if(status_code < 200 || status_code >= 300){
 
         ret = http_status_to_av_code(status_code);
         
@@ -499,10 +500,13 @@ static int save_file(char * ivr_rest_uri,
     return ret;
 }
 
+
+
 static int ivr_init(CachedSegmentContext *cseg)
 {
     //init curl lib
-    curl_global_init(CURL_GLOBAL_ALL);
+    curl_global_init(CURL_GLOBAL_ALL);    
+
     
     return 0;
 }
@@ -552,23 +556,27 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
         goto fail;
     }
     
-    //upload segment to the file URI
-    ret = upload_file(segment, 
-                      cseg->writer_timeout,
-                      file_uri,
-                      cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);                      
-    if(ret){
-        goto fail;
-    }    
-    
-    //save the file info to IVR db
-    ret = save_file(ivr_rest_uri, 
-                    FILE_CREATE_TIMEOUT,
-                    segment, filename,
-                    cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);
-    if(ret){
-        goto fail;
-    }    
+    if(strlen(filename) == 0 || strlen(file_uri) == 0){
+        ret = 1; //cannot upload at the moment
+    }else{    
+        //upload segment to the file URI
+        ret = upload_file(segment, 
+                          cseg->writer_timeout,
+                          file_uri,
+                          cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);                      
+        if(ret){
+            goto fail;
+        }    
+        
+        //save the file info to IVR db
+        ret = save_file(ivr_rest_uri, 
+                        FILE_CREATE_TIMEOUT,
+                        segment, filename,
+                        cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);
+        if(ret){
+            goto fail;
+        }  
+    }  
 
 
 fail:
@@ -580,6 +588,8 @@ static void ivr_uninit(CachedSegmentContext *cseg)
 {
     curl_global_cleanup();
 }
+
+
 CachedSegmentWriter cseg_ivr_writer = {
     .name           = "ivr_writer",
     .long_name      = "IVR cloud storage segment writer", 

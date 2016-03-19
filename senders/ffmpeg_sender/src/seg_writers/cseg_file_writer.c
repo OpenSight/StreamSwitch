@@ -92,7 +92,7 @@ static int file_write_segment(CachedSegmentContext *cseg, CachedSegment *segment
     
     avio_write(file_context, segment->buffer, segment->size);
     ret = file_context->error;
-    if(ret != 0){
+    if(ret < 0){
         avio_closep(&file_context);
         return ret;
     }

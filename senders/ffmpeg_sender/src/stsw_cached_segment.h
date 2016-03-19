@@ -56,6 +56,12 @@ typedef struct CachedSegmentList {
     struct CachedSegment *first, *last;
 } CachedSegmentList;
 
+void init_segment_list(CachedSegmentList * seg_list);
+void put_segment_list(CachedSegmentList *seg_list, CachedSegment * segment);
+CachedSegment * get_segment_list(CachedSegmentList *seg_list);
+void free_segment_list(CachedSegmentList *seg_list);
+
+
 
 typedef struct CachedSegmentWriter {
     
@@ -78,8 +84,14 @@ typedef struct CachedSegmentWriter {
     
     struct CachedSegmentWriter * next; //next register writer
     
+    //return 0 on success, a negative AVERROR on failure.
     int (*init)(CachedSegmentContext *cseg);
+    
+    //return 0 on success, 
+    //       1 on writer pause for the moment
+    //       otherwise, return a negative number for error
     int (*write_segment)(CachedSegmentContext *cseg, CachedSegment *segment);
+    
     void (*uninit)(CachedSegmentContext *cseg);
 } CachedSegmentWriter;
     
@@ -125,13 +137,12 @@ struct CachedSegmentContext {
     double duration;      // current segment duration computed so far, in seconds
     int64_t start_pos;    // current segment starting position
 
-    volatile int persist_enabled;   //enabled the segments persistence    
     double pre_recoding_time;   // at least pre_recoding_time should be kept in cached
                                 // when segment persistence is disabbled, 
     
     pthread_t consumer_thread_id;
     volatile int consumer_active;
-    int consumer_exit_code;
+    volatile int consumer_exit_code;
 #define CONSUMER_ERR_STR_LEN 1024
     char consumer_err_str[CONSUMER_ERR_STR_LEN];
     

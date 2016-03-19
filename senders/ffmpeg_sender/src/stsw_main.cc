@@ -67,27 +67,6 @@ extern volatile bool global_persistence;
 ///////////////////////////////////////////////////////////////
 //functions
 
-static void
-user_signal_handler (int signal_value)
-{
-    if(signal_value == SIGUSR1){
-        global_persistence = true;
-    }else if(signal_value == SIGUSR2){
-        global_persistence = false;
-    }
-}
-
-void user_handler_set ()
-{
-    //  Install signal handler for persistence change for SIGUSR1 and SIGUSR2
-    struct sigaction action;
-    action.sa_handler = user_signal_handler;
-    action.sa_flags = 0;
-    sigemptyset (&action.sa_mask);
-    sigaction (SIGUSR1, &action, NULL);
-    sigaction (SIGUSR2, &action, NULL);
-}
-
 
 void ParseArgv(int argc, char *argv[], 
                FFmpegSenderArgParser *parser)
@@ -209,7 +188,6 @@ int main(int argc, char *argv[])
     avformat_network_init(); 
     
     register_cseg();
-    user_handler_set();
     
     //
     //init sender
