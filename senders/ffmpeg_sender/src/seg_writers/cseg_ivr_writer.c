@@ -101,8 +101,7 @@ static int http_post(char * http_uri,
                      char * post_content_type, 
                      char * post_data, int post_len,
                      int * status_code,
-                     char * result_buf, int max_buf_size,
-                     char * err_buf, int err_buf_size)
+                     char * result_buf, int max_buf_size)
 {
     CURL * easyhandle = NULL;
     int ret = 0;
@@ -110,17 +109,11 @@ static int http_post(char * http_uri,
     char content_type_header[128];
     long status;
     HttpBuf http_buf;
+    char err_buf[CURL_ERROR_SIZE] = "unknown";
     
     memset(&http_buf, 0, sizeof(HttpBuf));
+
     
-    if(err_buf != NULL && err_buf_size != 0){
-        if(err_buf_size < CURL_ERROR_SIZE){
-            ret = AVERROR(EINVAL);
-            snprintf(err_buf, err_buf_size - 1, "error buf is too small");
-            err_buf[err_buf_size - 1] = 0;  
-            return AVERROR(EINVAL);
-        }
-    }
     
     easyhandle = curl_easy_init();
     if(easyhandle == NULL){
@@ -172,12 +165,12 @@ static int http_post(char * http_uri,
         }
     }
     
-    if(err_buf != NULL && err_buf_size != 0){
-        if(curl_easy_setopt(easyhandle, CURLOPT_ERRORBUFFER, err_buf)){
-            ret = AVERROR_EXTERNAL;
-            goto fail;                
-        }
+
+    if(curl_easy_setopt(easyhandle, CURLOPT_ERRORBUFFER, err_buf)){
+        ret = AVERROR_EXTERNAL;
+        goto fail;                
     }
+
     
  #ifdef ENABLE_CURLOPT_VERBOSE   
     if(curl_easy_setopt(easyhandle, CURLOPT_VERBOSE, 1)){
@@ -187,6 +180,7 @@ static int http_post(char * http_uri,
  #endif
         
     if(curl_easy_perform(easyhandle)){
+        
         ret = AVERROR_EXTERNAL;
         goto fail;
     }
@@ -202,6 +196,9 @@ static int http_post(char * http_uri,
     ret = http_buf.pos;
     
 fail:    
+    if(ret < 0){
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP POST failed:%s\n", err_buf);        
+    }
     if(headers != NULL){
         curl_slist_free_all(headers);
     }
@@ -213,8 +210,7 @@ static int http_put(char * http_uri,
                     int32_t io_timeout,  //in milli-seconds 
                     char * content_type, 
                     char * buf, int buf_size,
-                    int * status_code,
-                    char * err_buf, int err_buf_size)
+                    int * status_code)
 {
     CURL * easyhandle = NULL;
     int ret = 0;
@@ -223,17 +219,10 @@ static int http_put(char * http_uri,
     char expect_header[128];
     long status;
     HttpBuf http_buf;
+    char err_buf[CURL_ERROR_SIZE] = "unknown";    
     
     memset(&http_buf, 0, sizeof(HttpBuf));
     
-    if(err_buf != NULL && err_buf_size != 0){
-        if(err_buf_size < CURL_ERROR_SIZE){
-            ret = AVERROR(EINVAL);
-            snprintf(err_buf, err_buf_size - 1, "error buf is too small");
-            err_buf[err_buf_size - 1] = 0;  
-            return AVERROR(EINVAL);
-        }
-    }
     
     easyhandle = curl_easy_init();
     if(easyhandle == NULL){
@@ -293,12 +282,12 @@ static int http_put(char * http_uri,
         }
     }
     
-    if(err_buf != NULL && err_buf_size != 0){
-        if(curl_easy_setopt(easyhandle, CURLOPT_ERRORBUFFER, err_buf)){
-            ret = AVERROR_EXTERNAL;
-            goto fail;                
-        }
+
+    if(curl_easy_setopt(easyhandle, CURLOPT_ERRORBUFFER, err_buf)){
+        ret = AVERROR_EXTERNAL;
+        goto fail;                
     }
+
     
  #ifdef ENABLE_CURLOPT_VERBOSE   
     if(curl_easy_setopt(easyhandle, CURLOPT_VERBOSE, 1)){
@@ -322,6 +311,11 @@ static int http_put(char * http_uri,
     }
     
 fail:    
+
+    if(ret < 0){
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP PUT failed:%s\n", err_buf);        
+    }
+
     if(headers != NULL){
         curl_slist_free_all(headers);
     }
@@ -335,8 +329,7 @@ static int create_file(char * ivr_rest_uri,
                        int32_t io_timeout, 
                        CachedSegment *segment, 
                        char * filename, int filename_size,
-                       char * file_uri, int file_uri_size,
-                       char * err_buf, int err_buf_size)
+                       char * file_uri, int file_uri_size)
 {
     //uint8_t checksum[16];
     //char checksum_b64[32];
@@ -373,8 +366,7 @@ static int create_file(char * ivr_rest_uri,
                     NULL, 
                     post_data_str, strlen(post_data_str), 
                     &status_code,
-                    http_response_json, MAX_HTTP_RESULT_SIZE, 
-                    err_buf, err_buf_size);
+                    http_response_json, MAX_HTTP_RESULT_SIZE);
     if(ret < 0){
         goto failed;       
     }
@@ -384,8 +376,7 @@ static int create_file(char * ivr_rest_uri,
         json_root = cJSON_Parse(http_response_json);
         if(json_root== NULL){
             ret = AVERROR(EINVAL);
-            snprintf(err_buf, err_buf_size - 1, "HTTP response Json parse failed(%s)", http_response_json);
-            err_buf[err_buf_size - 1] = 0;
+            av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP response Json parse failed(%s)\n", http_response_json);
             goto failed;
         }
         json_name = cJSON_GetObjectItem(json_root, IVR_NAME_FIELD_KEY);
@@ -400,13 +391,13 @@ static int create_file(char * ivr_rest_uri,
         ret = http_status_to_av_code(status_code);
         json_root = cJSON_Parse(http_response_json);
         if(json_root== NULL){
-            snprintf(err_buf, err_buf_size - 1, "HTTP response json parse failed(%s)", http_response_json);
-            err_buf[err_buf_size - 1] = 0;
+            av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP response Json parse failed(%s)\n", http_response_json);   
             goto failed;
         }
         json_info = cJSON_GetObjectItem(json_root, IVR_ERR_INFO_FIELD_KEY);
         if(json_info && json_info->type == cJSON_String && json_info->valuestring){
-            av_strlcpy(err_buf, json_info->valuestring, err_buf_size);
+            av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP create file status code(%d):%s\n", 
+                   status_code, json_info->valuestring);
         }        
         
     }
@@ -423,23 +414,21 @@ failed:
 
 static int upload_file(CachedSegment *segment, 
                        int32_t io_timeout, 
-                       char * file_uri, 
-                       char * err_buf, int err_buf_size)
+                       char * file_uri)
 {
     int status_code = 200;
     int ret = 0;  
     ret = http_put(file_uri, io_timeout, "video/mp2t",
                    segment->buffer, segment->size, 
-                   &status_code,
-                   err_buf, err_buf_size);
+                   &status_code);
     if(ret < 0){
         return ret;
     }
     
     if(status_code < 200 || status_code >= 300){
         ret = http_status_to_av_code(status_code);
-        snprintf(err_buf, err_buf_size - 1, "http upload file failed with status(%d)", status_code);
-        err_buf[err_buf_size - 1] = 0;  
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] http upload file failed with status(%d)\n", 
+                   status_code);        
     }
     
 }
@@ -447,8 +436,7 @@ static int upload_file(CachedSegment *segment,
 static int save_file(char * ivr_rest_uri,
                       int32_t io_timeout,
                       CachedSegment *segment, 
-                      char * filename,
-                      char * err_buf, int err_buf_size)
+                      char * filename)
 {
     char post_data_str[512];  
     int status_code = 200;
@@ -470,8 +458,7 @@ static int save_file(char * ivr_rest_uri,
                     NULL, 
                     post_data_str, strlen(post_data_str), 
                     &status_code,
-                    http_response_json, MAX_HTTP_RESULT_SIZE, 
-                    err_buf, err_buf_size); 
+                    http_response_json, MAX_HTTP_RESULT_SIZE); 
     if(ret < 0){
         return ret;
     }
@@ -483,12 +470,12 @@ static int save_file(char * ivr_rest_uri,
         
         json_root = cJSON_Parse(http_response_json);
         if(json_root== NULL){
-            snprintf(err_buf, err_buf_size - 1, "HTTP response json parse failed(%s)", http_response_json);
-            err_buf[err_buf_size - 1] = 0;            
+            av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP response Json parse failed(%s)\n", http_response_json);       
         }else{
             json_info = cJSON_GetObjectItem(json_root, IVR_ERR_INFO_FIELD_KEY);
             if(json_info && json_info->type == cJSON_String && json_info->valuestring){
-                av_strlcpy(err_buf, json_info->valuestring, err_buf_size);
+                av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP create file status code(%d):%s\n", 
+                   status_code, json_info->valuestring);
             }        
             cJSON_Delete(json_root);             
         }
@@ -526,13 +513,13 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
 
     if(cseg->filename == NULL || strlen(cseg->filename) == 0){
         ret = AVERROR(EINVAL);
-        sprintf(cseg->consumer_err_str, "http filename absent");
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] http filename absent\n");          
         goto fail;       
     }
     
     if(strlen(cseg->filename) > (MAX_URI_LEN - 5)){
         ret = AVERROR(EINVAL);
-        sprintf(cseg->consumer_err_str, "filename is too long");
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] filename is too long\n");          
         goto fail;
     }
 
@@ -541,7 +528,7 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
         av_strlcat(ivr_rest_uri, p, MAX_URI_LEN);
     }else{
         ret = AVERROR(EINVAL);
-        sprintf(cseg->consumer_err_str, "filename malformat");
+        av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] filename malformat\n");
         goto fail;
     }
     
@@ -550,8 +537,7 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
                       FILE_CREATE_TIMEOUT,
                       segment, 
                       filename, MAX_FILE_NAME,
-                      file_uri, MAX_URI_LEN,
-                      cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);
+                      file_uri, MAX_URI_LEN);
     if(ret){
         goto fail;
     }
@@ -562,8 +548,7 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
         //upload segment to the file URI
         ret = upload_file(segment, 
                           cseg->writer_timeout,
-                          file_uri,
-                          cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);                      
+                          file_uri);                      
         if(ret){
             goto fail;
         }    
@@ -571,8 +556,7 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
         //save the file info to IVR db
         ret = save_file(ivr_rest_uri, 
                         FILE_CREATE_TIMEOUT,
-                        segment, filename,
-                        cseg->consumer_err_str, CONSUMER_ERR_STR_LEN);
+                        segment, filename);
         if(ret){
             goto fail;
         }  

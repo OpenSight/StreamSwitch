@@ -228,6 +228,12 @@ static int append_cur_segment(AVFormatContext *s,
 {
     CachedSegmentContext *cseg = (CachedSegmentContext *)s->priv_data;
     CachedSegment * segment = cseg->cur_segment;
+    
+    if(segment == NULL){
+        //no current segment, just finished
+        return 0;
+    }
+    
     cseg->cur_segment = NULL;
     
     segment->start_ts = start_ts;
@@ -429,7 +435,7 @@ static int cseg_start(AVFormatContext *s)
     avio_out = avio_alloc_context(cseg->out_buffer, SEGMENT_IO_BUFFER_SIZE,
                                   1, segment, NULL, &write_segment, NULL);
     if (!avio_out) {
-        cached_segment_free(segment);
+        recycle_free_segment(cseg, segment);
         err = AVERROR(ENOMEM);
         return err;
     }
@@ -655,11 +661,18 @@ static int cseg_write_packet(AVFormatContext *s, AVPacket *pkt)
     
     if(cseg->consumer_exit_code){
         //consumer error
+/*
         av_log(s, AV_LOG_ERROR, 
                "Consumer Error:%s\n",
                cseg->consumer_err_str[0] == 0?
                "unknown":cseg->consumer_err_str); 
+*/
         return cseg->consumer_exit_code;
+    }
+    
+    if(cseg->cur_segment == NULL){
+        //no current segment
+        return AVERROR_EXIT;
     }
 
     if (cseg->start_pts == AV_NOPTS_VALUE) {
@@ -735,24 +748,27 @@ static int cseg_write_packet(AVFormatContext *s, AVPacket *pkt)
 
 static int cseg_write_trailer(struct AVFormatContext *s)
 {
+     
     CachedSegmentContext *cseg = s->priv_data;
     AVFormatContext *oc = cseg->avf;
-
+ 
     av_write_trailer(oc);
-  
+
     if (oc->pb) {
         double seg_start_ts;
         int64_t cur_segment_size = 0;
         int is_cached_list_full = 0;
-            
+         
         avio_flush(oc->pb);
         av_freep(&(oc->pb));
         
         pthread_mutex_lock(&cseg->mutex);
         if(cseg->cached_list.seg_num >= cseg->max_nb_segments){
-            cached_segment_reset(cseg->cur_segment);
-            put_segment_list(&(cseg->free_list), cseg->cur_segment);
-            cseg->cur_segment = NULL;
+            if(cseg->cur_segment != NULL){
+                cached_segment_reset(cseg->cur_segment);
+                put_segment_list(&(cseg->free_list), cseg->cur_segment);
+                cseg->cur_segment = NULL;                
+            }
             pthread_mutex_unlock(&cseg->mutex); 
         }else{
             pthread_mutex_unlock(&cseg->mutex);  

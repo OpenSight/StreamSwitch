@@ -143,8 +143,8 @@ struct CachedSegmentContext {
     pthread_t consumer_thread_id;
     volatile int consumer_active;
     volatile int consumer_exit_code;
-#define CONSUMER_ERR_STR_LEN 1024
-    char consumer_err_str[CONSUMER_ERR_STR_LEN];
+//#define CONSUMER_ERR_STR_LEN 1024
+    //char consumer_err_str[CONSUMER_ERR_STR_LEN];
     
     pthread_mutex_t mutex;
     pthread_cond_t not_empty;
