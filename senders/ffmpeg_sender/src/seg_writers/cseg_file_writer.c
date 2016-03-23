@@ -45,13 +45,9 @@
 
 struct URLContext;
 
-int ffurl_open(struct URLContext **puc, const char *filename, int flags,
-               const AVIOInterruptCB *int_cb, AVDictionary **options);
 
 static int file_init(CachedSegmentContext *cseg)
 {
-    int ret;
-    ret = ffurl_open(NULL, NULL, 0, NULL, NULL);
     return 0;
 }
 
