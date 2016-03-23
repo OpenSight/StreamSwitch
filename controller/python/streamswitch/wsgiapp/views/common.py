@@ -96,8 +96,8 @@ def add_response_header(event):
     add all custom header here
     """
     response = event.response
-    response.headers['X-Powered-By'] = 'OpenSight (www.opensight.cn)'
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers[str('X-Powered-By')] = str('OpenSight (www.opensight.cn)')
+    response.headers[str('Access-Control-Allow-Origin')] = str('*')
 
 def get_params_from_request(request, schema=None):
     """Get input parameter dict from request
