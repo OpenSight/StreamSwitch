@@ -248,7 +248,7 @@ static int http_put(char * http_uri,
     //disable "Expect: 100-continue"  header
     memset(expect_header, 0, 128);
     strcpy(expect_header, "Expect:");
-    headers = curl_slist_append(headers, content_type_header);     
+    headers = curl_slist_append(headers, expect_header);     
 
     if(curl_easy_setopt(easyhandle, CURLOPT_HTTPHEADER, headers)){
         ret = AVERROR_EXTERNAL;
@@ -359,7 +359,7 @@ static int create_file(char * ivr_rest_uri,
             segment->size,
             segment->start_ts, 
             segment->duration);
-    
+        
     //issue HTTP request
     ret = http_post(ivr_rest_uri, 
                     io_timeout,
@@ -370,7 +370,8 @@ static int create_file(char * ivr_rest_uri,
     if(ret < 0){
         goto failed;       
     }
-    
+    ret = 0;
+
     //parse the result
     if(status_code >= 200 && status_code < 300){
         json_root = cJSON_Parse(http_response_json);
@@ -395,20 +396,22 @@ static int create_file(char * ivr_rest_uri,
             goto failed;
         }
         json_info = cJSON_GetObjectItem(json_root, IVR_ERR_INFO_FIELD_KEY);
-        if(json_info && json_info->type == cJSON_String && json_info->valuestring){
+        if(json_info && json_info->type == cJSON_String && json_info->valuestring){            
             av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] HTTP create file status code(%d):%s\n", 
                    status_code, json_info->valuestring);
+            goto failed;
         }        
         
     }
     
+
 failed:
     if(json_root){
         cJSON_Delete(json_root); 
         json_root = NULL;
     }
     av_free(http_response_json);  
-    
+        
     return ret;
 }
 
@@ -428,9 +431,12 @@ static int upload_file(CachedSegment *segment,
     if(status_code < 200 || status_code >= 300){
         ret = http_status_to_av_code(status_code);
         av_log(NULL, AV_LOG_ERROR,  "[cseg_ivr_writer] http upload file failed with status(%d)\n", 
-                   status_code);        
+                   status_code);       
+        goto fail;
     }
-    
+    return 0;
+fail:
+    return ret;
 }
 
 static int save_file(char * ivr_rest_uri,
@@ -451,7 +457,7 @@ static int save_file(char * ivr_rest_uri,
             segment->size,
             segment->start_ts, 
             segment->duration);
-    
+
     //issue HTTP request
     ret = http_post(ivr_rest_uri, 
                     io_timeout,
@@ -462,6 +468,7 @@ static int save_file(char * ivr_rest_uri,
     if(ret < 0){
         return ret;
     }
+    ret = 0;
 
 
     if(status_code < 200 || status_code >= 300){
@@ -538,10 +545,11 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
                       segment, 
                       filename, MAX_FILE_NAME,
                       file_uri, MAX_URI_LEN);
+                      
     if(ret){
         goto fail;
     }
-    
+   
     if(strlen(filename) == 0 || strlen(file_uri) == 0){
         ret = 1; //cannot upload at the moment
     }else{    
@@ -561,7 +569,6 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
             goto fail;
         }  
     }  
-
 
 fail:
    

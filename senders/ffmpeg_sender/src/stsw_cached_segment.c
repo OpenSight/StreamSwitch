@@ -330,6 +330,12 @@ static void * consumer_routine(void *arg)
                 pthread_mutex_unlock(&cseg->mutex);
                 cseg->consumer_exit_code = ret;
                 pthread_exit(NULL);     
+            }else{
+                //not support other ret code, consider error
+                pthread_mutex_unlock(&cseg->mutex);
+                av_log(NULL, AV_LOG_ERROR,  "[cseg] cannot support the writer return code:%d\n", ret);        
+                cseg->consumer_exit_code = AVERROR(EINVAL);
+                pthread_exit(NULL); 
             }
         }// while((segment = cseg->cached_list.first) != NULL){
         
@@ -359,23 +365,23 @@ static void * consumer_routine(void *arg)
         if(cseg->writer != NULL && cseg->writer->write_segment != NULL){                    
             ret = cseg->writer->write_segment(cseg, segment);
         }
+        cached_segment_reset(segment);          
+        put_segment_list(&(cseg->free_list), segment);         
+        
         if(ret < 0){
-            //error     
+            //error  
             cseg->consumer_exit_code = ret;
             break;                
         }else if(ret == 0){
             //successful
-                
-            //put it to free cached list              
-            cached_segment_reset(segment);          
-            put_segment_list(&(cseg->free_list), segment);                     
-                
+            
         }else if(ret == 1){
-            //should keep in fifo
-            cached_segment_reset(segment);          
-            put_segment_list(&(cseg->free_list), segment);   
+            //should keep in fifo  
             break;
-        } 
+        }else{
+            cseg->consumer_exit_code = AVERROR(EINVAL);
+            break;   
+        }
     }
     
     return NULL;    
