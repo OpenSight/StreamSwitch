@@ -34,6 +34,8 @@ def includeme(config):
     config.add_route('stream_key_frames', '/streams/{stream_name}/key_frames')
     config.add_route('stream_subsequent_stream_info', '/streams/{stream_name}/subsequent_stream_info')
     config.add_route('stream_operations', '/streams/{stream_name}/operations')
+    config.add_route('test_hls_file', '/test_hls_file')
+    config.add_route('test_hls_upload', '/test_hls_upload')
 
 
 def get_stream_service_from_request(request):
@@ -158,4 +160,18 @@ def post_stream_operations(request):
     op = params["op"]
     if op == "restart":
         stream_service.restart_stream(stream_name)
+    return Response(status=200)
+
+
+
+@post_view(route_name='test_hls_file')
+def post_test_hls_file(request):
+    params = get_params_from_request(request)
+    print(params)
+    rep = {"name": "test.ts", "uri": "http://localhost:8088/stsw/api/v1/test_hls_upload"}
+    return rep
+
+@put_view(route_name='test_hls_upload')
+def put_test_hls_upload(request):
+    print(dict(request.headers))
     return Response(status=200)
