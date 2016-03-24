@@ -1,3 +1,0 @@
-This directory contains various internal recorder types of StreamSwitch, including: 
-
-1) fix_file. This recorder store the media data into the fix-size files under the specific filesystem path

@@ -1,6 +1,6 @@
 /**
- * This file is part of libstreamswtich, which belongs to StreamSwitch
- * project. 
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
+ * project.  
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
  * 
@@ -48,6 +48,7 @@ extern "C"{
 #include <libavutil/opt.h>  
 #include <libavformat/avformat.h>      
 }
+
 
 
 FFmpegMuxer::FFmpegMuxer()
@@ -187,6 +188,8 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     base_timestamp_.tv_sec = 0;
     base_timestamp_.tv_usec = 0;
     frame_num_ = 0;
+    
+   
     return 0;
     
     
@@ -221,11 +224,8 @@ err_out1:
 
     return ret;
 }
-
-
-void FFmpegMuxer::Close()
+void FFmpegMuxer::Flush()
 {
- 
     if(fmt_ctx_ == NULL){
         return;
     }    
@@ -240,9 +240,19 @@ void FFmpegMuxer::Close()
             (*it)->Flush();
         }             
     }    
-    av_write_trailer(fmt_ctx_);
-    StopIO();
+    StopIO();    
+}
+
+void FFmpegMuxer::Close()
+{
  
+    if(fmt_ctx_ == NULL){
+        return;
+    }    
+
+    StartIO();
+    av_write_trailer(fmt_ctx_);
+    StopIO(); 
     
     //close ffmpeg format context
     if (fmt_ctx_->oformat && !(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
@@ -284,7 +294,8 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
                 "sub_stream_index is over the number of parser\n");
         return -1;        
     }
-
+    
+   
     
     //get stream muxer parser
     parser = stream_mux_parsers_[frame_info.sub_stream_index];
@@ -362,6 +373,7 @@ uint32_t FFmpegMuxer::frame_num()
 {
     return frame_num_;
 }
+
 
 
 void FFmpegMuxer::StartIO()

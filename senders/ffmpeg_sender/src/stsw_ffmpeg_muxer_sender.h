@@ -122,6 +122,8 @@ protected:
     
     stream_switch::MediaStatisticInfo last_stat_;
 };
-    
+
+
+
 
 #endif

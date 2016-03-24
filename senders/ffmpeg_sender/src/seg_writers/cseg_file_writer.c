@@ -37,10 +37,13 @@
 #include "libavutil/opt.h"
 #include "libavutil/log.h"
 #include "libavutil/fifo.h"
+#include "libavutil/dict.h"
 
 #include "libavformat/avformat.h"
-    
+#include "libavformat/avio.h"    
 #include "../stsw_cached_segment.h"
+
+struct URLContext;
 
 
 static int file_init(CachedSegmentContext *cseg)
@@ -60,7 +63,7 @@ static int file_write_segment(CachedSegmentContext *cseg, CachedSegment *segment
     int ret;
     uint8_t *buf;
     
-    printf("file_write_segment is calle\n");
+    //printf("file_write_segment is calle\n");
     
     av_strlcpy(base_name, cseg->filename, MAX_FILE_NAME);
 
@@ -85,7 +88,7 @@ static int file_write_segment(CachedSegmentContext *cseg, CachedSegment *segment
     
     avio_write(file_context, segment->buffer, segment->size);
     ret = file_context->error;
-    if(ret != 0){
+    if(ret < 0){
         avio_closep(&file_context);
         return ret;
     }

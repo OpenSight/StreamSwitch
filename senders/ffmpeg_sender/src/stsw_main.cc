@@ -47,6 +47,8 @@ extern "C"{
 #include "stsw_ffmpeg_muxer_sender.h"
 #include "stsw_cached_segment.h"
 
+extern volatile bool global_persistence;
+
 ///////////////////////////////////////////////////////////////
 //Type
 
@@ -64,7 +66,8 @@ extern "C"{
 
 ///////////////////////////////////////////////////////////////
 //functions
-    
+
+
 void ParseArgv(int argc, char *argv[], 
                FFmpegSenderArgParser *parser)
 {
@@ -185,6 +188,7 @@ int main(int argc, char *argv[])
     avformat_network_init(); 
     
     register_cseg();
+    
     //
     //init sender
     

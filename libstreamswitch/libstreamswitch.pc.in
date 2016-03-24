@@ -7,5 +7,7 @@ Name: libstreamswitch
 URL: http://www.opensight.cn/
 Description: StreamSwitch core library, provide the interface to communicate with the other StreamSwitch component
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lstreamswitch
+Requires: 
+Requiress.private: libczmq >= 3.0.0, libzmq >= 4.0.0, protobuf >= 2.0.0
+Libs: -L${libdir} -lstreamswitch -lpthread
 Cflags: -I${includedir} -pthread

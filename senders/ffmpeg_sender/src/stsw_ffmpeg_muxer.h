@@ -1,6 +1,6 @@
 /**
- * This file is part of libstreamswtich, which belongs to StreamSwitch
- * project. 
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
+ * project.  
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
  * 
@@ -68,8 +68,11 @@ public:
     virtual int WritePacket(const stream_switch::MediaFrameInfo &frame_info, 
                             const char * frame_data, 
                             size_t frame_size);
+                            
+    virtual void Flush();
     virtual uint32_t frame_num();
     
+   
     static void GetClientInfo(const std::string &dest_url, 
                               const std::string &format,
                               stream_switch::StreamClientInfo *client_info);

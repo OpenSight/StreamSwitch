@@ -1,6 +1,6 @@
 /**
- * This file is part of libstreamswtich, which belongs to StreamSwitch
- * project. 
+ * This file is part of ffmpeg_sender, which belongs to StreamSwitch
+ * project.  
  * 
  * Copyright (C) 2014  OpenSight (www.opensight.cn)
  * 
@@ -876,8 +876,10 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
     /** Write one audio frame from the temporary packet to the output file. */
     if (*data_present) {
         //printf("get here %d\n", __LINE__);
+/*        
         printf("packet pts/duration/size: %lld/%ld\n", 
                output_packet.pts, output_packet.duration, output_packet.size);
+*/
         output_packet.stream_index = stream_->index;
         av_packet_rescale_ts(&output_packet,
                              out_codec_context_->time_base,
