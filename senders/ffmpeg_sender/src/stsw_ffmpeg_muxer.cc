@@ -105,10 +105,11 @@ int FFmpegMuxer::Open(const std::string &dest_url,
     }    
     ret = avformat_alloc_output_context2(&fmt_ctx_, NULL, format_name, dest_url.c_str());    
     if(fmt_ctx_ == NULL){
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         //log        
         STDERR_LOG(LOG_LEVEL_ERR, 
                    "Failed to allocate AVFormatContext structure:%s\n", 
-                   av_err2str(ret));           
+                   av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));           
         ret = FFMPEG_SENDER_ERR_GENERAL;
         goto err_out1;        
     }
@@ -156,10 +157,11 @@ int FFmpegMuxer::Open(const std::string &dest_url,
                          &(fmt_ctx_->interrupt_callback), &format_opts);
         StopIO();
         if (ret < 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             STDERR_LOG(LOG_LEVEL_ERR, 
                    "Could not open output file '%s':%s\n", 
                    dest_url.c_str(), 
-                   av_err2str(ret));           
+                   av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));           
             ret = FFMPEG_SENDER_ERR_GENERAL;
             goto err_out3;             
         }
@@ -167,9 +169,10 @@ int FFmpegMuxer::Open(const std::string &dest_url,
    
     ret = avformat_write_header(fmt_ctx_, &format_opts);
     if (ret < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         STDERR_LOG(LOG_LEVEL_ERR, 
                    "Error occurred when write header to the output file: %s\n", 
-                   av_err2str(ret));           
+                   av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));           
         ret = FFMPEG_SENDER_ERR_GENERAL;
         goto err_out4;         
     }    
@@ -356,10 +359,11 @@ int FFmpegMuxer::WritePacket(const stream_switch::MediaFrameInfo &frame_info,
         ret = av_interleaved_write_frame(fmt_ctx_, &opkt);
         StopIO();
         if(ret){
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             //some error ocurs in parse
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
                 "Failed to write pkt to the output file:%s\n", 
-                av_err2str(ret));   
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));   
             ret = FFMPEG_SENDER_ERR_IO;            
             break;  
         }

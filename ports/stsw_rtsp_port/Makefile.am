@@ -65,7 +65,7 @@ stsw_rtsp_port_SOURCES =  \
 	src/media/mediaparser_module.h \
 	src/media/mediautils.c \
 	src/media/resource.c \
-	src/media/demuxer/demuxer_stsw.c \
+	src/media/demuxer/demuxer_stsw.cc \
     src/media/parser/h264.c \
 	src/media/parser/vorbis.c \
 	src/media/parser/theora.c \

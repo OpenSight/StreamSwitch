@@ -245,8 +245,10 @@ int StreamMuxParser::DoExtraDataInit(FFmpegMuxer * muxer,
     if(sub_metadata.extra_data.size() != 0){    
         ret = avcodec_open2(c, NULL, NULL);
         if(ret){
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             STDERR_LOG(LOG_LEVEL_ERR, "Could not open code (%s) context: %s\n",
-                    avcodec_get_name(c->codec_id), av_err2str(ret));
+                    avcodec_get_name(c->codec_id), 
+                    av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));
             return FFMPEG_SENDER_ERR_GENERAL;                
         }
         avcodec_close(c);                                
