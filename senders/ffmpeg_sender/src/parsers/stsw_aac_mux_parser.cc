@@ -85,9 +85,10 @@ static int InitOutputFrame(AVFrame *frame,
      * sure that the audio frame can hold as many samples as specified.
      */
     if ((error = av_frame_get_buffer(frame, 0)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         STDERR_LOG(LOG_LEVEL_ERR, 
             "Could allocate output frame samples (error '%s')\n", 
-            av_err2str(error));             
+            av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));             
         return FFMPEG_SENDER_ERR_GENERAL;  
     }
 
@@ -124,9 +125,10 @@ static int init_converted_samples(uint8_t ***converted_input_samples,
                                   output_codec_context->channels,
                                   frame_size,
                                   output_codec_context->sample_fmt, 0)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         STDERR_LOG(LOG_LEVEL_ERR, 
                 "Could not allocate converted input samples (error '%s')\n",
-                av_err2str(error));
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));
         av_freep(&(*converted_input_samples)[0]);
         free(*converted_input_samples);
         return error;
@@ -357,8 +359,9 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
          */
         if ((error = avcodec_decode_audio4(in_codec_context_, input_frame_,
                                            &data_present, &input_pkt)) < 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             STDERR_LOG(LOG_LEVEL_ERR, "Could not decode frame (error '%s')\n",
-                       av_err2str(error)); 
+                       av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error)); 
             av_free_packet(&input_pkt);
             return FFMPEG_SENDER_ERR_CODEC;
         }
@@ -417,12 +420,13 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
                                      input_frame_->nb_samples,
                                      (const uint8_t**)input_frame_->extended_data, 
                                      input_frame_->nb_samples)) < 0) {
+                char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
                 if (converted_input_samples) {
                     av_freep(&converted_input_samples[0]);
                     free(converted_input_samples);
                 }
                 STDERR_LOG(LOG_LEVEL_ERR, "Could not convert input samples (error '%s')\n",
-                        av_err2str(error));
+                        av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));
                 return FFMPEG_SENDER_ERR_CODEC;  
             }                
             
@@ -473,10 +477,11 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
         */
         if ((error = avcodec_encode_audio2(out_codec_context_, opkt,
                                            output_frame_, &data_present)) < 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             av_free_packet(opkt);
             STDERR_LOG(LOG_LEVEL_ERR, 
                 "Could not encode frame (error '%s')\n", 
-                av_err2str(error));             
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));             
             return FFMPEG_SENDER_ERR_CODEC; 
         }
         
@@ -568,8 +573,10 @@ int AacMuxParser::InitInputContext(const stream_switch::SubStreamMetadata &sub_m
     
     ret = avcodec_open2(in_codec_context_, input_codec, NULL);
     if(ret){
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         STDERR_LOG(LOG_LEVEL_ERR, "Could not open input code (%s) context: %s\n",
-                sub_metadata.codec_name.c_str(), av_err2str(ret));
+                sub_metadata.codec_name.c_str(), 
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));
         avcodec_free_context(&in_codec_context_);
         return FFMPEG_SENDER_ERR_GENERAL;                
     }    
@@ -634,9 +641,11 @@ int AacMuxParser::InitOutputContext(FFmpegMuxer * muxer,
     /** Open the encoder for the audio stream to use it later. */
     ret = avcodec_open2(out_codec_context_, codec, NULL);
     if(ret < 0){
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         out_codec_context_ = NULL;
         STDERR_LOG(LOG_LEVEL_ERR, "Could not open output code (%s) context: %s\n",
-                avcodec_get_name(codec_id), av_err2str(ret));        
+                avcodec_get_name(codec_id), 
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));        
         return FFMPEG_SENDER_ERR_GENERAL;                
     } 
     
@@ -676,9 +685,10 @@ int AacMuxParser::InitResampler()
     /** Open the resampler with the specified parameters. */
     ret = swr_init(resample_context_);
     if (ret < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         swr_free(&resample_context_);
         STDERR_LOG(LOG_LEVEL_ERR, "Could not open resample context: %s\n",
-                av_err2str(ret));
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, ret));
         return FFMPEG_SENDER_ERR_GENERAL;    
     }   
     return 0;
@@ -866,15 +876,17 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
      */
     if ((error = avcodec_encode_audio2(out_codec_context_, &output_packet,
                                        frame, data_present)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         av_free_packet(&output_packet);
         STDERR_LOG(LOG_LEVEL_ERR, 
             "Could not encode frame (error '%s')\n", 
-            av_err2str(error));             
+            av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));             
         return FFMPEG_SENDER_ERR_CODEC; 
     }
 
     /** Write one audio frame from the temporary packet to the output file. */
     if (*data_present) {
+        
         //printf("get here %d\n", __LINE__);
 /*        
         printf("packet pts/duration/size: %lld/%ld\n", 
@@ -888,9 +900,10 @@ int AacMuxParser::EncodeAudioFrame(AVFrame *frame,
         error = av_interleaved_write_frame(fmt_ctx_, &output_packet);
         muxer_->StopIO();
         if (error < 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
             STDERR_LOG(LOG_LEVEL_ERR, 
                 "Could not write frame (error '%s')\n", 
-                av_err2str(error));             
+                av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, error));             
             return FFMPEG_SENDER_ERR_IO;             
         }
     }
