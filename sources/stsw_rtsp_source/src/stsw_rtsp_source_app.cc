@@ -74,6 +74,7 @@ int RtspSourceApp::Init(int argc, char ** argv)
     Boolean streamUsingTCP = True;
     Boolean enableRtspKeepAlive = True; 
     Boolean usingLocalTs = False; 
+    Boolean ignore_sdp_sps = False;
     char const* singleMedium = NULL;
     char const* userName = NULL, * passwd = NULL;
     stream_switch::ArgParser parser;
@@ -164,7 +165,10 @@ int RtspSourceApp::Init(int argc, char ** argv)
     if(parser.CheckOption("use-local-ts")){
         usingLocalTs = True;
     }  
-    
+
+    if(parser.CheckOption("ignore-sdp-sps")){
+        ignore_sdp_sps = True;
+    }      
 /*    
     rtsp_client_ = LiveRtspClient::CreateNew(
         *env_, (char *)"rtsp://172.16.56.120:554/user=admin&password=123456&id=1&type=0",  True, True, 
@@ -174,7 +178,7 @@ int RtspSourceApp::Init(int argc, char ** argv)
         *env_, rtsp_url.c_str(),  streamUsingTCP, enableRtspKeepAlive, 
         singleMedium,  userName, passwd, usingLocalTs, 
         (LiveRtspClientListener *)this, 
-        verbosityLevel);        
+        verbosityLevel, ignore_sdp_sps);        
     if(rtsp_client_ == NULL){
         STDERR_LOG(logger_, stream_switch::LOG_LEVEL_ERR, 
                     "LiveRtspClient::CreateNew() Failed: Maybe parameter error\n");        
@@ -352,8 +356,12 @@ void RtspSourceApp::ParseArgv(int argc, char *argv[],
 
     parser->RegisterOption("use-local-ts", 0,  0, NULL, 
                    "use the local timestamp for each frame, instead of using rtp timestamp."
-                   "Because for some rtsp server, the timestamp is of error", NULL, NULL);  
+                   "Because the rtp timestamp of the frame may be wrong for some immature RTSP server", NULL, NULL);  
                    
+    parser->RegisterOption("ignore-sdp-sps", 0,  0, NULL, 
+                   "ignore the vps/sps/pps from SDP which is returned in the DESCRIBE response for H264/H265."
+                   "Because the vps/sps/pps from SDP may be wrong for some immature RTSP server", NULL, NULL);  
+
   
     ret = parser->Parse(argc, argv, &err_info);//parse the cmd args
     if(ret){
