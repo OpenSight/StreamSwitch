@@ -108,7 +108,8 @@ public:
                    char const* userName = NULL, char const* passwd = NULL, 
                    Boolean usingLocalTs = False, 
                    LiveRtspClientListener * listener = NULL, 
-                   int verbosityLevel = 0);
+                   int verbosityLevel = 0,
+                   Boolean ignore_sdp_sps = False);
 
     LiveRtspClient(UsageEnvironment& env, char const* rtspURL, 
 			       Boolean streamUsingTCP, Boolean enableRtspKeepAlive, 
@@ -116,7 +117,8 @@ public:
                    char const* userName, char const* passwd,  
                    Boolean usingLocalTs, 
                    LiveRtspClientListener * listener, 
-                   int verbosityLevel);
+                   int verbosityLevel,
+                   Boolean ignore_sdp_sps);
                    
     virtual ~LiveRtspClient();
     
@@ -254,7 +256,9 @@ protected:
     MediaSubsessionIterator* setup_iter_;
     MediaSubsession *cur_setup_subsession_;
     
-    int org_verbosity_level;
+    int org_verbosity_level_;
+    
+    Boolean ignore_sdp_sps_;
     
 };
 

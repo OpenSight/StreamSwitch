@@ -81,7 +81,8 @@ LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rt
                    char const* userName, char const* passwd, 
                    Boolean usingLocalTs, 
                    LiveRtspClientListener * listener, 
-                   int verbosityLevel)
+                   int verbosityLevel,
+                   Boolean ignore_sdp_sps)
 {
     if(rtspURL == NULL){
         return NULL;
@@ -89,7 +90,7 @@ LiveRtspClient * LiveRtspClient::CreateNew(UsageEnvironment& env, char const* rt
 
     return new LiveRtspClient(env, rtspURL, streamUsingTCP, enableRtspKeepAlive, 
                              singleMedium, userName, passwd, usingLocalTs, listener,
-                             verbosityLevel);
+                             verbosityLevel, ignore_sdp_sps);
 }
                               
 
@@ -99,7 +100,8 @@ LiveRtspClient::LiveRtspClient(UsageEnvironment& env, char const* rtspURL,
                    char const* userName, char const* passwd,  
                    Boolean usingLocalTs, 
                    LiveRtspClientListener * listener,                    
-                   int verbosityLevel)
+                   int verbosityLevel,
+                   Boolean ignore_sdp_sps)
 :RTSPClient(env, rtspURL, verbosityLevel, "stsw_rtsp_client", 0, -1), 
 listener_(listener), 
 are_already_shutting_down_(True), stream_using_tcp_(streamUsingTCP), 
@@ -113,7 +115,8 @@ rtsp_keep_alive_task_(NULL), rtsp_timeout_task_(NULL),
 has_receive_keep_alive_response(False), duration_(0.0), endTime_(0.0), 
 pts_session_normalizer_(new PtsSessionNormalizer(env, usingLocalTs)),
 made_progress_(False), setup_iter_(NULL), cur_setup_subsession_(NULL), 
-org_verbosity_level(verbosityLevel)
+org_verbosity_level_(verbosityLevel),
+ignore_sdp_sps_(ignore_sdp_sps)
 
 {
     if(singleMedium != NULL){
@@ -912,7 +915,7 @@ void LiveRtspClient::TearDownSession(MediaSession* session,
     RTSPClient::responseHandler* afterFunc) 
 {
     if(fVerbosityLevel == 0 && 
-       org_verbosity_level != 0){
+       org_verbosity_level_ != 0){
         fVerbosityLevel = 1;
     }
     
@@ -1073,43 +1076,45 @@ void LiveRtspClient::SetupMetaFromSession()
                 subsession->videoFPS(); 
             
             if(strcmp(codecName, "H264") == 0){
-                char const* sPropParameterSetsStr = 
-                    subsession->fmtp_spropparametersets();
-                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
-                unsigned numSPropRecords;
-                SPropRecord* sPropRecords
-                    = parseSPropParameterSets(sPropParameterSetsStr, 
-                            numSPropRecords);
-                for (unsigned i = 0; i < numSPropRecords; ++i) {
-                    sub_metadata.extra_data.append(start_code, 4);
-                    sub_metadata.extra_data.append(
-                        (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
-
-                }
-                delete[] sPropRecords;
-                
-            }else if(strcmp(codecName, "H265") == 0){
-                char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
-		        char const* fSPropParameterSetsStr[3];
-                fSPropParameterSetsStr[0] = subsession->fmtp_spropvps();
-                fSPropParameterSetsStr[1] = subsession->fmtp_spropsps();
-                fSPropParameterSetsStr[2] = subsession->fmtp_sproppps();    
-                
-                for (unsigned j = 0; j < 3; ++j) {
+                if(!ignore_sdp_sps_){
+                    char const* sPropParameterSetsStr = 
+                        subsession->fmtp_spropparametersets();
+                    char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
                     unsigned numSPropRecords;
                     SPropRecord* sPropRecords
-                        = parseSPropParameterSets(fSPropParameterSetsStr[j], 
-                            numSPropRecords);
+                        = parseSPropParameterSets(sPropParameterSetsStr, 
+                                numSPropRecords);
                     for (unsigned i = 0; i < numSPropRecords; ++i) {
                         sub_metadata.extra_data.append(start_code, 4);
                         sub_metadata.extra_data.append(
-                            (const char *)sPropRecords[i].sPropBytes, 
-                            (size_t)sPropRecords[i].sPropLength);
+                            (const char *)sPropRecords[i].sPropBytes, (size_t)sPropRecords[i].sPropLength);
+
                     }
                     delete[] sPropRecords;
-                }               
+                }//if(!ignore_sdp_sps_)
+            }else if(strcmp(codecName, "H265") == 0){
+                if(!ignore_sdp_sps_){
+                    char const start_code[4] = {0x00, 0x00, 0x00, 0x01};
+                    char const* fSPropParameterSetsStr[3];
+                    fSPropParameterSetsStr[0] = subsession->fmtp_spropvps();
+                    fSPropParameterSetsStr[1] = subsession->fmtp_spropsps();
+                    fSPropParameterSetsStr[2] = subsession->fmtp_sproppps();    
+                    
+                    for (unsigned j = 0; j < 3; ++j) {
+                        unsigned numSPropRecords;
+                        SPropRecord* sPropRecords
+                            = parseSPropParameterSets(fSPropParameterSetsStr[j], 
+                                numSPropRecords);
+                        for (unsigned i = 0; i < numSPropRecords; ++i) {
+                            sub_metadata.extra_data.append(start_code, 4);
+                            sub_metadata.extra_data.append(
+                                (const char *)sPropRecords[i].sPropBytes, 
+                                (size_t)sPropRecords[i].sPropLength);
+                        }
+                        delete[] sPropRecords;
+                    }               
                 
-                
+                }//if(!ignore_sdp_sps_)
             }else if(strcmp(codecName, "MP4V-ES") == 0){
                 unsigned configSize = 0;
                 unsigned char* config = 
