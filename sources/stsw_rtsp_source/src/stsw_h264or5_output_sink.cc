@@ -206,7 +206,33 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
             frame_type = MEDIA_FRAME_TYPE_DATA_FRAME;               
         }        
     }else{
+        int i;
         frame_type = MEDIA_FRAME_TYPE_PARAM_FRAME;        
+        
+        //check is there any data frame in the internal of the param frame
+  
+        for(i=4; i<frameSize; i++){
+            if(recv_buf_[recv_buf_size_ + i - 4] == 0 &&
+               recv_buf_[recv_buf_size_ + i - 3] == 0 &&
+               recv_buf_[recv_buf_size_ + i - 2] == 0 &&               
+               recv_buf_[recv_buf_size_ + i - 1] == 1){
+                if (h_number_ == 264) {
+                    nal_unit_type = recv_buf_[recv_buf_size_ + i]&0x1F;
+                } else if (h_number_ == 265) {
+                    nal_unit_type = (recv_buf_[recv_buf_size_ + i]&0x7E)>>1;
+                }else{
+                    nal_unit_type = 0xFF;
+                }
+                if(IsVCL(nal_unit_type)){
+                    if(IsIDR(nal_unit_type)){
+                        frame_type = MEDIA_FRAME_TYPE_KEY_FRAME;   
+                    }else{
+                        frame_type = MEDIA_FRAME_TYPE_DATA_FRAME;               
+                    } 
+                    break;
+                } //if(IsVCL(nal_unit_type)){ 
+            }//if(recv_buf_[recv_buf_size_ + i - 4] == 0 &&
+        }//for(i=4; i<frameSize; i++){      
     }
     
     
@@ -216,12 +242,8 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
     
     recv_buf_size_ += frameSize; // update current recv_buf size
     
-    if(rtsp_client_ != NULL){
-        
-        if(rtsp_client_->IsMetaReady()){
-            
-     
-            
+    if(rtsp_client_ != NULL){        
+        if(rtsp_client_->IsMetaReady()){   
             if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
                 // just buffer this parameter nal   
                 
@@ -233,6 +255,9 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
                                                     (const char *)recv_buf_);    
                     recv_buf_size_ = 0; // clear the buffer
                 }
+                
+                // buffer for the parameter frames
+                
             }else{
                 //send the whole recv_buf_
                 rtsp_client_->AfterGettingFrame(sub_stream_index_, frame_type, 
@@ -240,24 +265,19 @@ void H264or5OutputSink::DoAfterGettingFrame(unsigned frameSize, unsigned numTrun
                                                 recv_buf_size_, 
                                                 (const char *)recv_buf_);   
                 recv_buf_size_ = 0; // clear the buffer
-            }            
-            
-        }else{
-            
+            }                        
+        }else{            
             if(frame_type == MEDIA_FRAME_TYPE_PARAM_FRAME){
-                // just buffer this parameter nal   
-                
+                // just buffer this parameter nal                   
                 if(recv_buf_size_ > MAX_PARAMETER_NAL_SIZE){
                     //Anormal case, may be results from packet lost
-
                     recv_buf_size_ = 0; // clear the buffer
                 }
             }else{
                 //drop the frame, clear the buffer
                 recv_buf_size_ = 0; // clear the buffer
             }
-        }
-        
+        }        
     }else{
         //drop the whole frame
         recv_buf_size_ = 0; // clear the buffer
