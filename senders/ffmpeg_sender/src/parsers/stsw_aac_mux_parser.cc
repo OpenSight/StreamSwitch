@@ -216,7 +216,7 @@ int AacMuxParser::Init(FFmpegMuxer * muxer,
     fmt_ctx_ = fmt_ctx;
     gop_started_ = false;
     codec_name_ = codec_name;
-    fifo_pts_ = 0;
+    fifo_pts_ = AV_NOPTS_VALUE;
 
     is_init_ = true; 
     
@@ -280,7 +280,7 @@ void AacMuxParser::Uninit()
     stream_ = NULL;
     fmt_ctx_ = NULL;
     transcoding_ = false;
-    fifo_pts_ = 0;
+    fifo_pts_ = AV_NOPTS_VALUE;
     
     av_frame_unref(output_frame_);
     
@@ -393,7 +393,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
 
             
             if(CheckAudioFifoPts(pts, out_codec_context_->sample_rate)){
-                if(fifo_pts_ != 0 && pts < fifo_pts_){
+                if(fifo_pts_ != AV_NOPTS_VALUE && pts < fifo_pts_){
                     //this audio packet pts is too early, which would destroy pts monotonically increasing
                     STDERR_LOG(LOG_LEVEL_WARNING, 
                         "Audio packet->pts(%lld) is earier than fifo_pts(%lld), drop\n",
@@ -468,7 +468,7 @@ int AacMuxParser::Parse(const stream_switch::MediaFrameInfo *frame_info,
             printf("output Frame pts/size: %lld/%d\n", 
                    (long long)output_frame_->pts, 
                    (int)output_frame_size);
-*/        
+*/     
         //6. encode frame         
    
         /**
@@ -825,7 +825,7 @@ int AacMuxParser::WriteAudioFifo(void ** data, int nb_samples, int64_t pts)
     org_fifo_size = av_audio_fifo_size(fifo_);
     samples_write = av_audio_fifo_write(fifo_, data, nb_samples);
     // update the fifo pts
-    if (org_fifo_size == 0){
+    if (fifo_pts_ == AV_NOPTS_VALUE){
         fifo_pts_ = pts;
     }
     return samples_write;
@@ -834,7 +834,7 @@ int AacMuxParser::WriteAudioFifo(void ** data, int nb_samples, int64_t pts)
 void AacMuxParser::CleanupAudioFifo()
 {
     av_audio_fifo_reset(fifo_);
-    fifo_pts_ = 0;
+    fifo_pts_ = AV_NOPTS_VALUE;
 }
 
 bool AacMuxParser::CheckAudioFifoPts(int64_t pts, int64_t sample_rate)
