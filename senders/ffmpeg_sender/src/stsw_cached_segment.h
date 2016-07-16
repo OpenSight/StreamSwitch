@@ -43,6 +43,7 @@ typedef struct CachedSegment {
     int size;
     double start_ts; /* start timestamp, in seconds */
     double duration; /* in seconds */
+    int64_t start_pts; /* start pts, in timebase */
     int64_t pos;
     int buffer_max_size;   
     int64_t sequence;
@@ -131,10 +132,7 @@ struct CachedSegmentContext {
     int has_video;
     int has_subtitle;
     int64_t start_pts;    // start pts for the whole list
-    int64_t end_pts;      // end pts for finished segments, 
-                          // i.e. the start pts for the current segment
-    double seg_start_ts;  // current segment start ts
-    double duration;      // current segment duration computed so far, in seconds
+
     int64_t start_pos;    // current segment starting position
 
     double pre_recoding_time;   // at least pre_recoding_time should be kept in cached
