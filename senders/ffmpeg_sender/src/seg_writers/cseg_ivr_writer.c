@@ -442,7 +442,8 @@ fail:
 static int save_file(char * ivr_rest_uri,
                       int32_t io_timeout,
                       CachedSegment *segment, 
-                      char * filename)
+                      char * filename,                      
+                      int success)
 {
     char post_data_str[512];  
     int status_code = 200;
@@ -452,11 +453,20 @@ static int save_file(char * ivr_rest_uri,
     cJSON * json_info = NULL;     
     
     //prepare post_data
-    sprintf(post_data_str, "op=save&name=%s&size=%d&start=%.6f&duration=%.6f",
-            filename,
-            segment->size,
-            segment->start_ts, 
-            segment->duration);
+    if(success){
+        sprintf(post_data_str, "op=save&name=%s&size=%d&start=%.6f&duration=%.6f",
+                filename,
+                segment->size,
+                segment->start_ts, 
+                segment->duration);
+                
+    }else{
+        sprintf(post_data_str, "op=fail&name=%s&size=%d&start=%.6f&duration=%.6f",
+                filename,
+                segment->size,
+                segment->start_ts, 
+                segment->duration);        
+    }
 
     //issue HTTP request
     ret = http_post(ivr_rest_uri, 
@@ -556,15 +566,22 @@ static int ivr_write_segment(CachedSegmentContext *cseg, CachedSegment *segment)
         //upload segment to the file URI
         ret = upload_file(segment, 
                           cseg->writer_timeout,
-                          file_uri);                      
-        if(ret){
-            goto fail;
-        }    
-        
-        //save the file info to IVR db
-        ret = save_file(ivr_rest_uri, 
-                        FILE_CREATE_TIMEOUT,
-                        segment, filename);
+                          file_uri);  
+
+        if(ret == 0){
+            //save the file info to IVR db
+            ret = save_file(ivr_rest_uri, 
+                            FILE_CREATE_TIMEOUT,
+                            segment, filename, 1);
+
+        }else{
+            //fail the file, remove it from IVR
+            ret = save_file(ivr_rest_uri, 
+                            FILE_CREATE_TIMEOUT,
+                            segment, filename, 0);
+    
+        }//if(ret == 0){
+            
         if(ret){
             goto fail;
         }  
