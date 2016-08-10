@@ -43,7 +43,8 @@
 extern "C"{
 
 //#include <libavutil/avutil.h>    
-#include <libavformat/avformat.h>      
+#include <libavformat/avformat.h>  
+#include <libavutil/time.h>    
 }
 
 
@@ -351,14 +352,18 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         cached_pkts.pop_front();
         return 0;
     }
-  
+    
+read_again:
     StartIO();
     ret = av_read_frame(fmt_ctx_, pkt);
     StopIO();
-    if(ret == AVERROR_EOF){       
+    if (ret == AVERROR(EAGAIN)) {
+        av_usleep(10000);
+        goto read_again;
+    }else if(ret == AVERROR_EOF){       
         ret = FFMPEG_SOURCE_ERR_EOF;
         goto error_out1;
-    }else if(ret){
+    }else if(ret < 0){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
                 "av_read_frame failed with ret(%d)\n", ret);         
         ret = FFMPEG_SOURCE_ERR_IO;
