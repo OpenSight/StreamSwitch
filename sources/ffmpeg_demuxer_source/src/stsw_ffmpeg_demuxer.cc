@@ -220,6 +220,11 @@ int FFmpegDemuxer::Open(const std::string &input,
             if(st->r_frame_rate.num != 0 && st->r_frame_rate.den !=0 ){
                 sub_metadata.media_param.video.fps = (uint32_t)(av_q2d(st->r_frame_rate) + 0.5);                
             }*/
+            if(st->avg_frame_rate.num != 0 && st->avg_frame_rate.den != 0){
+                uint32_t fps = st->avg_frame_rate.num / st->avg_frame_rate.den;
+                sub_metadata.media_param.video.fps = fps;
+            }
+            
             if(codec->width != 0 && codec->height != 0){
                 sub_metadata.media_param.video.height = codec->height;
                 sub_metadata.media_param.video.width = codec->width;
@@ -445,10 +450,14 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
         pkt_node.pkt.size = 0;
         
         //read the packets
+read_again:
         StartIO();
         ret = av_read_frame(fmt_ctx_, &(pkt_node.pkt));
         StopIO();
-        if(ret == AVERROR_EOF){
+        if (ret == AVERROR(EAGAIN)) {
+            av_usleep(10000);
+            goto read_again;
+        }else if(ret == AVERROR_EOF){
             ret = FFMPEG_SOURCE_ERR_EOF;
             break;
         }else if(ret){
@@ -473,6 +482,8 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
             av_free_packet(&(pkt_node.pkt));
             break;
         }
+        
+        
         ret = stream_parsers_[stream_index]->Parse(&(pkt_node.frame_info), 
                                                    &(pkt_node.pkt), 
                                                    NULL);

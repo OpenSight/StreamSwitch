@@ -45,7 +45,7 @@ extern "C"{
 }
 
 H264or5Parser::H264or5Parser()
-:h_number_(264)
+:h_number_(264), extradata_size_(0)
 {
 
 }
@@ -53,10 +53,58 @@ H264or5Parser::~H264or5Parser()
 {
     
 }
+
+#define RB16(x) ((((uint8_t*)(x))[0] << 8) | ((uint8_t*)(x))[1])
+
+
+int H264or5Parser::AvcCToAnnexB(std::string &extra_data)
+{ 
+    const uint8_t *p = (const uint8_t *)extra_data.data(); 
+    unsigned int len = extra_data.size();
+    std::string new_extra;
+    static const char start_code[4] = { 0, 0, 0, 1 };
+    int i, cnt, nalsize;
+    const uint8_t *q = p;
+    
+    // Decode sps from avcC
+    cnt = *(p+5) & 0x1f; // Number of sps
+    p += 6;
+    for (i = 0; i < cnt; i++) {
+        if (p > q + len)
+            goto err_alloc;
+        nalsize = RB16(p); //buf_size
+        p += 2;
+        new_extra.append(start_code, 4);
+        new_extra.append((const char *)p, nalsize);
+        p += nalsize;
+    }
+    
+    // Decode pps from avcC
+    cnt = *(p++); // Number of pps
+    for (i = 0; i < cnt; i++) {
+        if (p > q + len)
+            goto err_alloc;
+        nalsize = RB16(p);
+        p += 2;
+        new_extra.append(start_code, 4);
+        new_extra.append((const char *)p, nalsize);
+        p += nalsize;
+    }
+    extra_data = new_extra;
+    
+    return 0;
+
+err_alloc:
+        
+    return -1;    
+    
+}
+
 int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
 {
     AVStream *st= demuxer->fmt_ctx_->streams[stream_index];
-    AVCodecContext *codec= st->codec;      
+    AVCodecContext *codec= st->codec;   
+    int ret = 0;
 
     //printf("file:%s, line:%d\n", __FILE__, __LINE__); 
 
@@ -71,9 +119,19 @@ int H264or5Parser::Init(FFmpegDemuxer *demuxer, int stream_index)
                 (int)codec->codec_id);  
         return -1;
     }
-    //Never use the default extra data which is provided by ffmpeg for h264/h265,
-    //Instead, extract it from the key frame by myself
-    demuxer->meta_.sub_streams[stream_index_].extra_data.clear(); 
+    if(h_number_ == 264){
+        if(!demuxer->meta_.sub_streams[stream_index].extra_data.empty() && 
+           demuxer->meta_.sub_streams[stream_index].extra_data[0] == (char)1){
+            //avcC header, need change
+            ret = AvcCToAnnexB(demuxer->meta_.sub_streams[stream_index].extra_data);
+            if(ret){
+                return ret;
+            }            
+        }        
+    }
+    //buffer the extra_data as sps_header
+    extradata_size_ = demuxer->meta_.sub_streams[stream_index].extra_data.size();
+    key_frame_buf_ = demuxer->meta_.sub_streams[stream_index].extra_data;
     
     return StreamParser::Init(demuxer, stream_index);
 }
@@ -84,23 +142,48 @@ int H264or5Parser::Parse(stream_switch::MediaFrameInfo *frame_info,
 {   
     //support avc1 packet format
     static const char start_code[4] = { 0, 0, 0, 1 };
-    if(memcmp(start_code, pkt->data, 4) != 0)
-    {//is avc1 code, have no start code of H264
+    
+        
+    if(memcmp(start_code, pkt->data, 4) != 0){
+        //is avc1 code, have no start code of H264
         int len = 0;
-        uint8_t *p = pkt->data;
+        uint8_t *p;
+        
+        av_packet_split_side_data(pkt);
+        
+        p = pkt->data;
 
         do{//add start_code for each NAL, one frame may have multi NALs.
-            len = ntohl(*((long*)p));
+            len = ntohl(*((uint32_t*)p));
+            //printf("file:%s, line:%d, len:%d, pkt->size:%d\n", __FILE__, __LINE__, len, (int)pkt->size); 
             memcpy(p, start_code, 4);
-
+         
             p += 4;
             p += len;
-            if(p >= pkt->data + pkt->size)
+            if(p >= (pkt->data + pkt->size - 4))
             {
                 break;
             }
         } while (1);
-    }    
+    }   
+    
+    //check the key frame has sps&&pps nal, otherwize, prepend them
+    if((pkt->flags & AV_PKT_FLAG_KEY) && extradata_size_ != 0 && pkt->size > 5){
+        uint8_t nal_unit_type;
+        if (h_number_ == 264) {
+            nal_unit_type = pkt->data[4]&0x1F;
+        } else if (h_number_ == 265) {
+            nal_unit_type = (pkt->data[4]&0x7E)>>1;
+        } 
+        if(IsVCL(nal_unit_type)){
+            //if no sps&pps is placed ahead IDR, insert the sps header
+            key_frame_buf_.resize(extradata_size_);
+            key_frame_buf_.append((const char *)pkt->data, (size_t)pkt->size);
+            pkt->data = (uint8_t *)key_frame_buf_.data();
+            pkt->size = (size_t)key_frame_buf_.size();
+        }
+    }   
+    
     
     return StreamParser::Parse(frame_info, pkt, is_meta_changed);
                              
@@ -111,7 +194,7 @@ bool H264or5Parser::IsMetaReady()
     if(!is_init_){
         return false;
     }
-    return demuxer_->meta_.sub_streams[stream_index_].extra_data.size() > 0;
+    return (demuxer_->meta_.sub_streams[stream_index_].extra_data.size() > 0);
 }
 
 int H264or5Parser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
@@ -132,6 +215,7 @@ int H264or5Parser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
                     codec->height; 
                 demuxer_->meta_.sub_streams[stream_index_].media_param.video.width =
                     codec->width;
+                //printf("file:%s, line:%d\n", __FILE__, __LINE__); 
                 meta_changed = true;
             }
         } 
@@ -139,19 +223,25 @@ int H264or5Parser::DoUpdateMeta(AVPacket *pkt, bool* is_meta_changed)
             uint32_t fps = stream_->avg_frame_rate.num / stream_->avg_frame_rate.den;
             if(fps != demuxer_->meta_.sub_streams[stream_index_].media_param.video.fps){
                 demuxer_->meta_.sub_streams[stream_index_].media_param.video.fps = fps;
+                //printf("file:%s, line:%d\n", __FILE__, __LINE__); 
                 meta_changed = true;
             }
         }
         //check extra data
-        int extra_size = GetExtraDataSize(pkt);
-        if(extra_size != 0){
-            std::string new_extra((const char*)pkt->data, (size_t)extra_size);
-            if(new_extra != 
-               demuxer_->meta_.sub_streams[stream_index_].extra_data){
-                demuxer_->meta_.sub_streams[stream_index_].extra_data = new_extra;
-                meta_changed = true;
-            }
+//        if(demuxer_->meta_.sub_streams[stream_index_].extra_data.empty()){
+        if(pkt->data != (uint8_t *)key_frame_buf_.data()){ //not inserted key frame
+            int extra_size = GetExtraDataSize(pkt);
+            if(extra_size != 0){
+                std::string new_extra((const char*)pkt->data, (size_t)extra_size);
+                if(new_extra != 
+                   demuxer_->meta_.sub_streams[stream_index_].extra_data){
+                    demuxer_->meta_.sub_streams[stream_index_].extra_data = new_extra;
+                    
+                    meta_changed = true;
+                }
+            }//if(extra_size != 0){
         }
+//        }//if(demuxer_->meta_.sub_streams[stream_index_].extra_data.empty()){
     
     }
     
@@ -169,6 +259,17 @@ int H264or5Parser::GetExtraDataSize(AVPacket *pkt)
     int extra_size = 0;
     start = pkt->data;
     end = pkt->data + pkt->size;
+    
+#if 0    
+    int i;
+    for(p= start, i=1; p< end; p++, i++){
+        printf("%02hhx ", *p);
+        if(i % 32 == 0){
+            printf("\n");
+        }
+    }
+    printf("\n");
+#endif
 
     for (p = start; p < end - 4; p++) {
         if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
