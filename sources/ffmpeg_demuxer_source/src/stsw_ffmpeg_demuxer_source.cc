@@ -400,6 +400,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                          (long long)frame_info.timestamp.tv_sec, 
                          (int)frame_info.timestamp.tv_usec);          
                 source_->set_stream_state(stream_switch::SOURCE_STREAM_STATE_ERR_TIME);
+                ret = FFMPEG_SOURCE_ERR_GAP;
                 break;
             } 
         }

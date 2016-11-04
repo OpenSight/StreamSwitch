@@ -56,6 +56,8 @@ ssrc_(0)
     stream_parsers_.clear();
     io_start_ts_.tv_nsec = 0;
     io_start_ts_.tv_sec = 0;
+    base_pts_ = AV_NOPTS_VALUE;
+    base_timestamp_.tv_sec = base_timestamp_.tv_usec = 0;
     
 }
 FFmpegDemuxer::~FFmpegDemuxer()
@@ -79,6 +81,9 @@ int FFmpegDemuxer::Open(const std::string &input,
     }
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
+    
+    base_pts_ = AV_NOPTS_VALUE;
+    base_timestamp_.tv_sec = base_timestamp_.tv_usec = 0;
    
     ret = av_dict_parse_string(&format_opts, 
                                ffmpeg_options_str.c_str(),
@@ -385,7 +390,7 @@ read_again:
                          
     }
 #endif      
- 
+
     stream_index = pkt->stream_index;
     if(stream_index >= stream_parsers_.size()){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
