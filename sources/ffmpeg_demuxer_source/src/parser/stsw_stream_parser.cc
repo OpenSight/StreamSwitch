@@ -153,11 +153,13 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
     }else{
         frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
     }    
-/*    
-    printf("file:%s, line:%d, index:%d, pts:%llu, time_base:%d/%d\n", __FILE__, __LINE__, 
+/*   
+    printf("file:%s, line:%d, index:%d, pts:%llu, time_base:%d/%d, base_pts:%llu\n", __FILE__, __LINE__, 
         pkt->stream_index, (unsigned long long)pkt->pts, (int)stream_->time_base.num, 
-        (int)stream_->time_base.den); 
-*/    
+        (int)stream_->time_base.den, demuxer_->base_pts_); 
+*/
+
+   
     //calculate timestamp
     if(is_live_){
     
@@ -176,7 +178,7 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
             //this is the first (has pts) packet of this stream to parse
             last_pts_ = pkt->pts;
             last_dur_ = pkt->duration;
-            pts_delta == pkt->pts - demuxer_->base_pts_;
+            pts_delta = pkt->pts - demuxer_->base_pts_;
             
             frame_info->timestamp.tv_sec = 
                     (pts_delta * stream_->time_base.num) / stream_->time_base.den + 
@@ -239,8 +241,7 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
                 last_pts_ = pkt->pts;
                 last_dur_ = pkt->duration;
                 last_live_ts_ = frame_info->timestamp;
-                //printf("file:%s, line:%d, index:%d, ts:%lld.%06d\n", __FILE__, __LINE__, 
-                // pkt->stream_index, (long long)last_live_ts_.tv_sec, (int)last_live_ts_.tv_usec);                 
+                
                 
             }//if(pkt->pts == AV_NOPTS_VALUE){             
             
@@ -268,6 +269,10 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
             ((pts * stream_->time_base.num) % stream_->time_base.den) 
             * 1000000 / stream_->time_base.den;        
     }   
+/*    
+                printf("file:%s, line:%d, index:%d, ts:%lld.%06d\n", __FILE__, __LINE__, 
+                 pkt->stream_index, (long long)last_live_ts_.tv_sec, (int)last_live_ts_.tv_usec); 
+*/
     return 0;
 }
 

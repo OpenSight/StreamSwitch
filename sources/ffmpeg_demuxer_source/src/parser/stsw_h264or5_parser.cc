@@ -149,7 +149,7 @@ int H264or5Parser::Parse(stream_switch::MediaFrameInfo *frame_info,
         int len = 0;
         uint8_t *p;
         
-        av_packet_split_side_data(pkt);
+        //av_packet_split_side_data(pkt);
         
         p = pkt->data;
 

@@ -335,6 +335,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
 {
     int ret = 0;
     int stream_index = 0;
+
     if(frame_info == NULL || pkt == NULL){
         return -1;
     }  
@@ -351,7 +352,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         //pkt has not yet free
         av_free_packet(pkt);
     }
- 
+
     //check cache first
     if(cached_pkts.size() != 0){
         (*frame_info) = cached_pkts.front().frame_info;
@@ -362,7 +363,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         cached_pkts.pop_front();
         return 0;
     }
-    
+   
 read_again:
     StartIO();
     ret = av_read_frame(fmt_ctx_, pkt);
@@ -390,6 +391,8 @@ read_again:
                          
     }
 #endif      
+    
+
 
     stream_index = pkt->stream_index;
     if(stream_index >= stream_parsers_.size()){
@@ -398,6 +401,14 @@ read_again:
         ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto error_out2; 
     }
+      
+    //split side data if exist
+    av_packet_split_side_data(pkt);
+
+
+
+    //    printf("file:%s, line:%d, index:%d, size:%d\n", __FILE__, __LINE__, 
+    //    pkt->stream_index, (int)pkt->size);     
     //printf("file:%s, line:%d\n", __FILE__, __LINE__);    
     ret = stream_parsers_[stream_index]->Parse(frame_info, 
                                                pkt, 
@@ -405,6 +416,9 @@ read_again:
     if(ret){
         goto error_out2;   
     }
+    
+    //printf("file:%s, line:%d, index:%d, size:%d\n", __FILE__, __LINE__, 
+    //pkt->stream_index, (int)pkt->size);      
     frame_info->ssrc = ssrc_;
     //printf("file:%s, line:%d\n", __FILE__, __LINE__);        
     return 0;
@@ -487,7 +501,8 @@ read_again:
             av_free_packet(&(pkt_node.pkt));
             break;
         }
-        
+        //split side data if exist
+        av_packet_split_side_data(&(pkt_node.pkt));
         
         ret = stream_parsers_[stream_index]->Parse(&(pkt_node.frame_info), 
                                                    &(pkt_node.pkt), 

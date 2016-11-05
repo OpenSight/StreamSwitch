@@ -356,7 +356,6 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
   
   
     while(is_started_){
-        
         is_meta_changed = false;
         //read demuxer packet
         ret = demuxer_->ReadPacket(&frame_info, &pkt, &is_meta_changed); 
@@ -365,7 +364,7 @@ void FFmpegDemuxerSource::InternalLiveRoutine()
                 //IO is interrupted by user because source has been stop, not a real error
                 break;
             }else if(ret == FFMPEG_SOURCE_ERR_DROP){
-                // dexumer need read again
+                // dexumer need read 
                 continue;
             }
             STDERR_LOG(stream_switch::LOG_LEVEL_ERR, 
