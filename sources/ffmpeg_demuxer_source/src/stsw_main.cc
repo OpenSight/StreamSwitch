@@ -230,11 +230,12 @@ int main(int argc, char *argv[])
               
     }
     
-    
+
     //stop ffmpeg_demux_srouce 
     source->Stop();    
     
 exit_3:
+
     //uninit ffmpeg_demux_srouce
     source->Uninit();
     

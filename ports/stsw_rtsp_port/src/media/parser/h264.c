@@ -223,7 +223,7 @@ static char *encode_header(uint8_t *data, unsigned int len, int packet_mode)
     sprop = g_strdup_printf("profile-level-id=%02x%02x%02x"
                             ";packetization-mode=%d"
                             ";sprop-parameter-sets=%s,%s",
-                            p[1], p[2], p[3], 
+                            sps[1], sps[2], sps[3], 
                             packet_mode, 
                             sprop_sps, sprop_pps);
     g_free(sprop_sps);

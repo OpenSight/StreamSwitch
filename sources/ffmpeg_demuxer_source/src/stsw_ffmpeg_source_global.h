@@ -37,12 +37,14 @@ enum FFmpegSourceErrCode{
     FFMPEG_SOURCE_ERR_OK = 0, 
     FFMPEG_SOURCE_ERR_GENERAL = -1, // general error
     FFMPEG_SOURCE_ERR_TIMEOUT = -2, // general error
+    
 
     FFMPEG_SOURCE_ERR_EOF = -64,    // Resource EOF
     FFMPEG_SOURCE_ERR_DROP = -65,  // packet is dropped internal, need request again   
     FFMPEG_SOURCE_ERR_IO = -66,   // IO operation fail
     
-    FFMPEG_SOURCE_ERR_NOT_FOUND = -67,  // Resource not found     
+    FFMPEG_SOURCE_ERR_NOT_FOUND = -67,  // Resource not found    
+    FFMPEG_SOURCE_ERR_GAP = -68,  //local time gap 
 };
 
 

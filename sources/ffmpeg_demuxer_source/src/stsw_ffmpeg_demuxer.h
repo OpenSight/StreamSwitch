@@ -101,6 +101,8 @@ protected:
     StreamParserVector stream_parsers_;
     PacketCachedList cached_pkts;
     uint32_t ssrc_;
+    int64_t base_pts_;
+    struct timeval base_timestamp_;
 };
 
 #endif

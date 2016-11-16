@@ -153,14 +153,46 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
     }else{
         frame_info->frame_type = stream_switch::MEDIA_FRAME_TYPE_DATA_FRAME;
     }    
+/*   
+    printf("file:%s, line:%d, index:%d, pts:%llu, time_base:%d/%d, base_pts:%llu\n", __FILE__, __LINE__, 
+        pkt->stream_index, (unsigned long long)pkt->pts, (int)stream_->time_base.num, 
+        (int)stream_->time_base.den, demuxer_->base_pts_); 
+*/
+
+   
     //calculate timestamp
-    if(is_live_){        
+    if(is_live_){
+    
+        if(demuxer_->base_pts_ == AV_NOPTS_VALUE && pkt->pts != AV_NOPTS_VALUE){
+            demuxer_->base_pts_ = pkt->pts;
+            gettimeofday(&(demuxer_->base_timestamp_), NULL);
+        }
+        
         if(last_pts_ == AV_NOPTS_VALUE){
-            //this is the first (has pts) packet to parse, use it as base
+            int64_t pts_delta = 0;
+            
+            if(pkt->pts == AV_NOPTS_VALUE ||
+               pkt->pts < demuxer_->base_pts_){
+                return FFMPEG_SOURCE_ERR_DROP; //for live stream, first packet must has PTS and beyond base pts
+            }
+            //this is the first (has pts) packet of this stream to parse
             last_pts_ = pkt->pts;
             last_dur_ = pkt->duration;
-            gettimeofday(&last_live_ts_, NULL);
-            frame_info->timestamp = last_live_ts_;
+            pts_delta = pkt->pts - demuxer_->base_pts_;
+            
+            frame_info->timestamp.tv_sec = 
+                    (pts_delta * stream_->time_base.num) / stream_->time_base.den + 
+                    demuxer_->base_timestamp_.tv_sec;
+            frame_info->timestamp.tv_usec = 
+                    ((pts_delta * stream_->time_base.num) % stream_->time_base.den) 
+                    * 1000000 / stream_->time_base.den + 
+                    demuxer_->base_timestamp_.tv_usec;  
+            while(frame_info->timestamp.tv_usec >= 1000000){
+                frame_info->timestamp.tv_sec ++;
+                frame_info->timestamp.tv_usec -= 1000000;
+            }
+
+            last_live_ts_ = frame_info->timestamp;    
             
         }else{
             if(pkt->pts == AV_NOPTS_VALUE){
@@ -204,10 +236,12 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
                     frame_info->timestamp.tv_sec ++;
                     frame_info->timestamp.tv_usec -= 1000000;
                 }
-
+                
+                
                 last_pts_ = pkt->pts;
                 last_dur_ = pkt->duration;
                 last_live_ts_ = frame_info->timestamp;
+                
                 
             }//if(pkt->pts == AV_NOPTS_VALUE){             
             
@@ -235,6 +269,10 @@ int StreamParser::DoUpdateFrameInfo(stream_switch::MediaFrameInfo *frame_info,
             ((pts * stream_->time_base.num) % stream_->time_base.den) 
             * 1000000 / stream_->time_base.den;        
     }   
+/*    
+                printf("file:%s, line:%d, index:%d, ts:%lld.%06d\n", __FILE__, __LINE__, 
+                 pkt->stream_index, (long long)last_live_ts_.tv_sec, (int)last_live_ts_.tv_usec); 
+*/
     return 0;
 }
 
@@ -272,7 +310,7 @@ static const ParserInfo parser_infos[] = {
    { AV_CODEC_ID_H264, StreamParserFatcory<H264or5Parser>, "H264" },
    { AV_CODEC_ID_H265, StreamParserFatcory<H264or5Parser>, "H265" }, 
    { AV_CODEC_ID_MPEG4, StreamParserFatcory<Mpeg4Parser>, "MP4V-ES" },
-   { AV_CODEC_ID_AAC, NULL, "MPEG4-GENERIC" },     
+   { AV_CODEC_ID_AAC, NULL, "AAC" },     
    { AV_CODEC_ID_AMR_NB, NULL, "AMR" },
    { AV_CODEC_ID_PCM_MULAW, NULL, "PCMU"},
    { AV_CODEC_ID_PCM_ALAW, NULL, "PCMA"},

@@ -43,7 +43,8 @@
 extern "C"{
 
 //#include <libavutil/avutil.h>    
-#include <libavformat/avformat.h>      
+#include <libavformat/avformat.h>  
+#include <libavutil/time.h>    
 }
 
 
@@ -55,6 +56,8 @@ ssrc_(0)
     stream_parsers_.clear();
     io_start_ts_.tv_nsec = 0;
     io_start_ts_.tv_sec = 0;
+    base_pts_ = AV_NOPTS_VALUE;
+    base_timestamp_.tv_sec = base_timestamp_.tv_usec = 0;
     
 }
 FFmpegDemuxer::~FFmpegDemuxer()
@@ -78,6 +81,9 @@ int FFmpegDemuxer::Open(const std::string &input,
     }
     //printf("ffmpeg_options_str:%s\n", ffmpeg_options_str.c_str());
     //parse ffmpeg_options_str
+    
+    base_pts_ = AV_NOPTS_VALUE;
+    base_timestamp_.tv_sec = base_timestamp_.tv_usec = 0;
    
     ret = av_dict_parse_string(&format_opts, 
                                ffmpeg_options_str.c_str(),
@@ -219,6 +225,11 @@ int FFmpegDemuxer::Open(const std::string &input,
             if(st->r_frame_rate.num != 0 && st->r_frame_rate.den !=0 ){
                 sub_metadata.media_param.video.fps = (uint32_t)(av_q2d(st->r_frame_rate) + 0.5);                
             }*/
+            if(st->avg_frame_rate.num != 0 && st->avg_frame_rate.den != 0){
+                uint32_t fps = st->avg_frame_rate.num / st->avg_frame_rate.den;
+                sub_metadata.media_param.video.fps = fps;
+            }
+            
             if(codec->width != 0 && codec->height != 0){
                 sub_metadata.media_param.video.height = codec->height;
                 sub_metadata.media_param.video.width = codec->width;
@@ -324,6 +335,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
 {
     int ret = 0;
     int stream_index = 0;
+
     if(frame_info == NULL || pkt == NULL){
         return -1;
     }  
@@ -340,7 +352,7 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         //pkt has not yet free
         av_free_packet(pkt);
     }
- 
+
     //check cache first
     if(cached_pkts.size() != 0){
         (*frame_info) = cached_pkts.front().frame_info;
@@ -351,14 +363,18 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         cached_pkts.pop_front();
         return 0;
     }
-  
+   
+read_again:
     StartIO();
     ret = av_read_frame(fmt_ctx_, pkt);
     StopIO();
-    if(ret == AVERROR_EOF){       
+    if (ret == AVERROR(EAGAIN)) {
+        av_usleep(10000);
+        goto read_again;
+    }else if(ret == AVERROR_EOF){       
         ret = FFMPEG_SOURCE_ERR_EOF;
         goto error_out1;
-    }else if(ret){
+    }else if(ret < 0){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
                 "av_read_frame failed with ret(%d)\n", ret);         
         ret = FFMPEG_SOURCE_ERR_IO;
@@ -375,7 +391,9 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
                          
     }
 #endif      
- 
+    
+
+
     stream_index = pkt->stream_index;
     if(stream_index >= stream_parsers_.size()){
         STDERR_LOG(stream_switch::LOG_LEVEL_ERR,  
@@ -383,6 +401,14 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
         ret = FFMPEG_SOURCE_ERR_GENERAL;
         goto error_out2; 
     }
+      
+    //split side data if exist
+    av_packet_split_side_data(pkt);
+
+
+
+    //    printf("file:%s, line:%d, index:%d, size:%d\n", __FILE__, __LINE__, 
+    //    pkt->stream_index, (int)pkt->size);     
     //printf("file:%s, line:%d\n", __FILE__, __LINE__);    
     ret = stream_parsers_[stream_index]->Parse(frame_info, 
                                                pkt, 
@@ -390,6 +416,9 @@ int FFmpegDemuxer::ReadPacket(stream_switch::MediaFrameInfo *frame_info,
     if(ret){
         goto error_out2;   
     }
+    
+    //printf("file:%s, line:%d, index:%d, size:%d\n", __FILE__, __LINE__, 
+    //pkt->stream_index, (int)pkt->size);      
     frame_info->ssrc = ssrc_;
     //printf("file:%s, line:%d\n", __FILE__, __LINE__);        
     return 0;
@@ -440,10 +469,14 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
         pkt_node.pkt.size = 0;
         
         //read the packets
+read_again:
         StartIO();
         ret = av_read_frame(fmt_ctx_, &(pkt_node.pkt));
         StopIO();
-        if(ret == AVERROR_EOF){
+        if (ret == AVERROR(EAGAIN)) {
+            av_usleep(10000);
+            goto read_again;
+        }else if(ret == AVERROR_EOF){
             ret = FFMPEG_SOURCE_ERR_EOF;
             break;
         }else if(ret){
@@ -468,6 +501,9 @@ int FFmpegDemuxer::ReadMeta(stream_switch::StreamMetadata * meta, int timeout)
             av_free_packet(&(pkt_node.pkt));
             break;
         }
+        //split side data if exist
+        av_packet_split_side_data(&(pkt_node.pkt));
+        
         ret = stream_parsers_[stream_index]->Parse(&(pkt_node.frame_info), 
                                                    &(pkt_node.pkt), 
                                                    NULL);

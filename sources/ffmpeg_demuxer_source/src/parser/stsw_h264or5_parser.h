@@ -61,8 +61,14 @@ protected:
     virtual bool IsSPS(uint8_t nal_unit_type);
     virtual bool IsPPS(uint8_t nal_unit_type);
     virtual bool IsVCL(uint8_t nal_unit_type);
+    
+    virtual int AvcCToAnnexB(std::string &extra_data);
 
     int h_number_; 
+    
+    std::string key_frame_buf_;
+    size_t extradata_size_;
+    
 
 };
 
