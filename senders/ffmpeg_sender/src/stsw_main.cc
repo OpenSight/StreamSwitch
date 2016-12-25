@@ -49,7 +49,7 @@ extern "C"{
 #include "stsw_ffmpeg_sender_arg_parser.h"
 #include "stsw_log.h"
 #include "stsw_ffmpeg_muxer_sender.h"
-#include "stsw_cached_segment.h"
+
 
 extern volatile bool global_persistence;
 
