@@ -91,19 +91,14 @@ AC_CHECK_LIB([pthread], [pthread_create])
 export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/lib/pkgconfig:/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
 
 PKG_CHECK_MODULES(zeromq, [libczmq >= 3.0.0 libzmq >= 4.0.0])
-AC_SUBST(zeromq_LIBS)
-AC_SUBST(zeromq_CFLAGS)
 
 PKG_CHECK_MODULES(protobuf, [protobuf >= 2.0.0])
-AC_SUBST(protobuf_LIBS)
-AC_SUBST(protobuf_CFLAGS)
+
 
 # Checks for stsw_rtmp_source
 if test "x$rtmp_source" = xyes; then
   PKG_CHECK_MODULES(librtmp, [librtmp >= v2.3])
 fi
-AC_SUBST(librtmp_LIBS)
-AC_SUBST(librtmp_CFLAGS)
 
 
 # Checks for stsw_rtsp_port
@@ -114,38 +109,25 @@ if test "x$rtsp_port" = xyes; then
   PKG_CHECK_MODULES(libnetembryo, [libnetembryo >= 0.1.0])  
   PKG_CHECK_MODULES(glib, [glib-2.0 >= 2.16 gthread-2.0])  
 fi
-AC_SUBST(libnetembryo_LIBS)
-AC_SUBST(libnetembryo_CFLAGS)
-AC_SUBST(glib_LIBS)
-AC_SUBST(glib_CFLAGS)
+
 
 
 # Checks for ffmpeg_demuxer_source & ffmpeg_sender
 if test "x$ffmpeg_demuxer_source" = xyes -o "x$ffmpeg_sender" = xyes; then
   PKG_CHECK_MODULES(libavformat, [libavformat >= 56.40.0])
-  PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.100])  
+  PKG_CHECK_MODULES(libavutil, [libavutil >= 54.31.100])    
 fi
-AC_SUBST(libavformat_LIBS)
-AC_SUBST(libavformat_CFLAGS)
-AC_SUBST(libavutil_LIBS)
-AC_SUBST(libavutil_CFLAGS)
 
 # Checks for ffmpeg_sender
 if test "x$ffmpeg_sender" = xyes; then
   PKG_CHECK_MODULES(libavcodec, [libavcodec >= 56.60.100])
   PKG_CHECK_MODULES(libswresample, [libswresample >= 1.2.101])   
-  PKG_CHECK_MODULES(libcurl, [libcurl >= 7.19.0])
+  PKG_CHECK_MODULES(libffmpeg_ivr, [libffmpeg_ivr], [AC_DEFINE(HAVE_LIBFFMPEG_IVR, 1)], [AC_MSG_WARN(libffmpeg_ivr not found)])  
 fi
-AC_SUBST(libcurl_LIBS)
-AC_SUBST(libcurl_CFLAGS)
-AC_SUBST(libavcodec_LIBS)
-AC_SUBST(libavcodec_CFLAGS)
-AC_SUBST(libswresample_LIBS)
-AC_SUBST(libswresample_CFLAGS)
 
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h])
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h libffmpeg_ivr.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.

@@ -36,6 +36,10 @@
 
 #include <stream_switch.h>
 
+#ifdef HAVE_LIBFFMPEG_IVR_H
+#include <libffmpeg_ivr.h>
+#endif
+
 extern "C"{
 #include <libavformat/avformat.h>
    
@@ -186,8 +190,10 @@ int main(int argc, char *argv[])
     /* register all formats and codecs */
     av_register_all();
     avformat_network_init(); 
-    
-    register_cseg();
+
+#ifdef HAVE_LIBFFMPEG_IVR
+    ffmpeg_ivr_register();
+#endif    
     
     //
     //init sender
