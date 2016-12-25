@@ -790,8 +790,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
-libcurl_LIBS
-libcurl_CFLAGS
+libffmpeg_ivr_LIBS
+libffmpeg_ivr_CFLAGS
 libswresample_LIBS
 libswresample_CFLAGS
 libavcodec_LIBS
@@ -990,8 +990,8 @@ libavcodec_CFLAGS
 libavcodec_LIBS
 libswresample_CFLAGS
 libswresample_LIBS
-libcurl_CFLAGS
-libcurl_LIBS'
+libffmpeg_ivr_CFLAGS
+libffmpeg_ivr_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1700,10 +1700,10 @@ Some influential environment variables:
               C compiler flags for libswresample, overriding pkg-config
   libswresample_LIBS
               linker flags for libswresample, overriding pkg-config
-  libcurl_CFLAGS
-              C compiler flags for libcurl, overriding pkg-config
-  libcurl_LIBS
-              linker flags for libcurl, overriding pkg-config
+  libffmpeg_ivr_CFLAGS
+              C compiler flags for libffmpeg_ivr, overriding pkg-config
+  libffmpeg_ivr_LIBS
+              linker flags for libffmpeg_ivr, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -16893,8 +16893,6 @@ $as_echo "yes" >&6; }
 fi
 
 
-
-
 pkg_failed=no
 { $as_echo "$as_me:$LINENO: checking for protobuf" >&5
 $as_echo_n "checking for protobuf... " >&6; }
@@ -17003,7 +17001,6 @@ else
 $as_echo "yes" >&6; }
 	:
 fi
-
 
 
 # Checks for stsw_rtmp_source
@@ -17118,8 +17115,6 @@ $as_echo "yes" >&6; }
 	:
 fi
 fi
-
-
 
 
 # Checks for stsw_rtsp_port
@@ -17506,9 +17501,6 @@ fi
 
 
 
-
-
-
 # Checks for ffmpeg_demuxer_source & ffmpeg_sender
 if test "x$ffmpeg_demuxer_source" = xyes -o "x$ffmpeg_sender" = xyes; then
 
@@ -17730,10 +17722,6 @@ $as_echo "yes" >&6; }
 	:
 fi
 fi
-
-
-
-
 
 # Checks for ffmpeg_sender
 if test "x$ffmpeg_sender" = xyes; then
@@ -17957,35 +17945,35 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:$LINENO: checking for libcurl" >&5
-$as_echo_n "checking for libcurl... " >&6; }
+{ $as_echo "$as_me:$LINENO: checking for libffmpeg_ivr" >&5
+$as_echo_n "checking for libffmpeg_ivr... " >&6; }
 
-if test -n "$libcurl_CFLAGS"; then
-    pkg_cv_libcurl_CFLAGS="$libcurl_CFLAGS"
+if test -n "$libffmpeg_ivr_CFLAGS"; then
+    pkg_cv_libffmpeg_ivr_CFLAGS="$libffmpeg_ivr_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libcurl >= 7.19.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libcurl >= 7.19.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libffmpeg_ivr\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libffmpeg_ivr") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_libcurl_CFLAGS=`$PKG_CONFIG --cflags "libcurl >= 7.19.0" 2>/dev/null`
+  pkg_cv_libffmpeg_ivr_CFLAGS=`$PKG_CONFIG --cflags "libffmpeg_ivr" 2>/dev/null`
 else
   pkg_failed=yes
 fi
  else
     pkg_failed=untried
 fi
-if test -n "$libcurl_LIBS"; then
-    pkg_cv_libcurl_LIBS="$libcurl_LIBS"
+if test -n "$libffmpeg_ivr_LIBS"; then
+    pkg_cv_libffmpeg_ivr_LIBS="$libffmpeg_ivr_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libcurl >= 7.19.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libcurl >= 7.19.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libffmpeg_ivr\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libffmpeg_ivr") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_libcurl_LIBS=`$PKG_CONFIG --libs "libcurl >= 7.19.0" 2>/dev/null`
+  pkg_cv_libffmpeg_ivr_LIBS=`$PKG_CONFIG --libs "libffmpeg_ivr" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -18003,74 +17991,31 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libcurl_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libcurl >= 7.19.0" 2>&1`
+	        libffmpeg_ivr_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libffmpeg_ivr" 2>&1`
         else
-	        libcurl_PKG_ERRORS=`$PKG_CONFIG --print-errors "libcurl >= 7.19.0" 2>&1`
+	        libffmpeg_ivr_PKG_ERRORS=`$PKG_CONFIG --print-errors "libffmpeg_ivr" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
-	echo "$libcurl_PKG_ERRORS" >&5
+	echo "$libffmpeg_ivr_PKG_ERRORS" >&5
 
-	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libcurl >= 7.19.0) were not met:
-
-$libcurl_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables libcurl_CFLAGS
-and libcurl_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&5
-$as_echo "$as_me: error: Package requirements (libcurl >= 7.19.0) were not met:
-
-$libcurl_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables libcurl_CFLAGS
-and libcurl_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&2;}
-   { (exit 1); exit 1; }; }
+	{ $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+                { $as_echo "$as_me:$LINENO: WARNING: libffmpeg_ivr not found" >&5
+$as_echo "$as_me: WARNING: libffmpeg_ivr not found" >&2;}
 elif test $pkg_failed = untried; then
-	{ { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-{ { $as_echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables libcurl_CFLAGS
-and libcurl_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
-See \`config.log' for more details." >&5
-$as_echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables libcurl_CFLAGS
-and libcurl_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
-See \`config.log' for more details." >&2;}
-   { (exit 1); exit 1; }; }; }
+	{ $as_echo "$as_me:$LINENO: WARNING: libffmpeg_ivr not found" >&5
+$as_echo "$as_me: WARNING: libffmpeg_ivr not found" >&2;}
 else
-	libcurl_CFLAGS=$pkg_cv_libcurl_CFLAGS
-	libcurl_LIBS=$pkg_cv_libcurl_LIBS
+	libffmpeg_ivr_CFLAGS=$pkg_cv_libffmpeg_ivr_CFLAGS
+	libffmpeg_ivr_LIBS=$pkg_cv_libffmpeg_ivr_LIBS
         { $as_echo "$as_me:$LINENO: result: yes" >&5
 $as_echo "yes" >&6; }
-	:
+	cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBFFMPEG_IVR 1
+_ACEOF
+
 fi
 fi
-
-
-
-
-
-
 
 
 # Checks for header files.
@@ -18082,7 +18027,8 @@ fi
 
 
 
-for ac_header in fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h
+
+for ac_header in fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h czmq.h zmq.h libffmpeg_ivr.h
 do
 as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then

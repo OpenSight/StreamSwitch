@@ -36,6 +36,10 @@
 
 #include <stream_switch.h>
 
+#ifdef HAVE_LIBFFMPEG_IVR_H
+#include <libffmpeg_ivr.h>
+#endif
+
 extern "C"{
 #include <libavformat/avformat.h>
    
@@ -45,7 +49,7 @@ extern "C"{
 #include "stsw_ffmpeg_sender_arg_parser.h"
 #include "stsw_log.h"
 #include "stsw_ffmpeg_muxer_sender.h"
-#include "stsw_cached_segment.h"
+
 
 extern volatile bool global_persistence;
 
@@ -186,8 +190,10 @@ int main(int argc, char *argv[])
     /* register all formats and codecs */
     av_register_all();
     avformat_network_init(); 
-    
-    register_cseg();
+
+#ifdef HAVE_LIBFFMPEG_IVR
+    ffmpeg_ivr_register();
+#endif    
     
     //
     //init sender
